@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>DomiPancho | Pedidos Domiciliario</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="img/logo.png">
+  <link rel="stylesheet" href="css/domiciliarios.css" />
+  <link rel="stylesheet" href="css/header.css">
+  <script src="js/socket-mock.js"></script>
+    <script src="/js/notifications.js"></script>
+  <link rel="stylesheet" href="/css/notifications.css">
+    <script src="js/config.js"></script>
+
+
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-container">
+      <!-- Botón Volver -->
+      <button class="btn-volver" onclick="window.location.href='inicio_domi.html'">
+        ⬅ <span>Volver</span>
+      </button>
+
+      <!-- Centro: Logo + Nombre -->
+      <div class="header-center">
+        <img src="img/logo.png" alt="Logo DomiPancho" class="logo" />
+        <div class="restaurant-info">
+          <h1 id="restaurantName">Cargando...</h1>
+        </div>
+      </div>
+
+      <!-- Info Pedidos y Usuario -->
+        <div id="contadorPedidos" class="pedidos-activos-contador">
+          Pedidos activos: <span id="numPedidosActivos">0</span>/2
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <main>
+      <div id="listaPedidos" class="loading">
+        <p>Cargando pedidos...</p>
+      </div>
+    </main>
+  </div>
+
+  <div id="mensajeSistema" class="mensaje-sistema" style="display:none;"></div>
+
+  <div id="modalProblema" class="modal-problema" style="display: none;">
+    <div class="modal-contenido">
+      <h2>❌ Reportar Problema con el Pedido</h2>
+  
+      <label for="motivo">Motivo:</label>
+      <select id="motivo" onchange="mostrarOtroCampo(this.value)">
+        <option value="">Seleccione una opción</option>
+        <option value="cliente no respondió">Cliente no respondió</option>
+        <option value="dirección incorrecta">Dirección incorrecta</option>
+        <option value="cliente canceló al llegar">Cliente canceló al llegar</option>
+        <option value="pedido rechazado">Pedido rechazado</option>
+        <option value="otro">Otro</option>
+      </select>
+  
+      <div id="campoOtro" style="display:none;">
+        <label for="detalle_motivo">Explique el motivo:</label>
+        <input type="text" id="detalle_motivo" placeholder="Describa el motivo" />
+      </div>
+  
+      <label>¿Llamaste al restaurante?</label>
+      <div>
+        <label><input type="radio" name="llamo_restaurante" value="sí"> Sí</label>
+        <label><input type="radio" name="llamo_restaurante" value="no"> No</label>
+      </div>
+  
+      <label>¿Qué hiciste con el pedido?</label>
+      <select id="accion_pedido">
+        <option value="">Seleccione una opción</option>
+        <option value="lo devolví al restaurante">Lo devolví al restaurante</option>
+        <option value="el restaurante dijo que lo dejara/botara">El restaurante dijo que lo dejara/botara</option>
+        <option value="no lo devolví">No lo devolví (explicar)</option>
+      </select>
+      <div id="campoExplicacionNoDevolvi" style="display: none;">
+        <label for="explicacion_no_devolvi">¿Por qué no lo devolviste?</label>
+        <input type="text" id="explicacion_no_devolvi" placeholder="Escribe tu explicación aquí" />
+      </div>
+      
+      <div class="modal-acciones">
+        <button onclick="confirmarNoEntregado()">🔴 Confirmar como No Entregado</button>
+        <button onclick="cerrarModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalMetodoPago" class="modal-problema" style="display: none;">
+    <div class="modal-contenido">
+      <h2>💳 Selecciona el Método de Pago</h2>
+      
+      <div class="metodos-pago">
+        <label>
+          <input type="radio" name="metodo_pago" value="efectivo">
+          <span>💵 Efectivo</span>
+        </label>
+        
+        <label>
+          <input type="radio" name="metodo_pago" value="app">
+          <span>📱 Pago por App (QR Universal)</span>
+        </label>
+      </div>
+      
+      <p>
+        💡 <strong>Importante:</strong> Si es pago por App, muéstrale el QR físico al cliente para que pueda escanearlo.
+      </p>
+      
+      <div class="modal-acciones">
+        <button onclick="confirmarEntrega()" id="btnConfirmarEntrega" disabled>
+          ✅ Confirmar Entrega
+        </button>
+        <button onclick="cerrarModalPago()">
+          ❌ Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="modalLiberarPedido" class="modal-problema" style="display: none;">
+    <div class="modal-contenido">
+      <h2>🔄 Liberar Pedido</h2>
+      
+      <p>¿Estás seguro de que quieres liberar este pedido? Estará disponible para otros domiciliarios.</p>
+      
+      <label for="motivo_liberacion">Motivo de liberación:</label>
+      <select id="motivo_liberacion" onchange="mostrarDetalleMotivo(this.value)">
+        <option value="">Seleccionar motivo</option>
+        <option value="emergencia personal">Emergencia personal</option>
+        <option value="problema vehiculo">Problema con vehículo</option>
+        <option value="demora imprevista">Demora imprevista</option>
+        <option value="sobrecarga trabajo">Sobrecarga de trabajo</option>
+        <option value="otro">Otro motivo</option>
+      </select>
+      
+      <div id="campoDetalleMotivo" style="display:none; margin-top: 10px;">
+        <label for="detalle_motivo_liberacion">Detalle del motivo:</label>
+        <textarea id="detalle_motivo_liberacion" placeholder="Explica brevemente el motivo..." rows="3"></textarea>
+      </div>
+      
+      <div class="modal-acciones">
+        <button onclick="confirmarLiberarPedido()" style="background-color: #f59e0b;">✅ Liberar Pedido</button>
+        <button onclick="cerrarModalLiberar()">❌ Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+
+  <script>
+// Script de geolocalización mejorado para domiciliarios.html
+// Reemplazar el script existente en domiciliarios.html
+
+let geoService = null;
+let geoInitialized = false;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Solo inicializar una vez
+  if (geoInitialized) return;
+  geoInitialized = true;
+
+  // Inicializar servicio de geolocalización
+  geoService = new GeolocationService();
+  
+  // Función para intentar obtener ubicación
+  async function inicializarGeolocation() {
+    try {
+      console.log('🔄 Solicitando permisos de ubicación...');
+      await geoService.requestPermission();
+      
+      console.log('📍 Obteniendo ubicación inicial...');
+      const position = await geoService.getCurrentPosition();
+      
+      console.log('📤 Enviando ubicación al servidor...');
+      await geoService.updateLocationOnServer(position);
+      console.log('✅ Ubicación inicial enviada correctamente');
+      
+      // Iniciar tracking continuo
+      console.log('🎯 Iniciando tracking continuo...');
+      geoService.startTracking(async (newPosition) => {
+        try {
+          await geoService.updateLocationOnServer(newPosition);
+          console.log('📍 Ubicación actualizada:', newPosition);
+        } catch (error) {
+          console.error('❌ Error actualizando ubicación:', error);
+        }
+      });
+      
+    } catch (error) {
+      console.warn('⚠️ Error de ubicación:', error.message);
+      
+      // Mostrar mensaje específico según el tipo de error
+      if (error.message.includes('denegados')) {
+        mostrarAlertaUbicacion('Permisos denegados', 
+          'Necesitas activar los permisos de ubicación para recibir pedidos cercanos.');
+      } else if (error.message.includes('Tiempo agotado')) {
+        mostrarAlertaUbicacion('Tiempo agotado', 
+          'No se pudo obtener tu ubicación. Verifica que tu GPS esté activado e intenta de nuevo.');
+        
+        // Reintentar después de 5 segundos
+        setTimeout(() => {
+          console.log('🔄 Reintentando obtener ubicación...');
+          inicializarGeolocation();
+        }, 5000);
+      } else {
+        mostrarAlertaUbicacion('Error de ubicación', 
+          'No se pudo obtener tu ubicación. Verifica tu conexión y permisos.');
+      }
+    }
+  }
+
+  // Función para mostrar alertas de ubicación
+  function mostrarAlertaUbicacion(titulo, mensaje) {
+    const alerta = document.createElement('div');
+    alerta.style.cssText = `
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #fef3c7, #fde68a);
+      border: 2px solid #f59e0b;
+      color: #92400e;
+      padding: 15px 20px;
+      border-radius: 12px;
+      z-index: 9999;
+      max-width: 90%;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    alerta.innerHTML = `
+      <strong style="display: block; margin-bottom: 8px; font-size: 1.1em;">📍 ${titulo}</strong>
+      <p style="margin: 0; font-size: 0.9em;">${mensaje}</p>
+      <button onclick="this.parentElement.remove()" style="
+        margin-top: 10px;
+        background: #f59e0b;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+      ">Entendido</button>
+    `;
+    document.body.appendChild(alerta);
+    
+    // Auto-remover después de 15 segundos
+    setTimeout(() => {
+      if (alerta.parentElement) {
+        alerta.remove();
+      }
+    }, 15000);
+  }
+
+  // Iniciar proceso de geolocalización
+  await inicializarGeolocation();
+});
+
+// Detener seguimiento al cerrar la página
+window.addEventListener('beforeunload', () => {
+  if (geoService) {
+    geoService.stopTracking();
+  }
+});
+
+// Manejar cambio de visibilidad de la app
+document.addEventListener('visibilitychange', async () => {
+  if (document.hidden) {
+    console.log('📱 App en background');
+    // Mantener tracking activo en background
+  } else {
+    console.log('📱 App en foreground');
+    // Verificar y actualizar ubicación al volver
+    if (geoService && geoService.lastPosition) {
+      try {
+        await geoService.updateLocationOnServer(geoService.lastPosition);
+      } catch (error) {
+        console.error('Error actualizando ubicación al retomar:', error);
+      }
+    }
+  }
+});
+    </script>
+
+
+  <script src="js/inactividad.js"></script>
+  <script src="js/domiciliario.js"></script>
+  <script src="js/geolocation.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>DomiPancho | Mi Perfil</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="img/logo.png">
+  <link rel="stylesheet" href="css/domiciliarios.css">
+  <link rel="stylesheet" href="css/header.css">
+  <script src="js/config.js"></script>
+
+
+  <!-- Notificaciones en tiempo real -->
+  <script src="js/socket-mock.js"></script>
+  <script src="/js/notifications.js"></script>
+<link rel="stylesheet" href="/css/notifications.css">
+
+  <style>
+    .perfil-card {
+      background-color:#2c3e50;
+      padding: 30px;
+      border-radius: 15px;
+      max-width: 500px;
+      margin: 0 auto;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+      border: 2px solid #22c55e;
+      text-align: center;
+    }
+
+    .perfil-card h2 {
+      color: #facc15;
+      margin-bottom: 20px;
+    }
+
+    .perfil-dato {
+      margin: 15px 0;
+      color: #ccc;
+      font-size: 1.1em;
+    }
+
+    .perfil-dato strong {
+      color: #a3e635;
+    }
+
+
+  </style>
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-container">
+      <!-- Botón Volver -->
+      <button class="btn-volver" onclick="window.location.href='inicio_domi.html'">
+        ⬅ <span>Volver</span>
+      </button>
+
+      <!-- Centro: Logo + Nombre -->
+      <div class="header-center">
+        <img src="img/logo.png" alt="Logo DomiPancho" class="logo" />
+        <div class="restaurant-info">
+          <h1 id="restaurantName">Cargando...</h1>
+        </div>
+      </div>
+
+      <div class="restaurant-info">
+        <p>🧑PERFIL</p>
+      </div>
+
+      <!-- Usuario -->
+      <div class="header-right" style="display: none;">
+        <div class="user-info">
+          <div class="user-icon">👤</div>
+          <span class="user-label">Usuario:</span>
+          <span id="userName">-</span>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="main-container">
+
+
+    <main>
+      <div id="perfilContainer" class="loading">
+        <p>Cargando información...</p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    async function cargarPerfil() {
+      try {
+        const res = await window.apiRequest('/api/usuario-actual');
+        if (!res.ok) throw new Error('No autenticado');
+
+        const usuario = await res.json();
+        document.getElementById('userName').textContent = usuario.usuario;
+
+        const html = `
+          <div class="perfil-card">
+            <h2>${usuario.nombre_completo}</h2>
+            <div class="perfil-dato"><strong>Usuario:</strong> ${usuario.usuario}</div>
+            <div class="perfil-dato"><strong>ID Interno:</strong> ${usuario.id}</div>
+            <div class="perfil-dato"><strong>Tipo de Cuenta:</strong> Domiciliario</div>
+          </div>
+        `;
+
+        document.getElementById('perfilContainer').innerHTML = html;
+      } catch (error) {
+        console.error('Error al cargar perfil:', error);
+        document.getElementById('perfilContainer').innerHTML = `
+  <div class="error" style="text-align: center;">
+    <h3>⚠️ No se pudo cargar tu perfil</h3>
+    <p>Intenta cerrar sesión y volver a iniciar.</p>
+    <button onclick="window.location.href='login.html'" style="
+      margin-top: 8px;
+      padding: 6px 12px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    ">
+      Ir a Login
+    </button>
+  </div>
+`;
+
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', cargarPerfil);
+    document.addEventListener('DOMContentLoaded', () => {
+    const notiDomi = new NotificationSystem(true); // true = domiciliario
+    notiDomi.requestPermission();
+
+    // Opcional: recargar algo cuando llegue un nuevo pedido
+    notiDomi.mostrarNotificacion = function (data) {
+      NotificationSystem.prototype.mostrarNotificacion.call(this, data);
+
+      // Puedes recargar algún contenido si lo deseas, por ejemplo:
+      // cargarPedidos(); o actualizarHistorial(); etc.
+    };
+  });
+  </script>
+
+<script src="js/inactividad.js"></script>
+<script src="js/info_header.js"></script>
+
+</body>
+</html>

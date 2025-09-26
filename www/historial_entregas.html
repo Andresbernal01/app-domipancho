@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>DomiPancho | Historial de Entregas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="img/logo.png">
+  <link rel="stylesheet" href="css/header.css">
+  <link rel="stylesheet" href="css/historial_entregas.css">
+  <script src="js/config.js"></script>
+  <script src="js/socket-mock.js"></script>
+  
+
+
+
+
+  <!-- Notificaciones en tiempo real -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/notifications.js"></script>
+  <link rel="stylesheet" href="/css/notifications.css">
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-container">
+      <!-- Botón Volver -->
+      <button class="btn-volver" onclick="window.location.href='inicio_domi.html'">
+        ⬅ <span>Volver</span>
+      </button>
+
+      <!-- Centro: Logo + Nombre -->
+      <div class="header-center">
+        <img src="img/logo.png" alt="Logo DomiPancho" class="logo" />
+        <div class="restaurant-info">
+          <h1 id="restaurantName">Cargando...</h1>
+        </div>
+      </div>
+
+      <div class="restaurant-info">
+        <p>📜HISTORIAL</p>
+      </div>
+
+      <!-- Usuario -->
+      <div class="header-right" style="display: none;">
+        <div class="user-info">
+          <div class="user-icon">👤</div>
+          <span class="user-label">Usuario:</span>
+          <span id="userName">-</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+
+  <div class="main-container">
+   
+
+    <main>
+      <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
+        <label for="fechaFiltro" style="color: #facc15; font-weight: bold;">📅 Filtrar por fecha:</label>
+        <input type="date" id="fechaFiltro" style="padding: 8px; border-radius: 6px; border: none; margin-left: 10px;" onchange="filtrarPorFecha()">
+      </div>
+
+<!-- En la sección del resumen, agregar una clase para mejor control responsive -->
+<div id="resumenHoy" class="resumen-grid resumen-responsive">
+  <!-- Se llena dinámicamente con JS -->
+</div>
+      
+      <div id="tituloFecha" style="text-align:center; font-weight: bold; font-size: 1.2rem; margin-bottom: 10px; color: #facc15;"></div>
+      <div id="listaEntregas" class="loading">
+        <p>Cargando historial...</p>
+      </div>
+    </main>
+  </div>
+
+  <script>
+let pedidosGlobal = [];
+
+// ✅ FUNCIÓN PARA OBTENER COSTO DE DOMICILIO
+function obtenerCostoDomicilio(pedido) {
+  if (pedido.costo_domicilio) {
+    return pedido.costo_domicilio;
+  }
+  
+  const TARIFAS_POR_CIUDAD = {
+    'chiquinquira': 4000,
+    'tunja': 5000,
+    'cajica': 3000,
+    'zipaquira': 4500
+  };
+  
+  let ciudadRestaurante = pedido.restaurantes?.ciudad;
+  
+  if (ciudadRestaurante) {
+    ciudadRestaurante = ciudadRestaurante
+      .toLowerCase()
+      .trim()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+    
+    if (TARIFAS_POR_CIUDAD[ciudadRestaurante]) {
+      return TARIFAS_POR_CIUDAD[ciudadRestaurante];
+    }
+  }
+  
+  return 5000;
+}
+    async function cargarUsuario() {
+      try {
+        const res = await window.apiRequest('/api/usuario-actual');
+        if (res.ok) {
+          const usuario = await res.json();
+          document.getElementById('userName').textContent = usuario.usuario || 'Usuario';
+        }
+      } catch (e) {
+        console.error('Error cargando usuario:', e);
+        document.getElementById('userName').textContent = 'Usuario';
+      }
+    }
+
+    function renderizarHistorial(pedidos) {
+      if (pedidos.length === 0) {
+        document.getElementById('listaEntregas').innerHTML = `
+          <div class="no-pedidos">
+            <h3>📭 No hay entregas para la fecha seleccionada</h3>
+            <p>Selecciona otra fecha o elimina el filtro.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const html = pedidos.map(p => {
+  // ✅ Calcular subtotal y costo real de domicilio
+  const subtotalProductos = Array.isArray(p.productos) ? 
+    p.productos.reduce((sum, pr) => sum + pr.precio * pr.cantidad, 0) : 0;
+  const costoDomicilio = obtenerCostoDomicilio(p);
+  const total = subtotalProductos + costoDomicilio;
+        const esEntregado = p.estado === 'entregado';
+        const estadoClass = esEntregado ? 'entregado' : 'cancelado';
+        const estadoTexto = esEntregado ? 'Entregado' : 'No Entregado';
+
+        return `
+          <div class="pedido-card ${esEntregado ? '' : 'cancelado'}" onclick="abrirDetallesPedido(${p.id})">
+            
+            <div class="pedido-header-compacto ${estadoClass}">
+              <div class="cliente-info-compacto">
+                <h3>${p.nombre} ${p.apellido}</h3>
+                <div class="telefono">📞 ${p.telefono}</div>
+              </div>
+              <div class="estado-compacto">${estadoTexto}</div>
+            </div>
+
+            <div class="info-esencial">
+              <div class="info-item">
+                <h4>🏬 Origen</h4>
+                <p><strong>${p.restaurantes?.nombre || 'Restaurante'}</strong></p>
+                <p>${p.restaurantes?.direccion || 'Sin dirección'}</p>
+              </div>
+
+              <div class="info-item">
+                <h4>📍 Destino</h4>
+                <p><strong>${p.direccion}</strong></p>
+                ${p.complemento ? `<p>${p.complemento}</p>` : ''}
+                <p><em>${p.barrio}</em></p>
+              </div>
+            </div>
+
+            <div class="pago-info">
+              <div class="total-compacto">
+                💰 $${total.toLocaleString('es-CO')}
+              </div>
+              <div class="metodo-pago">
+                💳 <strong>${p.metodo_pago ? p.metodo_pago.toUpperCase() : 'NO REGISTRADO'}</strong>
+              </div>
+            </div>
+
+            <div class="fechas-compactas">
+              <p>📦 Pedido: ${new Date(p.fecha).toLocaleString('es-CO', {
+                timeZone: 'America/Bogota',
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+              })}</p>
+              ${esEntregado && p.fecha_entrega ? `
+                <p>✅ Entregado: ${new Date(p.fecha_entrega).toLocaleString('es-CO', {
+                  timeZone: 'America/Bogota',
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}</p>
+              ` : ''}
+            </div>
+
+            <button class="btn-ver-detalles" onclick="event.stopPropagation(); abrirDetallesPedido(${p.id})">
+              👁️ Ver Detalles Completos
+            </button>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('listaEntregas').innerHTML = `<div class="pedidos-grid">${html}</div>`;
+    }
+
+    function filtrarPorFecha() {
+      const filtro = document.getElementById('fechaFiltro').value;
+      cargarHistorial(filtro);
+    }
+
+    async function cargarHistorial(fechaFiltro = null) {
+      try {
+        const res = await window.apiRequest('/api/historial-domiciliario');
+        let pedidos = await res.json();
+        pedidos = pedidos.filter(p => ['entregado', 'cancelado'].includes(p.estado?.toLowerCase()));
+
+        if (fechaFiltro) {
+          pedidos = pedidos.filter(p => p.fecha.startsWith(fechaFiltro));
+        }
+
+        pedidosGlobal = pedidos;
+        renderizarHistorial(pedidos);
+        mostrarResumen(pedidos);
+
+        // Actualiza el título
+        let titulo = '📁 Historial de Entregas';
+        if (fechaFiltro) {
+          const [año, mes, dia] = fechaFiltro.split('-');
+          const fechaConZona = new Date(`${año}-${mes}-${dia}T00:00:00-05:00`);
+          const fechaLocal = fechaConZona.toLocaleDateString('es-CO', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+          });
+          const hoyBogota = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+          titulo = (fechaFiltro === hoyBogota) ? `📦 Pedidos Hoy - ${fechaLocal}` : `📦 Pedidos del ${fechaLocal}`;
+        }
+        document.getElementById('tituloFecha').textContent = titulo;
+      } catch (err) {
+        console.error('Error al cargar historial:', err);
+        document.getElementById('listaEntregas').innerHTML = `
+  <div class="error" style="text-align: center;">
+    <h3>⚠️ Error al cargar historial</h3>
+    <p>Intenta recargar la página.</p>
+    <button onclick="window.location.href='login.html'" style="
+      margin-top: 8px;
+      padding: 6px 12px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    ">
+      Ir a Login
+    </button>
+  </div>
+`;
+
+      }
+    }
+
+    function mostrarResumen(pedidos) {
+      const entregados = pedidos.filter(p => p.estado === 'entregado');
+      const cancelados = pedidos.filter(p => p.estado === 'cancelado');
+
+      const totalCobrado = entregados.reduce((sum, p) => {
+  const subtotal = Array.isArray(p.productos) ? 
+    p.productos.reduce((s, pr) => s + pr.precio * pr.cantidad, 0) : 0;
+  const costoDomicilio = obtenerCostoDomicilio(p);
+  return sum + subtotal + costoDomicilio;
+}, 0);
+
+      const totalProductos = entregados.reduce((sum, p) => {
+        return sum + (Array.isArray(p.productos) ? p.productos.reduce((s, pr) => s + pr.cantidad, 0) : 0);
+      }, 0);
+
+      document.getElementById('resumenHoy').innerHTML = `
+        <div class="resumen-item">
+          <h4>📦 Entregados</h4>
+          <div class="valor">${entregados.length}</div>
+        </div>
+        <div class="resumen-item cancelados">
+          <h4>❌ Cancelados</h4>
+          <div class="valor">${cancelados.length}</div>
+        </div>
+        <div class="resumen-item total-cobrado">
+          <h4>💰 Total Cobrado</h4>
+          <div class="valor">$${totalCobrado.toLocaleString('es-CO')}</div>
+        </div>
+        <div class="resumen-item productos">
+          <h4>🛒 Productos</h4>
+          <div class="valor">${totalProductos}</div>
+        </div>
+      `;
+    }
+
+    // Función para abrir modal con detalles completos
+    async function abrirDetallesPedido(pedidoId) {
+      try {
+        const pedido = pedidosGlobal.find(p => p.id === pedidoId);
+        
+        if (!pedido) {
+          alert('No se pudo encontrar el pedido');
+          return;
+        }
+
+        const productosHtml = Array.isArray(pedido.productos) ? 
+          pedido.productos.map(pr => {
+            const subtotal = pr.precio * pr.cantidad;
+            return `
+              <div class="producto-detalle-item">
+                <div class="producto-nombre-detalle">${pr.nombre}</div>
+                <div class="producto-detalles">
+                  Cantidad: ${pr.cantidad} × $${pr.precio.toFixed(2)} = $${subtotal.toFixed(2)}
+                </div>
+              </div>
+            `;
+          }).join('') : '<p>No hay productos disponibles</p>';
+
+          const subtotalProductos = Array.isArray(pedido.productos) ? 
+  pedido.productos.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0) : 0;
+const costoDomicilio = obtenerCostoDomicilio(pedido);
+const total = subtotalProductos + costoDomicilio;
+
+        const esEntregado = pedido.estado === 'entregado';
+
+        const modalHTML = `
+          <div class="modal-detalles-contenido">
+            <h2>📋 Detalles del Pedido #${pedido.id}</h2>
+            
+            <div class="detalle-section">
+              <h4>👤 Información del Cliente</h4>
+              <p><strong>Nombre:</strong> ${pedido.nombre} ${pedido.apellido}</p>
+              <p><strong>Teléfono:</strong> ${pedido.telefono}</p>
+              <p><strong>Estado:</strong> ${esEntregado ? 'Entregado' : 'No Entregado (Cancelado)'}</p>
+            </div>
+
+            <div class="detalle-section">
+              <h4>📍 Dirección Completa de Entrega</h4>
+              <p><strong>${pedido.direccion}</strong></p>
+              ${pedido.complemento ? `<p><strong>Complemento:</strong> ${pedido.complemento}</p>` : ''}
+              <p><strong>Barrio:</strong> ${pedido.barrio}</p>
+            </div>
+
+            <div class="detalle-section">
+              <h4>🏬 Información del Restaurante</h4>
+              <p><strong>Nombre:</strong> ${pedido.restaurantes?.nombre || 'Desconocido'}</p>
+              <p><strong>Dirección:</strong> ${pedido.restaurantes?.direccion || 'No disponible'}</p>
+              <p><strong>Teléfono:</strong> ${pedido.restaurantes?.telefono || 'No disponible'}</p>
+            </div>
+
+            <div class="detalle-section">
+              <h4>🛒 Productos del Pedido</h4>
+              <div class="productos-detalle">
+                ${productosHtml}
+              </div>
+            </div>
+
+            <div class="detalle-section">
+              <h4>💰 Resumen de Pago</h4>
+              <p><strong>Subtotal productos:</strong> $${subtotalProductos.toLocaleString('es-CO')}</p>
+<p><strong>Domicilio:</strong> $${costoDomicilio.toLocaleString('es-CO')}</p>
+${pedido.tipo_tarifa === 'por_km' && pedido.distancia_km ? 
+  `<p style="font-size: 0.9em; color: #666;"><em>(Tarifa por km: ${pedido.distancia_km} km)</em></p>` : 
+  ''}
+<p style="font-size: 1.2em; color: #facc15;"><strong>Total cobrado: $${total.toLocaleString('es-CO')}</strong></p>
+              <p><strong>Método de pago:</strong> ${pedido.metodo_pago ? pedido.metodo_pago.toUpperCase() : 'No registrado'}</p>
+            </div>
+
+            <div class="detalle-section">
+              <h4>📅 Información de Fechas</h4>
+              <p><strong>Pedido realizado:</strong> ${new Date(pedido.fecha).toLocaleString('es-CO', {
+                timeZone: 'America/Bogota',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+              })}</p>
+              ${esEntregado && pedido.fecha_entrega ? `
+                <p><strong>Fecha de entrega:</strong> ${new Date(pedido.fecha_entrega).toLocaleString('es-CO', {
+                  timeZone: 'America/Bogota',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })}</p>
+              ` : ''}
+              <p><strong>ID del pedido:</strong> #${pedido.id}</p>
+            </div>
+
+            ${!esEntregado && pedido.comentario_domiciliario ? `
+              <div class="comentario-cancelado">
+                <strong>📝 Motivo de la cancelación:</strong><br>
+                ${pedido.comentario_domiciliario.replace(/\n/g, '<br>')}
+              </div>
+            ` : ''}
+
+            <button class="btn-cerrar-modal" onclick="cerrarDetallesPedido()">
+              ❌ Cerrar Detalles
+            </button>
+          </div>
+        `;
+
+        // Crear y mostrar el modal
+        const modal = document.createElement('div');
+        modal.id = 'modalDetalles';
+        modal.innerHTML = modalHTML;
+        document.body.appendChild(modal);
+
+        // Cerrar con clic fuera del modal
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) cerrarDetallesPedido();
+        });
+
+      } catch (err) {
+        console.error('Error al cargar detalles:', err);
+        alert('Error al cargar los detalles del pedido');
+      }
+    }
+
+    // Función para cerrar el modal de detalles
+    function cerrarDetallesPedido() {
+      const modal = document.getElementById('modalDetalles');
+      if (modal) {
+        modal.remove();
+      }
+    }
+
+    // Evento para cerrar modal con tecla Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        cerrarDetallesPedido();
+      }
+    });
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await cargarUsuario();
+
+      const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+      document.getElementById('fechaFiltro').value = hoy;
+      await cargarHistorial(hoy);
+
+      // Configurar notificaciones
+      const notiDomi = new NotificationSystem(true);
+      notiDomi.requestPermission();
+
+      notiDomi.mostrarNotificacion = function (data) {
+        NotificationSystem.prototype.mostrarNotificacion.call(this, data);
+      };
+    });
+  </script>
+
+
+<script src="js/inactividad.js"></script>
+<script src="js/info_header.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,57 @@
+// Top-level build file
+
+buildscript {
+    ext {
+        compileSdkVersion = 35
+        targetSdkVersion = 35
+
+        minSdkVersion = 23
+        kotlin_version = '1.9.25'
+
+        // 👇 Agrego las versiones que faltaban
+        androidxAppCompatVersion = "1.6.1"
+        androidxCoordinatorLayoutVersion = "1.2.0"
+        coreSplashScreenVersion = "1.0.1"
+        junitVersion = "4.13.2"
+        androidxJunitVersion = "1.1.5"
+        androidxEspressoCoreVersion = "3.5.1"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.4.2'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.google.gms:google-services:4.4.2'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty("android")) {
+            project.android {
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_17
+                    targetCompatibility JavaVersion.VERSION_17
+                }
+            }
+        }
+
+        // 🔥 Forzar todas las tareas Kotlin a JVM 17
+        project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+            kotlinOptions {
+                jvmTarget = "17"
+            }
+        }
+    }
+}
+
+

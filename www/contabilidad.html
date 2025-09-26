@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>DomiPancho | Contabilidad</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="img/logo.png">
+  <link rel="stylesheet" href="/css/notifications.css" />
+  <script src="js/socket-mock.js"></script>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/notifications.js"></script>
+  <link rel="stylesheet" href="css/header.css">
+  <script src="js/config.js"></script>
+
+  <style>
+/* Variables de colores para consistencia */
+:root {
+  --primary-color: #e74c3c;
+  --secondary-color: #3498db;
+  --success-color: #22c55e;
+  --warning-color: #f39c12;
+  --danger-color: #ef4444;
+  
+  --dark-bg: #2c3e50;
+  --card-bg: #34495e;
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  
+  --text-primary: #2c3e50;
+  --text-secondary: #7f8c8d;
+  --text-light: #ecf0f1;
+  --text-white: #ffffff;
+  
+  --border-color: #ecf0f1;
+  --hover-color: #c0392b;
+  --shadow-light: rgba(0, 0, 0, 0.05);
+  --shadow-medium: rgba(0, 0, 0, 0.1);
+  --shadow-strong: rgba(0, 0, 0, 0.15);
+  --shadow-card: rgba(0, 0, 0, 0.08);
+  
+  --gradient-primary: linear-gradient(135deg, var(--primary-color), var(--hover-color));
+  --gradient-secondary: linear-gradient(135deg, var(--secondary-color), #2980b9);
+  --gradient-bg: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+  --gradient-card: linear-gradient(135deg, #ffffff, #f8fafc);
+  --gradient-header: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95));
+}
+    
+    
+    .restaurant-info p {
+      color: #a3e635;
+      font-style: italic;
+      font-size: 0.9em;
+    }
+    
+
+    
+    .user-info {
+      text-align: right;
+      font-size: 0.9em;
+      color: #ccc;
+    }
+    
+
+    
+    .main-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    /* Navegación de fechas */
+    .navegacion-fechas {
+      background: var(--dark-bg);
+      padding: 20px;
+      border-radius: 15px;
+      margin-bottom: 30px;
+      text-align: center;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      border: 2px solid var(--success-color);
+      margin-top: 20px;
+    }
+    
+    .fecha-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .btn-fecha {
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #facc15, #f59e0b);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.9rem;
+      color: #000;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 10px rgba(250, 204, 21, 0.3);
+    }
+    
+    .btn-fecha:hover {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(250, 204, 21, 0.4);
+    }
+    
+    .fecha-actual {
+      font-weight: bold;
+      color: #facc15;
+      font-size: 1.2rem;
+      padding: 10px 20px;
+      background: #333;
+      border-radius: 10px;
+      border: 2px solid #facc15;
+    }
+    
+    /* Resumen Grid mejorado */
+    .resumen-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      margin-bottom: 30px;
+    }
+    
+    .resumen-item {
+      background: linear-gradient(135deg, #2a2a2a, #1e1e1e);
+      border: 2px solid #333;
+      border-radius: 15px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .resumen-item::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #facc15, #f59e0b);
+    }
+    
+    .resumen-item:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      border-color: #facc15;
+    }
+    
+    .resumen-item h4 {
+      font-size: 1rem;
+      margin-bottom: 10px;
+      color: #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .resumen-item .valor {
+      font-weight: bold;
+      font-size: 1.6rem;
+      color: #facc15;
+      margin-bottom: 5px;
+    }
+    
+    .resumen-item .descripcion {
+      font-size: 0.8rem;
+      color: #999;
+      margin-top: 8px;
+    }
+    
+    /* Estilos específicos por tipo */
+    .resumen-item.efectivo {
+      border-color: #10b981;
+      background: linear-gradient(135deg, #2a2a2a, #1e3a2e);
+    }
+    .resumen-item.efectivo::before {
+      background: linear-gradient(90deg, #10b981, #047857);
+    }
+    .resumen-item.efectivo .valor {
+      color: #10b981;
+    }
+    
+    .resumen-item.app {
+      border-color: #3b82f6;
+      background: linear-gradient(135deg, #2a2a2a, #1e2a3a);
+    }
+    .resumen-item.app::before {
+      background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+    }
+    .resumen-item.app .valor {
+      color: #3b82f6;
+    }
+    
+    .resumen-item.total {
+      border-color: #f437a5;
+      background: linear-gradient(135deg, #2a2a2a, #3a1e2e);
+    }
+    .resumen-item.total::before {
+      background: linear-gradient(90deg, #f437a5, #e11d48);
+    }
+    .resumen-item.total .valor {
+      color: #f437a5;
+      font-size: 1.8rem;
+    }
+    
+    .resumen-item.pedidos {
+      border-color: #8b5cf6;
+      background: linear-gradient(135deg, #2a2a2a, #2e1e3a);
+    }
+    .resumen-item.pedidos::before {
+      background: linear-gradient(90deg, #8b5cf6, #7c3aed);
+    }
+    .resumen-item.pedidos .valor {
+      color: #8b5cf6;
+    }
+    
+    .resumen-item.pago {
+      border-color: #f59e0b;
+      background: linear-gradient(135deg, #2a2a2a, #3a2e1e);
+    }
+    .resumen-item.pago::before {
+      background: linear-gradient(90deg, #f59e0b, #d97706);
+    }
+    .resumen-item.pago .valor {
+      color: #f59e0b;
+    }
+    
+    .resumen-item.sueldo {
+      border-color: #06d6a0;
+      background: linear-gradient(135deg, #2a2a2a, #1e3a35);
+    }
+    .resumen-item.sueldo::before {
+      background: linear-gradient(90deg, #06d6a0, #059669);
+    }
+    .resumen-item.sueldo .valor {
+      color: #06d6a0;
+    }
+    
+    /* Estados de carga y error */
+    .loading, .error {
+      text-align: center;
+      padding: 40px;
+      border-radius: 15px;
+      margin-top: 30px;
+    }
+    
+    .loading {
+      background: linear-gradient(135deg, #1e1e1e, #2a2a2a);
+      border: 2px solid #facc15;
+      color: #facc15;
+    }
+    
+    .loading .spinner {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      border: 3px solid #333;
+      border-top: 3px solid #facc15;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 15px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .error {
+      background: linear-gradient(135deg, #2c1e1e, #1e1e1e);
+      border: 2px solid #ff4444;
+      color: #ff4444;
+    }
+    
+    /* Información adicional */
+    .info-adicional {
+      background: var(--dark-bg);
+      padding: 20px;
+      border-radius: 15px;
+      margin-top: 30px;
+      border: 2px solid var(--success-color);
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      margin-bottom: 30px;
+    }
+    
+    .info-adicional h3 {
+      color: #facc15;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .info-adicional ul {
+      list-style: none;
+      padding: 0;
+    }
+    
+    .info-adicional li {
+      padding: 8px 0;
+      border-bottom: 1px solid #333;
+      color: #ccc;
+    }
+    
+    .info-adicional li:last-child {
+      border-bottom: none;
+    }
+    
+    /* Media queries */
+    @media (max-width: 768px) {
+
+      
+      .fecha-controls {
+        flex-direction: column;
+        gap: 15px;
+      }
+      
+      .resumen-grid {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 15px;
+      }
+      
+      .restaurant-info h1 { 
+        font-size: 1.5em; 
+      }
+    }
+    
+    @media (max-width: 480px) {
+
+      
+      .resumen-item {
+        padding: 15px;
+      }
+      
+      .resumen-item .valor {
+        font-size: 1.4rem;
+      }
+      
+      .navegacion-fechas {
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="header-container">
+      <!-- Botón Volver -->
+      <button class="btn-volver" onclick="window.location.href='inicio_domi.html'">
+        ⬅ <span>Volver</span>
+      </button>
+
+      <!-- Centro: Logo + Nombre -->
+      <div class="header-center">
+        <img src="img/logo.png" alt="Logo DomiPancho" class="logo" />
+        <div class="restaurant-info">
+          <h1 id="restaurantName">Cargando...</h1>
+        </div>
+      </div>
+
+      <div class="restaurant-info">
+        <p>📊Contabilidad</p>
+      </div>
+
+      <!-- Usuario -->
+      <div class="header-right" style="display: none;">
+        <div class="user-info">
+          <div class="user-icon">👤</div>
+          <span class="user-label">Usuario:</span>
+          <span id="userName">-</span>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div class="main-container">
+
+    <main>
+      <div class="navegacion-fechas">
+        <div class="fecha-controls">
+          <button class="btn-fecha" onclick="cambiarDia(-1)">⬅ Día Anterior</button>
+          <div class="fecha-actual" id="fechaActualTexto">Hoy</div>
+          <button class="btn-fecha" onclick="cambiarDia(1)">Día Siguiente ➡</button>
+        </div>
+      </div>
+
+      <div id="resumenContabilidad" class="loading">
+        <div class="spinner"></div>
+        <h3>Cargando datos contables...</h3>
+        <p>Procesando información financiera</p>
+      </div>
+
+      <div class="info-adicional">
+        <h3>ℹ️ Información Importante</h3>
+        <ul>
+          <li><strong>Total Efectivo:</strong> Dinero que debes entregar a DomiPancho</li>
+          <li><strong>Total App:</strong> Pagos digitales procesados por la plataforma</li>
+          <li><strong>Tu Sueldo:</strong> Costo del domicilio menos $500 de comisión por entrega</li>
+          <li><strong>Ejemplo:</strong> Domicilio de $5.000 → Tu ganas $4.500, DomiPancho $500</li>
+        </ul>
+      </div>
+    </main>
+  </div>
+
+  <script>
+let fechaActual = new Date();
+// Ajustar a zona horaria de Colombia
+fechaActual = new Date(fechaActual.toLocaleString("en-US", {timeZone: "America/Bogota"}));
+    async function cargarUsuario() {
+      try {
+        const res = await window.apiRequest('/api/usuario-actual');
+        if (res.ok) {
+          const usuario = await res.json();
+          document.getElementById('userName').textContent = usuario.usuario || 'Usuario';
+        }
+      } catch (e) {
+        console.error('Error cargando usuario:', e);
+        document.getElementById('userName').textContent = 'Usuario';
+      }
+    }
+
+    function cambiarDia(delta) {
+  fechaActual.setDate(fechaActual.getDate() + delta);
+  // Ajustar a zona horaria de Colombia
+  fechaActual = new Date(fechaActual.toLocaleString("en-US", {timeZone: "America/Bogota"}));
+  cargarResumen();
+}
+
+    async function cargarResumen() {
+      try {
+        // Mostrar estado de carga
+        document.getElementById('resumenContabilidad').innerHTML = `
+          <div class="loading">
+            <div class="spinner"></div>
+            <h3>Cargando datos contables...</h3>
+            <p>Procesando información del ${fechaActual.toLocaleDateString('es-CO')}</p>
+          </div>
+        `;
+
+        const fechaISO = fechaActual.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });        
+        // Actualizar texto de fecha
+        const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+const fechaSeleccionada = fechaActual.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+        
+        if (fechaSeleccionada === hoy) {
+          document.getElementById("fechaActualTexto").textContent = "📅 Hoy";
+        } else {
+          document.getElementById("fechaActualTexto").textContent = fechaActual.toLocaleDateString('es-CO', {
+            weekday: 'short',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+          });
+        }
+
+        const res = await window.apiRequest('/api/resumen-contabilidad?fecha=' + fechaISO);
+        
+        if (!res.ok) {
+          throw new Error('Error al cargar datos');
+        }
+        
+        const data = await res.json();
+
+        const contenedor = document.getElementById('resumenContabilidad');
+        contenedor.innerHTML = `
+          <div class="resumen-grid">
+            <div class="resumen-item efectivo">
+              <h4>💵 Total Efectivo</h4>
+              <div class="valor">$${data.total_efectivo.toLocaleString('es-CO')}</div>
+              <div class="descripcion">Dinero en efectivo cobrado</div>
+            </div>
+            
+            <div class="resumen-item app">
+              <h4>📱 Total App</h4>
+              <div class="valor">$${data.total_app.toLocaleString('es-CO')}</div>
+              <div class="descripcion">Pagos digitales procesados</div>
+            </div>
+            
+            <div class="resumen-item total">
+              <h4>💰 Total General</h4>
+              <div class="valor">$${data.total.toLocaleString('es-CO')}</div>
+              <div class="descripcion">Suma de efectivo y app</div>
+            </div>
+            
+            <div class="resumen-item pedidos">
+              <h4>📦 Total Pedidos</h4>
+              <div class="valor">${data.total_pedidos}</div>
+              <div class="descripcion">Pedidos entregados hoy</div>
+            </div>
+            
+            <div class="resumen-item pago">
+              <h4>🏢 A Pagar a DomiPancho</h4>
+              <div class="valor">$${data.total_efectivo.toLocaleString('es-CO')}</div>
+              <div class="descripcion">Efectivo a entregar</div>
+            </div>
+            
+            <div class="resumen-item sueldo">
+  <h4>💸 Tu Sueldo</h4>
+  <div class="valor">$${data.sueldo.toLocaleString('es-CO')}</div>
+  <div class="descripcion">${data.total_pedidos} entregas (domicilio - $500 c/u)</div>
+</div>
+          </div>
+        `;
+
+      } catch (error) {
+        console.error('Error al cargar resumen:', error);
+        document.getElementById('resumenContabilidad').innerHTML = `
+  <div class="error" style="text-align: center;">
+    <h3>⚠️ Error al cargar datos</h3>
+    <p>No se pudieron cargar los datos contables para la fecha seleccionada.</p>
+    <p>Intenta recargar la página o selecciona otra fecha.</p>
+    <button onclick="window.location.href='login.html'" style="
+      margin-top: 8px;
+      padding: 6px 12px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    ">
+      Ir a Login
+    </button>
+  </div>
+`;
+
+      }
+    }
+
+    // Cargar datos al iniciar
+    document.addEventListener('DOMContentLoaded', async () => {
+      await cargarUsuario();
+      await cargarResumen();
+
+      // Configurar notificaciones
+      if (typeof NotificationSystem !== 'undefined') {
+        const notiDomi = new NotificationSystem(true);
+        notiDomi.requestPermission();
+      }
+    });
+  </script>
+
+  <script src="js/info_header.js"></script>
+</body>
+</html>

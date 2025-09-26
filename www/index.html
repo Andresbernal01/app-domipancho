@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login | DomiPancho</title>
+  <link rel="icon" href="img/logo.png">
+  <link rel="stylesheet" href="css/login.css"/>
+  <script src="js/config.js"></script>
+  <script src="js/socket-mock.js"></script>
+</head>
+<body>
+  
+  <div class="login-container">
+    <div class="login-box">
+      <img src="img/logo.png" alt="Logo DomiPancho" class="logo" />
+      <h1>DomiPancho</h1>
+      <p class="eslogan">Panel de Administración</p>
+      
+      <form id="loginForm">
+        <input type="text" id="usuario" placeholder="Usuario" required />
+        <input type="password" id="contraseña" placeholder="Contraseña" required />
+        
+        <!-- ✅ Checkbox para recordar credenciales -->
+        <label style="display: flex; align-items: center; gap: 8px; margin: 10px 0; font-size: 0.9em;">
+          <input type="checkbox" id="recordarCredenciales" checked>
+          <span>Recordar usuario y contraseña</span>
+        </label>
+        
+        <button type="submit" id="loginBtn">Ingresar</button>
+        <div id="errorMessage" class="error-message"></div>
+        <div id="successMessage" class="success-message"></div>
+        <a href="https://wa.me/573134371103?text=Hola%2C%20he%20olvidado%20mi%20usuario%20y%20contrase%C3%B1a%2C%20%C2%BFme%20puedes%20ayudar%3F" class="olvide-link" target="_blank">
+          ¿Olvidaste usuario o contraseña?
+        </a>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // ✅ Cargar credenciales guardadas al iniciar
+    document.addEventListener('DOMContentLoaded', () => {
+      const usuarioGuardado = localStorage.getItem('usuario_guardado');
+      const contraseñaGuardada = localStorage.getItem('contraseña_guardada');
+      const recordar = localStorage.getItem('recordar_credenciales') === 'true';
+      
+      if (recordar && usuarioGuardado && contraseñaGuardada) {
+        document.getElementById('usuario').value = usuarioGuardado;
+        document.getElementById('contraseña').value = contraseñaGuardada;
+        document.getElementById('recordarCredenciales').checked = true;
+      }
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const usuario = document.getElementById('usuario').value;
+      const contraseña = document.getElementById('contraseña').value;
+      const recordar = document.getElementById('recordarCredenciales').checked;
+      const loginBtn = document.getElementById('loginBtn');
+      const errorMessage = document.getElementById('errorMessage');
+      const successMessage = document.getElementById('successMessage');
+      
+      errorMessage.style.display = 'none';
+      successMessage.style.display = 'none';
+      
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Ingresando...';
+      
+      try {
+        const response = await window.apiRequest('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario, contraseña })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          // ✅ Guardar o limpiar credenciales según checkbox
+          if (recordar) {
+            localStorage.setItem('usuario_guardado', usuario);
+            localStorage.setItem('contraseña_guardada', contraseña);
+            localStorage.setItem('recordar_credenciales', 'true');
+          } else {
+            localStorage.removeItem('usuario_guardado');
+            localStorage.removeItem('contraseña_guardada');
+            localStorage.setItem('recordar_credenciales', 'false');
+          }
+          
+          if (data.token) {
+            localStorage.setItem('auth-token', data.token);
+          }
+          
+          successMessage.textContent = `¡Bienvenido ${data.restaurante}!`;
+          successMessage.style.display = 'block';
+          
+          setTimeout(() => {
+            window.location.href = data.redirect;
+          }, 1000);
+        } else {
+          errorMessage.textContent = data.error || 'Error al iniciar sesión';
+          errorMessage.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        errorMessage.textContent = 'Error de conexión. Inténtalo de nuevo.';
+        errorMessage.style.display = 'block';
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Ingresar';
+      }
+    });
+  </script>
+</body>
+</html>

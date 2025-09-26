@@ -1,0 +1,412 @@
+/* Reset básico solo para elementos específicos de inicio */
+.main-container {
+  min-height: calc(100vh - 80px);
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+  padding: 1rem 0; /* Reduje el padding superior (antes 2rem) */
+
+}
+
+main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+/* Estados de carga y error */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  color: #64748b;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.loading p {
+  position: relative;
+  padding-left: 2rem;
+}
+
+.loading p::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e74c3c;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: translateY(-50%) rotate(0deg); }
+  100% { transform: translateY(-50%) rotate(360deg); }
+}
+
+.error {
+  text-align: center;
+  padding: 3rem 2rem;
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 15px;
+  margin: 2rem auto;
+  max-width: 500px;
+  color: #c53030;
+}
+
+.error p {
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+/* Grid principal de opciones */
+.cajon-opcion {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  opacity: 0;
+  animation: fadeInUp 0.8s ease forwards;
+  margin-top: 10px;
+}
+
+/* Tarjetas individuales */
+.cajon-opcion > div {
+  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 20px;
+  padding: 2.5rem;
+  box-shadow: 
+    0 10px 25px rgba(0, 0, 0, 0.08),
+    0 4px 10px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(231, 76, 60, 0.1);
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+}
+
+.cajon-opcion > div::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, 
+    rgba(231, 76, 60, 0.05) 0%, 
+    rgba(52, 152, 219, 0.05) 100%);
+  transition: left 0.5s ease;
+}
+
+.cajon-opcion > div:hover::before {
+  left: 0;
+}
+
+.cajon-opcion > div:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.12),
+    0 8px 20px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(231, 76, 60, 0.2);
+}
+
+/* Iconos */
+.cajon-opcion .icono {
+  font-size: 3.5rem;
+  margin-bottom: 1.5rem;
+  display: block;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.cajon-opcion > div:hover .icono {
+  transform: scale(1.1) rotate(5deg);
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15));
+}
+
+/* Títulos */
+.cajon-opcion h2 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #2d3748;
+  margin-bottom: 1rem;
+  position: relative;
+  z-index: 2;
+  transition: color 0.3s ease;
+}
+
+.cajon-opcion > div:hover h2 {
+  color: #e74c3c;
+}
+
+/* Descripciones */
+.cajon-opcion p {
+  font-size: 0.95rem;
+  color: #64748b;
+  line-height: 1.6;
+  position: relative;
+  z-index: 2;
+  transition: color 0.3s ease;
+}
+
+.cajon-opcion > div:hover p {
+  color: #475569;
+}
+
+/* Animaciones de entrada escalonadas */
+.cajon-opcion > div:nth-child(1) { animation-delay: 0.1s; }
+.cajon-opcion > div:nth-child(2) { animation-delay: 0.2s; }
+.cajon-opcion > div:nth-child(3) { animation-delay: 0.3s; }
+.cajon-opcion > div:nth-child(4) { animation-delay: 0.4s; }
+.cajon-opcion > div:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Efectos especiales para ciertas opciones */
+.cajon-opcion .horarios {
+  position: relative;
+}
+
+
+
+@keyframes pulse {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+  }
+  50% { 
+    transform: scale(1.05);
+    box-shadow: 0 6px 12px rgba(231, 76, 60, 0.4);
+  }
+}
+
+/* Estados activos */
+.cajon-opcion > div:active {
+  transform: translateY(-4px) scale(0.98);
+  transition-duration: 0.1s;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .main-container {
+    padding: 1.5rem 0;
+  }
+  
+  main {
+    padding: 0 1.5rem;
+  }
+  
+  .cajon-opcion {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-container {
+    padding: 1rem 0;
+  }
+  
+  main {
+    padding: 0 1rem;
+  }
+  
+  .cajon-opcion {
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+  }
+  
+  .cajon-opcion > div {
+    padding: 2rem 1.5rem;
+    border-radius: 15px;
+  }
+  
+  .cajon-opcion .icono {
+    font-size: 3rem;
+    margin-bottom: 1.2rem;
+  }
+  
+  .cajon-opcion h2 {
+    font-size: 1.3rem;
+    margin-bottom: 0.8rem;
+  }
+  
+  .cajon-opcion p {
+    font-size: 0.9rem;
+  }
+  
+  .cajon-opcion .horarios::after {
+    top: 15px;
+    right: 15px;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.65rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .cajon-opcion > div {
+    padding: 1.5rem 1.2rem;
+    border-radius: 12px;
+  }
+  
+  .cajon-opcion .icono {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .cajon-opcion h2 {
+    font-size: 1.2rem;
+    margin-bottom: 0.7rem;
+  }
+  
+  .cajon-opcion p {
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  
+  .cajon-opcion > div:hover {
+    transform: translateY(-4px) scale(1.01);
+  }
+}
+
+/* Mejoras de accesibilidad */
+@media (prefers-reduced-motion: reduce) {
+  .cajon-opcion > div,
+  .cajon-opcion .icono,
+  .loading p::before {
+    animation: none;
+    transition: none;
+  }
+  
+  .cajon-opcion > div:hover {
+    transform: none;
+  }
+}
+
+/* Focus para teclado */
+.cajon-opcion > div:focus {
+  outline: 3px solid rgba(231, 76, 60, 0.4);
+  outline-offset: 2px;
+}
+
+
+
+
+/* Estilos para el botón de cerrar sesión */
+.logout-btn {
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.logout-btn:hover {
+  background-color: #c0392b;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.logout-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Icono para el botón (opcional) */
+.logout-btn::before {
+  content: "🚪";
+  font-size: 1.1rem;
+}
+
+/* Media Queries para responsive */
+@media (max-width: 1200px) {
+  .logout-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .logout-btn {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    border-radius: 6px;
+  }
+  
+  .logout-btn::before {
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .logout-btn {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+    border-radius: 5px;
+  }
+  
+  .logout-btn::before {
+    content: ""; /* Ocultar icono en móviles muy pequeños */
+  }
+}
+
+/* Accesibilidad - reducir movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .logout-btn {
+    transition: none;
+  }
+  
+  .logout-btn:hover {
+    transform: none;
+  }
+}
+
+/* Focus para teclado */
+.logout-btn:focus {
+  outline: 3px solid rgba(231, 76, 60, 0.4);
+  outline-offset: 2px;
+}
+
+
+
+
+.cajon-opcion > div {
+  padding: 2rem 1.5rem; /* Reducido de 2.5rem */
+  border-radius: 16px; /* Reducido de 20px */
+}
+
+.cajon-opcion .icono {
+  font-size: 2.8rem; /* Reducido de 3.5rem */
+  margin-bottom: 1.2rem; /* Reducido de 1.5rem */
+}
+
+.cajon-opcion h2 {
+  font-size: 1.2rem; /* Reducido de 1.4rem */
+}
+
+.cajon-opcion p {
+  font-size: 0.9rem; /* Reducido de 0.95rem */
+}
