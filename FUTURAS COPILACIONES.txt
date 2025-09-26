@@ -1,0 +1,10 @@
+Paso 1: Sincronizar primero
+npx cap sync android
+
+
+Paso 2: Entrar a la carpeta android
+cd android
+
+
+Paso 3: Compilar
+./gradlew assembleDebug "-Pandroid.useAndroidX=true" "-Pandroid.enableJetifier=true"
