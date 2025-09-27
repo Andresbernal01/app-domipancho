@@ -85,100 +85,112 @@ function obtenerCostoDomicilio(pedido) {
 
   
 
-document.addEventListener('DOMContentLoaded', async () => {
-  await cargarUsuario();
-  await cargarPedidos();
-  
-  // Conectar socket para notificaciones
-  if (typeof io !== 'undefined') {
-    const socket = io();
+  document.addEventListener('DOMContentLoaded', async () => {
+    await cargarUsuario();
+    await cargarPedidos();
     
-    socket.on('connect', async () => {
-      console.log('🔌 Socket conectado');
+    // Inicializar servicio de notificaciones móviles
+    let mobileNotif = null;
+    try {
+      mobileNotif = new MobileNotificationService();
+      await mobileNotif.createNotificationChannel();
+      console.log('✅ Servicio de notificaciones móviles inicializado');
+    } catch (error) {
+      console.warn('⚠️ No se pudo inicializar notificaciones móviles:', error);
+    }
+    
+    // Conectar socket para notificaciones
+    if (typeof io !== 'undefined') {
+      const socket = io();
       
-      try {
-        const response = await window.apiRequest('/api/usuario-actual');
-        if (response.ok) {
-          const usuario = await response.json();
-          console.log(`👤 Usuario domiciliario: ${usuario.id}`);
-          
-          // Unirse a sala específica
-          socket.emit('join-domiciliario', usuario.id);
-          console.log(`🏠 Unido a sala: domiciliario-${usuario.id}`);
+      socket.on('connect', async () => {
+        console.log('🔌 Socket conectado');
+        
+        try {
+          const response = await window.apiRequest('/api/usuario-actual');
+          if (response.ok) {
+            const usuario = await response.json();
+            console.log(`👤 Usuario domiciliario: ${usuario.id}`);
+            
+            // Unirse a sala específica
+            socket.emit('join-domiciliario', usuario.id);
+            console.log(`🏠 Unido a sala: domiciliario-${usuario.id}`);
+          }
+        } catch (error) {
+          console.error('❌ Error al conectar socket:', error);
         }
-      } catch (error) {
-        console.error('❌ Error al conectar socket:', error);
-      }
-    });
-    
-    // ✅ NUEVO PEDIDO GEOGRÁFICO
-    socket.on('nuevo-pedido-geografico', (data) => {
-      console.log('📍 Nuevo pedido geográfico:', data);
+      });
       
-      // Verificar función
-      if (typeof mostrarPedidoGeografico === 'function') {
-        // Notificación visual
-        if (window.NotificationSystem) {
-          window.NotificationSystem.showNotification(
-            `Nuevo pedido a ${data.distancia?.toFixed(2) || '?'}km`,
+      // ✅ NUEVO PEDIDO GEOGRÁFICO CON NOTIFICACIÓN MÓVIL
+      socket.on('nuevo-pedido-geografico', async (data) => {
+        console.log('📍 Nuevo pedido geográfico:', data);
+        
+        // Notificación móvil potente (funciona con pantalla bloqueada)
+        if (mobileNotif) {
+          await mobileNotif.showNotification(
+            `🔔 Nuevo pedido a ${data.distancia?.toFixed(2) || '?'}km`,
             {
               body: `Pedido #${data.pedido.id} - ${data.pedido.nombre} ${data.pedido.apellido}`,
-              icon: '/img/logo.png'
+              icon: '/img/logo.png',
+              data: { pedidoId: data.pedido.id }
             }
           );
         }
         
-        // Mostrar en UI
-        mostrarPedidoGeografico(data);
-      } else {
-        // Fallback: recargar pedidos
-        console.warn('⚠️ mostrarPedidoGeografico no disponible, recargando...');
-        setTimeout(() => cargarPedidos(), 1000);
-      }
-    });
-    
-    // ✅ PEDIDO REMOVIDO
-    socket.on('pedido-removido', (data) => {
-      console.log('🗑️ Pedido removido:', data);
-      const pedidoCard = document.querySelector(`[data-pedido-id="${data.pedidoId}"]`);
-      if (pedidoCard) {
-        pedidoCard.style.transition = 'all 0.3s ease';
-        pedidoCard.style.opacity = '0';
-        pedidoCard.style.transform = 'scale(0.8)';
-        setTimeout(() => pedidoCard.remove(), 300);
-      }
-    });
-
-    // ✅ CAMBIO DE ESTADO
-    socket.on('estado-pedido-actualizado', (data) => {
-      console.log('🔄 Estado actualizado:', data);
-      
-      // Si mi pedido fue tomado por otro, remover
-      if (data.nuevoEstado !== 'esperando repartidor') {
-        const pedidoCard = document.querySelector(`[data-pedido-id="${data.pedidoId}"]`);
-        if (pedidoCard && !pedidoCard.classList.contains('mi-pedido')) {
-          setTimeout(() => pedidoCard.remove(), 500);
+        // Verificar función
+        if (typeof mostrarPedidoGeografico === 'function') {
+          // Mostrar en UI
+          mostrarPedidoGeografico(data);
+        } else {
+          // Fallback: recargar pedidos
+          console.warn('⚠️ mostrarPedidoGeografico no disponible, recargando...');
+          setTimeout(() => cargarPedidos(), 1000);
         }
-      }
-    });
-
-    // ✅ PEDIDO FUERA DE RADIO
-    socket.on('pedido-fuera-radio', (data) => {
-      console.log('🚫 Pedido fuera de radio:', data);
-      if (typeof removerPedidoFueraRadio === 'function') {
-        removerPedidoFueraRadio(data);
-      }
-    });
-
-    // ✅ PEDIDO LIBERADO
-    socket.on('pedido-liberado', (data) => {
-      console.log('🔄 Pedido liberado:', data);
-      setTimeout(() => cargarPedidos(), 1000);
-    });
-  } else {
-    console.error('❌ Socket.IO no disponible');
-  }
-});
+      });
+      
+      // ✅ PEDIDO REMOVIDO
+      socket.on('pedido-removido', (data) => {
+        console.log('🗑️ Pedido removido:', data);
+        const pedidoCard = document.querySelector(`[data-pedido-id="${data.pedidoId}"]`);
+        if (pedidoCard) {
+          pedidoCard.style.transition = 'all 0.3s ease';
+          pedidoCard.style.opacity = '0';
+          pedidoCard.style.transform = 'scale(0.8)';
+          setTimeout(() => pedidoCard.remove(), 300);
+        }
+      });
+  
+      // ✅ CAMBIO DE ESTADO
+      socket.on('estado-pedido-actualizado', (data) => {
+        console.log('🔄 Estado actualizado:', data);
+        
+        // Si mi pedido fue tomado por otro, remover
+        if (data.nuevoEstado !== 'esperando repartidor') {
+          const pedidoCard = document.querySelector(`[data-pedido-id="${data.pedidoId}"]`);
+          if (pedidoCard && !pedidoCard.classList.contains('mi-pedido')) {
+            setTimeout(() => pedidoCard.remove(), 500);
+          }
+        }
+      });
+  
+      // ✅ PEDIDO FUERA DE RADIO
+      socket.on('pedido-fuera-radio', (data) => {
+        console.log('🚫 Pedido fuera de radio:', data);
+        if (typeof removerPedidoFueraRadio === 'function') {
+          removerPedidoFueraRadio(data);
+        }
+      });
+  
+      // ✅ PEDIDO LIBERADO
+      socket.on('pedido-liberado', (data) => {
+        console.log('🔄 Pedido liberado:', data);
+        setTimeout(() => cargarPedidos(), 1000);
+      });
+      
+    } else {
+      console.error('❌ Socket.IO no disponible');
+    }
+  });
 
 
 

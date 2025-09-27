@@ -7,8 +7,7 @@
   <link rel="icon" href="img/logo.png">
   <link rel="stylesheet" href="css/domiciliarios.css" />
   <link rel="stylesheet" href="css/header.css">
-  <script src="js/socket-mock.js"></script>
-    <script src="/js/notifications.js"></script>
+
   <link rel="stylesheet" href="/css/notifications.css">
     <script src="js/config.js"></script>
 
@@ -288,10 +287,12 @@ document.addEventListener('visibilitychange', async () => {
 });
     </script>
 
-
+<script src="js/socket-mock.js"></script>
+<script src="/js/notifications.js"></script>
+<script src="js/notification-service.js"></script> <!-- Cargar ANTES de domiciliario.js -->
+<script src="js/geolocation.js"></script>
   <script src="js/inactividad.js"></script>
   <script src="js/domiciliario.js"></script>
-  <script src="js/geolocation.js"></script>
 
 </body>
 </html>

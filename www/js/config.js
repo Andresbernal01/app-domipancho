@@ -1,7 +1,6 @@
-// config.js - VERSIÓN MEJORADA CON DEBUG
+// config.js - VERSIÓN CON CAPACITOR HTTP
 console.log('🔧 config.js cargando...');
 
-// Configuración global para la app móvil de DomiPancho
 window.APP_CONFIG = {
   API_BASE: 'https://domipancho.com',
   API_TIMEOUT: 10000,
@@ -12,40 +11,84 @@ window.APP_CONFIG = {
 
 console.log('🔧 APP_CONFIG definido:', window.APP_CONFIG);
 
-// Función helper para hacer requests con configuración consistente
+// Detectar si estamos en Capacitor
+const isCapacitor = !!window.Capacitor;
+
+// Función helper mejorada para requests
 window.apiRequest = async (endpoint, options = {}) => {
   console.log('🌐 apiRequest llamado:', endpoint);
   
-  const defaultOptions = {
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest',
-      ...options.headers
-    }
-  };
-
-  const finalOptions = { ...defaultOptions, ...options };
   const url = endpoint.startsWith('http') ? endpoint : `${window.APP_CONFIG.API_BASE}${endpoint}`;
-  
   console.log('🌐 URL final:', url);
-  
-  try {
-    const response = await fetch(url, finalOptions);
-    console.log('🌐 Response status:', response.status);
-    return response;
-  } catch (error) {
-    console.error('❌ Error en API request:', error);
-    throw error;
+
+  // ✅ SI ES CAPACITOR, USAR CapacitorHttp (evita CORS)
+  if (isCapacitor && window.Capacitor?.Plugins?.CapacitorHttp) {
+    try {
+      const { CapacitorHttp } = window.Capacitor.Plugins;
+      
+      const nativeOptions = {
+        url: url,
+        method: options.method || 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          ...options.headers
+        }
+      };
+
+      // Agregar body si existe
+      if (options.body) {
+        nativeOptions.data = typeof options.body === 'string' ? 
+          JSON.parse(options.body) : options.body;
+      }
+
+      console.log('📱 Usando CapacitorHttp:', nativeOptions);
+      const response = await CapacitorHttp.request(nativeOptions);
+      
+      console.log('📱 Response status:', response.status);
+      
+      // Adaptar respuesta para que sea compatible con fetch
+      return {
+        ok: response.status >= 200 && response.status < 300,
+        status: response.status,
+        headers: {
+          get: (key) => response.headers?.[key] || response.headers?.[key.toLowerCase()]
+        },
+        json: async () => response.data,
+        text: async () => typeof response.data === 'string' ? 
+          response.data : JSON.stringify(response.data)
+      };
+      
+    } catch (error) {
+      console.error('❌ Error en CapacitorHttp:', error);
+      throw error;
+    }
+  } 
+  // ✅ SI NO ES CAPACITOR, USAR FETCH NORMAL
+  else {
+    const defaultOptions = {
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        ...options.headers
+      }
+    };
+
+    const finalOptions = { ...defaultOptions, ...options };
+    
+    try {
+      const response = await fetch(url, finalOptions);
+      console.log('🌐 Response status:', response.status);
+      return response;
+    } catch (error) {
+      console.error('❌ Error en fetch:', error);
+      throw error;
+    }
   }
 };
 
-
-
-
-// AGREGAR al final de config.js después del console.log final
-
-// Función helper para detectar respuestas HTML inválidas
+// Resto de funciones helper...
 window.isHtmlResponse = function(response, text) {
   const contentType = response.headers.get('content-type') || '';
   return (
@@ -55,7 +98,6 @@ window.isHtmlResponse = function(response, text) {
   );
 };
 
-// Función helper para parsear respuestas JSON de manera segura
 window.parseJsonSafely = async function(response) {
   const contentType = response.headers.get('content-type') || '';
   
@@ -66,7 +108,7 @@ window.parseJsonSafely = async function(response) {
     
     if (window.isHtmlResponse(response, text)) {
       if (text.includes('login') || text.includes('auth')) {
-        console.warn('🔑 Redirigiendo a login por respuesta HTML');
+        console.warn('🔒 Redirigiendo a login por respuesta HTML');
         setTimeout(() => {
           window.location.href = '/login.html';
         }, 1000);
@@ -86,6 +128,5 @@ window.parseJsonSafely = async function(response) {
 };
 
 console.log('✅ Funciones helper de JSON agregadas a config.js');
-
 console.log('✅ window.apiRequest definido correctamente');
 console.log('✅ config.js cargado completamente');

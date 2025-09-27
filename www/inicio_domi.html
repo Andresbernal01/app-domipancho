@@ -177,7 +177,7 @@
 
       <div id="error" class="error" style="display: none;">
         <p>Error al cargar la información. Por favor, inicia sesión nuevamente.</p>
-        <button onclick="window.location.href='/login.html'" style="margin-top: 10px; padding: 8px 15px; background-color: #facc15; color: #121212; border: none; border-radius: 5px; cursor: pointer;">Ir a Login</button>
+        <button onclick="window.location.href='/index.html'" style="margin-top: 10px; padding: 8px 15px; background-color: #facc15; color: #121212; border: none; border-radius: 5px; cursor: pointer;">Ir a Login</button>
       </div>
 
       <div id="opciones" class="cajon-opcion" style="display: none;">
@@ -288,13 +288,13 @@ async function logout() {
     if (response.ok) {
       // Desconectar socket antes de redirigir
       if (socket) socket.disconnect();
-      window.location.href = '/login.html';
+      window.location.href = '/index.html';
     } else {
       alert('Error al cerrar sesión');
     }
   } catch (error) {
     console.error('Error en logout:', error);
-    window.location.href = '/login.html';
+    window.location.href = '/index.html';
   }
 }
 
