@@ -358,100 +358,101 @@ async function logout() {
     
     // Cargar pedidos activos y disponibles inicial
     async function cargarPedidosActivosYDisponibles() {
-      try {
-        const res = await window.apiRequest('/api/pedidos-domiciliario');
-        if (!res.ok) throw new Error('Error al cargar pedidos');
-        
-        const pedidos = await res.json();
+  try {
+    const res = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
+    if (!res.ok) throw new Error('Error al cargar pedidos');
     
-        // Filtrar con logs para debugging
-        const misActivos = pedidos.filter(p => {
-          const esActivo = p.estado?.toLowerCase() === 'camino a tu casa';
-          if (esActivo) console.log('🚛 Pedido activo encontrado:', p.id, p.estado);
-          return esActivo;
-        });
-        
-        const disponibles = pedidos.filter(p => {
-          const esDisponible = p.estado?.toLowerCase() === 'esperando repartidor';
-          if (esDisponible) console.log('📦 Pedido disponible encontrado:', p.id, p.estado);
-          return esDisponible;
-        });
+    const pedidos = await res.json();
+
+    const misActivos = pedidos.filter(p => 
+      p.estado?.toLowerCase() === 'camino a tu casa'
+    );
     
-        console.log(`📊 Resumen de pedidos - Activos: ${misActivos.length}, Disponibles: ${disponibles.length}`);
-        
-        actualizarContadorPedidos(misActivos.length);
-        actualizarContadorDisponibles(disponibles.length);
-        
-      } catch (err) {
-        console.error('❌ Error al cargar pedidos:', err);
-        // En caso de error, resetear contadores
-        actualizarContadorPedidos(0);
-        actualizarContadorDisponibles(0);
-      }
-    }
+    const disponibles = pedidos.filter(p => 
+      p.estado?.toLowerCase() === 'esperando repartidor'
+    );
+
+    console.log(`📊 Activos: ${misActivos.length}, Disponibles: ${disponibles.length}`);
+    
+    actualizarContadorPedidos(misActivos.length);
+    actualizarContadorDisponibles(disponibles.length);
+    
+  } catch (err) {
+    console.error('❌ Error al cargar pedidos:', err);
+    actualizarContadorPedidos(0);
+    actualizarContadorDisponibles(0);
+  }
+}
 
     // Gestión de pedidos en tiempo real
     function conectarSocketPedidos() {
-      if (typeof io !== 'undefined' && !socket) {
-        socket = io();
-        
-        socket.on('connect', async () => {
-          try {
-            const response = await window.apiRequest('/api/usuario-actual');
-            if (response.ok) {
-              const usuario = await response.json();
-              socket.emit('join-domiciliario', usuario.id);
-              console.log('✅ Conectado a actualizaciones de pedidos para domiciliarios');
-            }
-          } catch (error) {
-            console.error('❌ Error al conectar socket:', error);
-          }
-        });
-        
-        // Escuchar cambios de estado que afecten los contadores
-        socket.on('estado-pedido-actualizado', (data) => {
-          console.log('📊 Estado de pedido actualizado:', data);
-          
-          // En lugar de manejar incrementos/decrementos manuales, 
-          // recargamos los datos reales desde el servidor
-          setTimeout(() => {
-            cargarPedidosActivosYDisponibles();
-          }, 500); // Pequeño delay para asegurar que el servidor se actualizó
-          
-          // Mostrar notificación solo para pedidos que pasan a "esperando repartidor"
-          if (data.nuevoEstado === 'esperando repartidor' && data.estadoAnterior !== 'esperando repartidor') {
-            if (window.NotificationSystem) {
-              window.NotificationSystem.showNotification('Nuevo pedido disponible', {
-                body: `Pedido #${data.pedido_id || 'N/A'} listo para recoger`,
-                icon: '/img/logo.png'
-              });
-            }
-          }
-        });
+  if (typeof io !== 'undefined' && !socket) {
+    socket = io();
+    
+    socket.on('connect', async () => {
+      console.log('✅ Socket conectado en inicio_domi.html');
+      
+      try {
+        const response = await window.apiRequest('/api/usuario-actual');
+        if (response.ok) {
+          const usuario = await response.json();
+          socket.emit('join-domiciliario', usuario.id);
+          console.log('✅ Conectado a actualizaciones para domiciliario:', usuario.id);
+        }
+      } catch (error) {
+        console.error('❌ Error al conectar socket:', error);
+      }
+    });
+    
+    // ✅ CAMBIO DE ESTADO - Recargar contadores
+    socket.on('estado-pedido-actualizado', (data) => {
+      console.log('🔄 Estado actualizado en inicio:', data);
+      
+      // Recargar datos reales desde servidor
+      setTimeout(() => {
+        cargarPedidosActivosYDisponibles();
+      }, 500);
+    });
 
-        // Escuchar nuevos pedidos (por si acaso vienen directamente a esperando repartidor)
-        socket.on('nuevo-pedido', (data) => {
-          console.log('🔔 Nuevo pedido recibido:', data);
-          // Recargar contadores después de un breve delay
-          setTimeout(() => {
-            cargarPedidosActivosYDisponibles();
-          }, 1000);
-        });
-
-        // Manejar desconexión
-        socket.on('disconnect', () => {
-          console.log('⚠️ Socket desconectado');
-          socket = null; // Resetear para permitir reconexión
-        });
-
-        // Manejar reconexión
-        socket.on('reconnect', () => {
-          console.log('🔄 Socket reconectado');
-          // Recargar datos al reconectarse
-          cargarPedidosActivosYDisponibles();
+    // ✅ NUEVO PEDIDO DISPONIBLE
+    socket.on('nuevo-pedido-geografico', (data) => {
+      console.log('📦 Nuevo pedido en inicio:', data);
+      
+      // Recargar contadores
+      setTimeout(() => {
+        cargarPedidosActivosYDisponibles();
+      }, 500);
+      
+      // Notificación
+      if (window.NotificationSystem) {
+        window.NotificationSystem.showNotification('Nuevo pedido disponible', {
+          body: `Pedido #${data.pedido.id} a ${data.distancia?.toFixed(2)}km`,
+          icon: '/img/logo.png'
         });
       }
-    }
+    });
+
+    // ✅ PEDIDO TOMADO/REMOVIDO
+    socket.on('pedido-removido', () => {
+      console.log('🗑️ Pedido removido en inicio');
+      setTimeout(() => {
+        cargarPedidosActivosYDisponibles();
+      }, 500);
+    });
+
+    // ✅ RECONEXIÓN
+    socket.on('reconnect', () => {
+      console.log('🔄 Socket reconectado');
+      cargarPedidosActivosYDisponibles();
+    });
+
+    // ✅ DESCONEXIÓN
+    socket.on('disconnect', () => {
+      console.log('⚠️ Socket desconectado');
+      socket = null;
+    });
+  }
+}
 
     // Inicializar notificaciones
     document.addEventListener('DOMContentLoaded', () => {

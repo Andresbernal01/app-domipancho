@@ -80,12 +80,11 @@ function obtenerCostoDomicilio(pedido) {
       contador.classList.add('limite-cerca');
     }
   }
-// En domiciliarios.html - Conexión de socket corregida
-// En domiciliarios.html - Conexión de socket corregida
 
-// En domiciliario.js - REEMPLAZAR la sección de socket connection:
+  
 
-// En domiciliarios.html - Conexión de socket corregida
+  
+
 document.addEventListener('DOMContentLoaded', async () => {
   await cargarUsuario();
   await cargarPedidos();
@@ -103,26 +102,25 @@ document.addEventListener('DOMContentLoaded', async () => {
           const usuario = await response.json();
           console.log(`👤 Usuario domiciliario: ${usuario.id}`);
           
-          // ✅ UNIRSE SOLO A SALA ESPECÍFICA POR ID DOMICILIARIO
+          // Unirse a sala específica
           socket.emit('join-domiciliario', usuario.id);
           console.log(`🏠 Unido a sala: domiciliario-${usuario.id}`);
-          console.log(`🔍 Solo usando notificaciones geográficas específicas`);
         }
       } catch (error) {
         console.error('❌ Error al conectar socket:', error);
       }
     });
     
-    // ✅ ESCUCHAR NOTIFICACIONES GEOGRÁFICAS ESPECÍFICAS - CORREGIDO
+    // ✅ NUEVO PEDIDO GEOGRÁFICO
     socket.on('nuevo-pedido-geografico', (data) => {
-      console.log('📍 Nuevo pedido geográfico recibido:', data);
+      console.log('📍 Nuevo pedido geográfico:', data);
       
-      // ✅ VERIFICAR QUE mostrarPedidoGeografico EXISTE ANTES DE EJECUTAR
+      // Verificar función
       if (typeof mostrarPedidoGeografico === 'function') {
-        // Mostrar notificación
+        // Notificación visual
         if (window.NotificationSystem) {
           window.NotificationSystem.showNotification(
-            `Nuevo pedido a ${data.distancia}km`,
+            `Nuevo pedido a ${data.distancia?.toFixed(2) || '?'}km`,
             {
               body: `Pedido #${data.pedido.id} - ${data.pedido.nombre} ${data.pedido.apellido}`,
               icon: '/img/logo.png'
@@ -130,35 +128,55 @@ document.addEventListener('DOMContentLoaded', async () => {
           );
         }
         
-        // ✅ EJECUTAR LA FUNCIÓN PARA MOSTRAR EL PEDIDO
+        // Mostrar en UI
         mostrarPedidoGeografico(data);
       } else {
-        console.error('❌ Función mostrarPedidoGeografico no disponible');
-        
-        // ✅ FALLBACK: Recargar pedidos si la función no está disponible
-        setTimeout(() => {
-          console.log('🔄 Recargando pedidos como fallback...');
-          cargarPedidos();
-        }, 1000);
+        // Fallback: recargar pedidos
+        console.warn('⚠️ mostrarPedidoGeografico no disponible, recargando...');
+        setTimeout(() => cargarPedidos(), 1000);
       }
     });
     
+    // ✅ PEDIDO REMOVIDO
     socket.on('pedido-removido', (data) => {
       console.log('🗑️ Pedido removido:', data);
-      // Remover pedido específico del DOM
       const pedidoCard = document.querySelector(`[data-pedido-id="${data.pedidoId}"]`);
       if (pedidoCard) {
-        pedidoCard.remove();
+        pedidoCard.style.transition = 'all 0.3s ease';
+        pedidoCard.style.opacity = '0';
+        pedidoCard.style.transform = 'scale(0.8)';
+        setTimeout(() => pedidoCard.remove(), 300);
       }
     });
 
-
-    socket.on('pedido-fuera-radio', (data) => {
-      console.log('🚫 Pedido fuera de radio:', data);
-      removerPedidoFueraRadio(data);
+    // ✅ CAMBIO DE ESTADO
+    socket.on('estado-pedido-actualizado', (data) => {
+      console.log('🔄 Estado actualizado:', data);
+      
+      // Si mi pedido fue tomado por otro, remover
+      if (data.nuevoEstado !== 'esperando repartidor') {
+        const pedidoCard = document.querySelector(`[data-pedido-id="${data.pedidoId}"]`);
+        if (pedidoCard && !pedidoCard.classList.contains('mi-pedido')) {
+          setTimeout(() => pedidoCard.remove(), 500);
+        }
+      }
     });
 
-    
+    // ✅ PEDIDO FUERA DE RADIO
+    socket.on('pedido-fuera-radio', (data) => {
+      console.log('🚫 Pedido fuera de radio:', data);
+      if (typeof removerPedidoFueraRadio === 'function') {
+        removerPedidoFueraRadio(data);
+      }
+    });
+
+    // ✅ PEDIDO LIBERADO
+    socket.on('pedido-liberado', (data) => {
+      console.log('🔄 Pedido liberado:', data);
+      setTimeout(() => cargarPedidos(), 1000);
+    });
+  } else {
+    console.error('❌ Socket.IO no disponible');
   }
 });
 
@@ -460,80 +478,6 @@ const total = subtotalProductos + costoDomicilio;
 
   }
 }
-
-
-
-// Función para mostrar pedido geográfico recibido por socket - CORREGIDA
-// En domiciliario.js - REEMPLAZAR la sección de socket connection:
-
-// En domiciliarios.html - Conexión de socket corregida
-document.addEventListener('DOMContentLoaded', async () => {
-  await cargarUsuario();
-  await cargarPedidos();
-  
-  // Conectar socket para notificaciones
-  if (typeof io !== 'undefined') {
-    const socket = io();
-    
-    socket.on('connect', async () => {
-      console.log('🔌 Socket conectado');
-      
-      try {
-        const response = await window.apiRequest('/api/usuario-actual');
-        if (response.ok) {
-          const usuario = await response.json();
-          console.log(`👤 Usuario domiciliario: ${usuario.id}`);
-          
-          // ✅ UNIRSE SOLO A SALA ESPECÍFICA POR ID DOMICILIARIO
-          socket.emit('join-domiciliario', usuario.id);
-          console.log(`🏠 Unido a sala: domiciliario-${usuario.id}`);
-          console.log(`🔍 Solo usando notificaciones geográficas específicas`);
-        }
-      } catch (error) {
-        console.error('❌ Error al conectar socket:', error);
-      }
-    });
-    
-    // ✅ ESCUCHAR NOTIFICACIONES GEOGRÁFICAS ESPECÍFICAS - CORREGIDO
-    socket.on('nuevo-pedido-geografico', (data) => {
-      console.log('📍 Nuevo pedido geográfico recibido:', data);
-      
-      // ✅ VERIFICAR QUE mostrarPedidoGeografico EXISTE ANTES DE EJECUTAR
-      if (typeof mostrarPedidoGeografico === 'function') {
-        // Mostrar notificación
-        if (window.NotificationSystem) {
-          window.NotificationSystem.showNotification(
-            `Nuevo pedido a ${data.distancia}km`,
-            {
-              body: `Pedido #${data.pedido.id} - ${data.pedido.nombre} ${data.pedido.apellido}`,
-              icon: '/img/logo.png'
-            }
-          );
-        }
-        
-        // ✅ EJECUTAR LA FUNCIÓN PARA MOSTRAR EL PEDIDO
-        mostrarPedidoGeografico(data);
-      } else {
-        console.error('❌ Función mostrarPedidoGeografico no disponible');
-        
-        // ✅ FALLBACK: Recargar pedidos si la función no está disponible
-        setTimeout(() => {
-          console.log('🔄 Recargando pedidos como fallback...');
-          cargarPedidos();
-        }, 1000);
-      }
-    });
-    
-    socket.on('pedido-removido', (data) => {
-      console.log('🗑️ Pedido removido:', data);
-      // Remover pedido específico del DOM
-      const pedidoCard = document.querySelector(`[data-pedido-id="${data.pedidoId}"]`);
-      if (pedidoCard) {
-        pedidoCard.remove();
-      }
-    });
-  }
-});
 
 // ✅ ASEGURAR QUE LA FUNCIÓN mostrarPedidoGeografico ESTÉ DISPONIBLE GLOBALMENTE
 // Función completa para mostrar pedido geográfico - MEJORADA

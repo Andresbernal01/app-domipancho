@@ -1,16 +1,14 @@
-// socket-mock.js - Reemplazo de Socket.IO para app móvil
+// socket-mock.js - Socket.IO mock mejorado para app móvil
 (function() {
   'use strict';
   
-  // Mock de Socket.IO para la app móvil
   class SocketMock {
     constructor() {
       this.connected = false;
       this.listeners = {};
-      this.reconnectAttempts = 0;
-      this.maxReconnectAttempts = 5;
-      this.reconnectInterval = 5000;
       this.pollingInterval = null;
+      this.lastPedidosState = null;
+      this.usuarioId = null;
     }
 
     on(event, callback) {
@@ -18,42 +16,47 @@
         this.listeners[event] = [];
       }
       this.listeners[event].push(callback);
-      console.log(`📱 Socket mock: Registrado listener para '${event}'`);
+      console.log(`📱 Socket registrado: '${event}'`);
     }
 
     emit(event, data) {
-      console.log(`📱 Socket mock: Emitiendo '${event}':`, data);
-      // En una app móvil real, aquí harías polling o push notifications
+      console.log(`📱 Socket emit: '${event}':`, data);
+      
+      // Guardar ID de usuario cuando se une
+      if (event === 'join-domiciliario' && data) {
+        this.usuarioId = data;
+        console.log(`👤 Usuario domiciliario guardado: ${this.usuarioId}`);
+      }
     }
 
     connect() {
-      console.log('📱 Socket mock: Simulando conexión...');
+      console.log('📱 Socket mock conectando...');
       this.connected = true;
-      this.emit('connect');
+      this.triggerEvent('connect');
       this.startPolling();
     }
 
     disconnect() {
-      console.log('📱 Socket mock: Desconectando...');
+      console.log('📱 Socket desconectando...');
       this.connected = false;
       this.stopPolling();
-      this.emit('disconnect');
+      this.triggerEvent('disconnect');
     }
 
-    // Simular polling para reemplazar eventos en tiempo real
     startPolling() {
       if (this.pollingInterval) return;
       
-      this.pollingInterval = setInterval(async () => {
-        if (!this.connected) return;
-        
-        try {
-          // Verificar si hay nuevos pedidos
-          await this.checkForUpdates();
-        } catch (error) {
-          console.error('Error en polling:', error);
+      console.log('🔄 Iniciando polling cada 10 segundos...');
+      
+      // Poll inmediato
+      this.checkForUpdates();
+      
+      // Polling regular
+      this.pollingInterval = setInterval(() => {
+        if (this.connected) {
+          this.checkForUpdates();
         }
-      }, window.APP_CONFIG?.POLLING_INTERVAL || 30000);
+      }, 10000); // 10 segundos
     }
 
     stopPolling() {
@@ -65,30 +68,76 @@
 
     async checkForUpdates() {
       try {
-        // Simular verificación de actualizaciones
-        const response = await window.apiRequest('/api/pedidos-domiciliario');
+        const response = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
         
-        if (response.ok) {
-          const pedidos = await response.json();
-          
-          // Detectar cambios y emitir eventos simulados
-          this.handlePedidosUpdate(pedidos);
+        if (!response.ok) {
+          console.error('❌ Error en polling:', response.status);
+          return;
         }
+
+        const pedidos = await response.json();
+        
+        // Detectar cambios
+        this.detectarCambios(pedidos);
+        
       } catch (error) {
-        console.error('Error verificando actualizaciones:', error);
+        console.error('❌ Error en checkForUpdates:', error);
       }
     }
 
-    handlePedidosUpdate(pedidos) {
-      // Lógica para detectar cambios en pedidos
-      const pedidosDisponibles = pedidos.filter(p => p.estado === 'esperando repartidor');
-      const pedidosActivos = pedidos.filter(p => p.estado === 'camino a tu casa');
-      
-      // Simular evento de actualización
-      this.triggerEvent('estado-pedido-actualizado', {
-        pedidosDisponibles: pedidosDisponibles.length,
-        pedidosActivos: pedidosActivos.length
+    detectarCambios(pedidosNuevos) {
+      if (!this.lastPedidosState) {
+        this.lastPedidosState = pedidosNuevos;
+        return;
+      }
+
+      // Detectar nuevos pedidos disponibles
+      const disponiblesNuevos = pedidosNuevos.filter(p => 
+        p.estado === 'esperando repartidor' &&
+        !this.lastPedidosState.some(old => old.id === p.id && old.estado === 'esperando repartidor')
+      );
+
+      // Detectar pedidos que cambiaron de estado
+      pedidosNuevos.forEach(pedidoNuevo => {
+        const pedidoViejo = this.lastPedidosState.find(p => p.id === pedidoNuevo.id);
+        
+        if (pedidoViejo && pedidoViejo.estado !== pedidoNuevo.estado) {
+          console.log(`🔄 Estado cambió: Pedido ${pedidoNuevo.id} de '${pedidoViejo.estado}' a '${pedidoNuevo.estado}'`);
+          
+          this.triggerEvent('estado-pedido-actualizado', {
+            pedidoId: pedidoNuevo.id,
+            estadoAnterior: pedidoViejo.estado,
+            nuevoEstado: pedidoNuevo.estado
+          });
+        }
       });
+
+      // Notificar nuevos pedidos disponibles
+      disponiblesNuevos.forEach(pedido => {
+        console.log(`📦 Nuevo pedido disponible detectado: ${pedido.id}`);
+        
+        // Simular evento geográfico
+        this.triggerEvent('nuevo-pedido-geografico', {
+          pedido: pedido,
+          distancia: pedido.distancia_al_restaurante || 0,
+          conexion_inicial: false
+        });
+      });
+
+      // Detectar pedidos removidos
+      const pedidosRemovidos = this.lastPedidosState.filter(viejo => 
+        viejo.estado === 'esperando repartidor' &&
+        !pedidosNuevos.some(nuevo => nuevo.id === viejo.id && nuevo.estado === 'esperando repartidor')
+      );
+
+      pedidosRemovidos.forEach(pedido => {
+        console.log(`🗑️ Pedido removido detectado: ${pedido.id}`);
+        this.triggerEvent('pedido-removido', {
+          pedidoId: pedido.id
+        });
+      });
+
+      this.lastPedidosState = pedidosNuevos;
     }
 
     triggerEvent(event, data) {
@@ -97,7 +146,7 @@
           try {
             callback(data);
           } catch (error) {
-            console.error(`Error ejecutando callback para ${event}:`, error);
+            console.error(`❌ Error en callback para ${event}:`, error);
           }
         });
       }
@@ -107,17 +156,18 @@
   // Crear instancia global
   window.io = function() {
     if (!window.socketMockInstance) {
+      console.log('📱 Creando nueva instancia de Socket Mock');
       window.socketMockInstance = new SocketMock();
-      // Auto-conectar después de un pequeño delay
+      
+      // Auto-conectar después de 500ms
       setTimeout(() => {
-        window.socketMockInstance.connect();
-      }, 1000);
+        if (window.socketMockInstance) {
+          window.socketMockInstance.connect();
+        }
+      }, 500);
     }
     return window.socketMockInstance;
   };
 
-  // Funciones de utilidad
-  window.io.connect = window.io;
-  
-  console.log('📱 Socket.IO mock inicializado para app móvil');
+  console.log('✅ Socket.IO mock v2 cargado');
 })();
