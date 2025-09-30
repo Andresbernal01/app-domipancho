@@ -153,146 +153,37 @@
   </div>
 
 
-  <script>
-// Script de geolocalización mejorado para domiciliarios.html
-// Reemplazar el script existente en domiciliarios.html
 
-let geoService = null;
-let geoInitialized = false;
-
-document.addEventListener('DOMContentLoaded', async () => {
-  // Solo inicializar una vez
-  if (geoInitialized) return;
-  geoInitialized = true;
-
-  // Inicializar servicio de geolocalización
-  geoService = new GeolocationService();
-  
-  // Función para intentar obtener ubicación
-  async function inicializarGeolocation() {
-    try {
-      console.log('🔄 Solicitando permisos de ubicación...');
-      await geoService.requestPermission();
-      
-      console.log('📍 Obteniendo ubicación inicial...');
-      const position = await geoService.getCurrentPosition();
-      
-      console.log('📤 Enviando ubicación al servidor...');
-      await geoService.updateLocationOnServer(position);
-      console.log('✅ Ubicación inicial enviada correctamente');
-      
-      // Iniciar tracking continuo
-      console.log('🎯 Iniciando tracking continuo...');
-      geoService.startTracking(async (newPosition) => {
-        try {
-          await geoService.updateLocationOnServer(newPosition);
-          console.log('📍 Ubicación actualizada:', newPosition);
-        } catch (error) {
-          console.error('❌ Error actualizando ubicación:', error);
-        }
-      });
-      
-    } catch (error) {
-      console.warn('⚠️ Error de ubicación:', error.message);
-      
-      // Mostrar mensaje específico según el tipo de error
-      if (error.message.includes('denegados')) {
-        mostrarAlertaUbicacion('Permisos denegados', 
-          'Necesitas activar los permisos de ubicación para recibir pedidos cercanos.');
-      } else if (error.message.includes('Tiempo agotado')) {
-        mostrarAlertaUbicacion('Tiempo agotado', 
-          'No se pudo obtener tu ubicación. Verifica que tu GPS esté activado e intenta de nuevo.');
-        
-        // Reintentar después de 5 segundos
-        setTimeout(() => {
-          console.log('🔄 Reintentando obtener ubicación...');
-          inicializarGeolocation();
-        }, 5000);
-      } else {
-        mostrarAlertaUbicacion('Error de ubicación', 
-          'No se pudo obtener tu ubicación. Verifica tu conexión y permisos.');
-      }
-    }
-  }
-
-  // Función para mostrar alertas de ubicación
-  function mostrarAlertaUbicacion(titulo, mensaje) {
-    const alerta = document.createElement('div');
-    alerta.style.cssText = `
-      position: fixed;
-      top: 80px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: linear-gradient(135deg, #fef3c7, #fde68a);
-      border: 2px solid #f59e0b;
-      color: #92400e;
-      padding: 15px 20px;
-      border-radius: 12px;
-      z-index: 9999;
-      max-width: 90%;
-      text-align: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    `;
-    alerta.innerHTML = `
-      <strong style="display: block; margin-bottom: 8px; font-size: 1.1em;">📍 ${titulo}</strong>
-      <p style="margin: 0; font-size: 0.9em;">${mensaje}</p>
-      <button onclick="this.parentElement.remove()" style="
-        margin-top: 10px;
-        background: #f59e0b;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-weight: bold;
-      ">Entendido</button>
-    `;
-    document.body.appendChild(alerta);
-    
-    // Auto-remover después de 15 segundos
-    setTimeout(() => {
-      if (alerta.parentElement) {
-        alerta.remove();
-      }
-    }, 15000);
-  }
-
-  // Iniciar proceso de geolocalización
-  await inicializarGeolocation();
-});
-
-// Detener seguimiento al cerrar la página
-window.addEventListener('beforeunload', () => {
-  if (geoService) {
-    geoService.stopTracking();
-  }
-});
-
-// Manejar cambio de visibilidad de la app
-document.addEventListener('visibilitychange', async () => {
-  if (document.hidden) {
-    console.log('📱 App en background');
-    // Mantener tracking activo en background
-  } else {
-    console.log('📱 App en foreground');
-    // Verificar y actualizar ubicación al volver
-    if (geoService && geoService.lastPosition) {
-      try {
-        await geoService.updateLocationOnServer(geoService.lastPosition);
-      } catch (error) {
-        console.error('Error actualizando ubicación al retomar:', error);
-      }
-    }
-  }
-});
-    </script>
-
-<script src="js/socket-mock.js"></script>
-<script src="/js/notifications.js"></script>
-<script src="js/notification-service.js"></script> <!-- Cargar ANTES de domiciliario.js -->
-<script src="js/geolocation.js"></script>
+  <script src="js/socket-mock.js"></script>
+  <script src="/js/notifications.js"></script>
+  <script src="js/notification-service.js"></script>
+  <script src="js/unified-geolocation.js"></script>
   <script src="js/inactividad.js"></script>
   <script src="js/domiciliario.js"></script>
 
+  <!-- INICIALIZAR GEOLOCALIZACIÓN ÚNICA -->
+  <script>
+  document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🎯 Inicializando geolocalización unificada...');
+    
+    // Usar instancia global
+    if (window.unifiedGeoService) {
+      await window.unifiedGeoService.initialize();
+      await window.unifiedGeoService.startTracking();
+      console.log('✅ Tracking activo');
+    }
+  });
+
+  // Mantener tracking al cambiar de visibilidad
+  document.addEventListener('visibilitychange', async () => {
+    if (!document.hidden && window.unifiedGeoService) {
+      if (!window.unifiedGeoService.isTracking && window.unifiedGeoService.permissionStatus === 'granted') {
+        console.log('📱 Página restaurada - reiniciando tracking...');
+        await window.unifiedGeoService.startTracking();
+      }
+    }
+  });
+  </script>
 </body>
 </html>
+

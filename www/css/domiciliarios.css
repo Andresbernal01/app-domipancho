@@ -1297,3 +1297,38 @@ border-radius: 4px;
 font-family: inherit;
 resize: vertical;
 }
+
+
+/* Agregar al final de domiciliarios.css */
+
+/* Deshabilitar completamente la interactividad de la carta */
+.pedido-card {
+  cursor: default !important;
+  pointer-events: none; /* Esto evita cualquier evento de touch/click */
+}
+
+/* Pero permitir interactividad en los botones */
+.pedido-card button {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Eliminar transformaciones y efectos hover de la carta */
+.pedido-card:hover {
+  transform: none !important;
+  border-color: inherit !important;
+  box-shadow: none !important;
+}
+
+/* Eliminar el efecto de escala al hacer touch en móvil */
+.pedido-card:active {
+  transform: none !important;
+}
+
+/* Opcional: si quieres un efecto más sutil solo en hover (escritorio) */
+@media (hover: hover) and (pointer: fine) {
+  .pedido-card:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  }
+}

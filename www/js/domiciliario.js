@@ -349,7 +349,6 @@ const total = subtotalProductos + costoDomicilio;
       const pedidoHtml = `
         <div class="pedido-card ${colorClass} ${esMiPedido ? 'mi-pedido' : ''}" 
              style="cursor: pointer; padding: 15px;" 
-             onclick="abrirDetallesPedido(${p.id})"
              data-pedido-id="${p.id}">
           ${esMiPedido ? '<div class="badge-mi-pedido">🚛 Mi Pedido</div>' : ''}
           ${p.envio_manual_domiciliario ? '<div class="badge-manual">📤 Envío Manual</div>' : ''}
@@ -557,7 +556,6 @@ const total = subtotalProductos + costoDomicilio;
     const pedidoHtml = `
       <div class="pedido-card color-disponible nuevo-geografico ${esConexionInicial ? 'conexion-inicial' : ''}" 
            style="cursor: pointer; padding: 15px; border: 3px solid ${borderColor}; box-shadow: 0 0 15px ${boxShadowColor};" 
-           onclick="abrirDetallesPedido(${pedido.id})"
            data-pedido-id="${pedido.id}">
         <div class="badge-geografico" style="background: linear-gradient(135deg, ${borderColor}, ${esConexionInicial ? '#1d4ed8' : '#059669'}); color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.75em; position: absolute; top: 10px; left: 10px; z-index: 10;">${badgeTexto}</div>
         
