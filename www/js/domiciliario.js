@@ -44,7 +44,7 @@ function obtenerCostoDomicilio(pedido) {
   async function logout() {
     try {
       const response = await window.apiRequest('/api/logout', { method: 'POST' });
-      if (response.ok) window.location.href = '/login.html';
+      if (response.ok) window.location.href = '/index.html';
       else alert('Error al cerrar sesión');
     } catch (error) {
       console.error('Error en logout:', error);
@@ -473,7 +473,7 @@ const total = subtotalProductos + costoDomicilio;
 <div class="error" style="text-align: center;">
 <h3>⚠️ Error al cargar pedidos</h3>
 <p>No se pudieron cargar los pedidos. Por favor, recarga la página.</p>
-<button onclick="window.location.href='login.html'" style="
+<button onclick="window.location.href='index.html'" style="
   margin-top: 8px;
   padding: 6px 12px;
   background-color: #007bff;
@@ -706,25 +706,111 @@ function removerPedidoFueraRadio(data) {
       mostrarMensaje('❌ No puedes tomar más pedidos. Máximo 2 pedidos activos permitidos.', 'error');
       return;
     }
-
+  
     if (!confirm('¿Quieres tomar este pedido?')) return;
-
+  
     try {
+      // Buscar y actualizar la tarjeta inmediatamente (optimistic update)
+      const tarjeta = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
+      if (tarjeta) {
+        tarjeta.style.opacity = '0.5';
+        tarjeta.style.pointerEvents = 'none';
+      }
+  
       const res = await window.apiRequest(`/api/pedidos/${pedidoId}/tomar`, {
         method: 'POST'
       });
       const result = await res.json();
-
+  
       if (res.ok) {
         mostrarMensaje(`✅ Pedido asignado. ¡Prepárate para la entrega! (${result.pedidosActivos || 1}/2 activos)`);
+        
+        // En lugar de recargar todo, actualizar la tarjeta específica
+        if (tarjeta) {
+          // Agregar clase de "mi pedido"
+          tarjeta.classList.add('mi-pedido', 'color-mi-pedido');
+          tarjeta.classList.remove('color-disponible', 'nuevo-geografico', 'conexion-inicial');
+          
+          // Actualizar el badge
+          const badgeGeografico = tarjeta.querySelector('.badge-geografico');
+          if (badgeGeografico) {
+            badgeGeografico.remove();
+          }
+          
+          // Agregar badge de "Mi Pedido"
+          if (!tarjeta.querySelector('.badge-mi-pedido')) {
+            tarjeta.insertAdjacentHTML('afterbegin', '<div class="badge-mi-pedido">🚛 Mi Pedido</div>');
+          }
+          
+          // Actualizar botones
+          const botonesContainer = tarjeta.querySelector('.btn-tomar')?.parentElement;
+          if (botonesContainer) {
+            botonesContainer.innerHTML = `
+              <button class="btn-liberar"
+                      onclick="event.stopPropagation(); abrirModalLiberar(${pedidoId})"
+                      style="flex: 1 1 100px; min-width: 100px; max-width: 120px; text-align: center; background-color: #f59e0b;">
+                🔄 Liberar
+              </button>
+              <button class="btn-entregado"
+                      onclick="event.stopPropagation(); abrirModalPago(${pedidoId})"
+                      style="flex: 1 1 100px; min-width: 100px; max-width: 120px; text-align: center;">
+                ✅ Entregado
+              </button>
+              <button class="btn-problema"
+                      onclick="event.stopPropagation(); abrirModalProblema(${pedidoId})"
+                      style="flex: 1 1 100px; min-width: 100px; max-width: 120px; text-align: center;">
+                ❌ Problema
+              </button>
+            `;
+          }
+          
+          // Actualizar estado
+          const estadoElement = tarjeta.querySelector('.estado');
+          if (estadoElement) {
+            estadoElement.textContent = 'camino a tu casa';
+            estadoElement.className = 'estado camino';
+          }
+          
+          // Remover info de distancia
+          const distanciaInfo = tarjeta.querySelector('.distancia-info');
+          if (distanciaInfo) {
+            distanciaInfo.remove();
+          }
+          
+          // Restaurar opacidad y mover al inicio
+          tarjeta.style.opacity = '1';
+          tarjeta.style.pointerEvents = 'auto';
+          
+          // Mover la tarjeta al inicio
+          const grid = tarjeta.parentElement;
+          if (grid) {
+            grid.insertBefore(tarjeta, grid.firstChild);
+          }
+          
+          // Actualizar contador
+          actualizarContadorPedidos(result.pedidosActivos || 1);
+        }
+        
+        // Recargar después de 2 segundos para sincronizar con el servidor
         setTimeout(() => {
           cargarPedidos();
-        }, 1000);
+        }, 2000);
       } else {
+        // Restaurar tarjeta si falló
+        if (tarjeta) {
+          tarjeta.style.opacity = '1';
+          tarjeta.style.pointerEvents = 'auto';
+        }
         mostrarMensaje(`❌ ${result.error || 'No se pudo tomar el pedido'}`, 'error');
       }
     } catch (error) {
       console.error('Error al tomar pedido:', error);
+      // Restaurar tarjeta
+      const tarjeta = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
+      if (tarjeta) {
+        tarjeta.style.opacity = '1';
+        tarjeta.style.pointerEvents = 'auto';
+      }
       mostrarMensaje('❌ Ocurrió un error de conexión', 'error');
     }
   }
