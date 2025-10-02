@@ -7,11 +7,11 @@
   <link rel="icon" href="img/logo.png">
   <link rel="stylesheet" href="css/inicio.css"/>
   <link rel="stylesheet" href="css/header.css">
-
+  <link rel="stylesheet" href="/css/notifications.css">
   <script src="js/config.js"></script>
+  <script src="js/socket-mock.js"></script>
+  <script src="/js/notifications.js"></script>
 
-
-<!-- Al inicio del <head> o en un CSS compartido -->
   <style>
     .pedidos-activos-contador {
       margin-bottom: 20px;
@@ -24,18 +24,26 @@
       box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
       border: 2px solid rgba(255, 255, 255, 0.2);
       text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
     }
+
+    .pedidos-activos-contador:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+
     .pedidos-activos-contador.limite-cerca {
       background: linear-gradient(135deg, #f59e0b, #d97706);
       box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
     }
+
     .pedidos-activos-contador.limite-alcanzado {
       background: linear-gradient(135deg, #dc2626, #b91c1c);
       box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
       animation: pulse 2s infinite;
     }
     
-    /* Estilos para el contador de pedidos disponibles en la tarjeta */
     .pedidos-disponibles-counter {
       position: absolute;
       top: 15px;
@@ -50,7 +58,7 @@
       justify-content: center;
       font-size: 13px;
       font-weight: 700;
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+      box-shadow: 0 4px 12px rgba(255, 68, 68, 0.4);
       animation: pulse-counter 3s ease-in-out infinite;
       z-index: 10;
       border: 2px solid white;
@@ -73,11 +81,10 @@
       }
       50% { 
         opacity: 0.8;
-        transform: scale(1.05);
+        transform: scale(1.1);
       }
     }
     
-    /* Estilos base para todas las cartas */
     .option-card {
       position: relative;
       overflow: visible;
@@ -101,7 +108,6 @@
       transform: translateY(-2px);
     }
     
-    /* Responsive para el contador */
     @media (max-width: 768px) {
       .pedidos-disponibles-counter {
         top: 12px;
@@ -130,20 +136,12 @@
       }
     }
   </style>
-  
-<!-- Notificaciones en tiempo real -->
-<script src="js/socket-mock.js"></script>
-<script src="/js/notifications.js"></script>
-<link rel="stylesheet" href="/css/notifications.css">
-
 </head>
 <body>
   <header class="header">
     <div class="header-container">
-      <!-- Botón Volver -->
-      <button  class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+      <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
 
-      <!-- Centro: Logo + Nombre -->
       <div class="header-center">
         <img src="img/logo.png" alt="Logo DomiPancho" class="logo" />
         <div class="restaurant-info">
@@ -151,7 +149,6 @@
         </div>
       </div>
 
-      <!-- Usuario -->
       <div class="header-right">
         <div class="user-info">
           <div class="user-icon">👤</div>
@@ -163,10 +160,8 @@
   </header>
   
   <div class="main-container">
-    <!-- Contador de pedidos activos -->
     <div id="contadorPedidos" class="pedidos-activos-contador" 
-         onclick="window.location.href='domiciliarios.html'" 
-         style="cursor: pointer;">
+         onclick="window.location.href='domiciliarios.html'">
       Pedidos activos: <span id="numPedidosActivos">0</span>/2
     </div>
 
@@ -177,17 +172,22 @@
 
       <div id="error" class="error" style="display: none;">
         <p>Error al cargar la información. Por favor, inicia sesión nuevamente.</p>
-        <button onclick="window.location.href='/index.html'" style="margin-top: 10px; padding: 8px 15px; background-color: #facc15; color: #121212; border: none; border-radius: 5px; cursor: pointer;">Ir a Login</button>
+        <button onclick="window.location.href='/index.html'" 
+                style="margin-top: 10px; padding: 8px 15px; background-color: #facc15; 
+                color: #121212; border: none; border-radius: 5px; cursor: pointer;">
+          Ir a Login
+        </button>
       </div>
 
       <div id="opciones" class="cajon-opcion" style="display: none;">
-        <!-- Tarjeta Pedidos con contador de pedidos disponibles -->
-        <div class="option-card pedidos" onclick="verPedidosAsignados()" role="button" tabindex="0"
-             onkeypress="handleKeyPress(event, verPedidosAsignados)" aria-label="Ver pedidos disponibles">
+        <div class="option-card pedidos" onclick="verPedidosAsignados()" 
+             role="button" tabindex="0" onkeypress="handleKeyPress(event, verPedidosAsignados)" 
+             aria-label="Ver pedidos disponibles">
           <span class="icono">📦</span>
           <h2>Pedidos</h2>
           <p>Consulta los pedidos que puedes realizar.</p>
-          <div class="pedidos-disponibles-counter" id="pedidosDisponiblesCounter" aria-live="polite">0</div>
+          <div class="pedidos-disponibles-counter" id="pedidosDisponiblesCounter" 
+               aria-live="polite">0</div>
         </div>
       
         <div class="option-card" onclick="verHistorialEntregas()">
@@ -217,27 +217,11 @@
     </main>
   </div>
 
-
-
-
   <script src="js/inactividad.js"></script>
   <script src="js/info_header.js"></script>
-  
-  <!-- ✅ CARGAR UNIFIED GEOLOCATION -->
   <script src="js/unified-geolocation.js"></script>
   
   <script>
-  // ✅ INICIALIZACIÓN DE GEOLOCALIZACIÓN (UNA SOLA VEZ)
-  document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🎯 Inicializando geolocalización unificada...');
-    
-    if (window.unifiedGeoService) {
-      await window.unifiedGeoService.initialize();
-      await window.unifiedGeoService.startTracking();
-      console.log('✅ Tracking activo - ubicación enviándose al backend');
-    }
-  });
-
   // FUNCIONES DE NAVEGACIÓN
   function verPedidosAsignados() {
     window.location.href = 'domiciliarios.html';
@@ -278,6 +262,127 @@
       callback();
     }
   }
+
+  // ACTUALIZAR CONTADORES
+  async function actualizarContadores() {
+    try {
+      const res = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
+      
+      if (!res.ok) {
+        console.error('Error al obtener pedidos:', res.status);
+        return;
+      }
+      
+      const pedidos = await res.json();
+      
+      // Contar pedidos activos (asignados a mí)
+      const pedidosActivos = pedidos.filter(p => 
+        p.estado?.toLowerCase() === 'camino a tu casa'
+      );
+      
+      // Contar pedidos disponibles (esperando repartidor)
+      const pedidosDisponibles = pedidos.filter(p => 
+        p.estado?.toLowerCase() === 'esperando repartidor'
+      );
+      
+      // Actualizar contador de pedidos activos
+      const numActivos = pedidosActivos.length;
+      document.getElementById('numPedidosActivos').textContent = numActivos;
+      
+      const contadorPedidos = document.getElementById('contadorPedidos');
+      contadorPedidos.className = 'pedidos-activos-contador';
+      
+      if (numActivos >= 2) {
+        contadorPedidos.classList.add('limite-alcanzado');
+      } else if (numActivos === 1) {
+        contadorPedidos.classList.add('limite-cerca');
+      }
+      
+      // Actualizar contador de pedidos disponibles
+      const numDisponibles = pedidosDisponibles.length;
+      const counterElement = document.getElementById('pedidosDisponiblesCounter');
+      
+      if (numDisponibles > 0) {
+        counterElement.textContent = numDisponibles;
+        counterElement.classList.add('show');
+      } else {
+        counterElement.classList.remove('show');
+      }
+      
+      console.log(`Contadores actualizados: ${numActivos} activos, ${numDisponibles} disponibles`);
+      
+    } catch (error) {
+      console.error('Error actualizando contadores:', error);
+    }
+  }
+
+  // INICIALIZACIÓN
+  document.addEventListener('DOMContentLoaded', async () => {
+    console.log('Inicializando página de inicio domiciliario...');
+    
+    // Inicializar geolocalización
+    if (window.unifiedGeoService) {
+      await window.unifiedGeoService.initialize();
+      await window.unifiedGeoService.startTracking();
+      console.log('Tracking activo');
+    }
+    
+    // Actualizar contadores inmediatamente
+    await actualizarContadores();
+    
+    // Actualizar contadores cada 10 segundos
+    setInterval(actualizarContadores, 10000);
+    
+    // Configurar Socket.IO para actualizaciones en tiempo real
+    if (typeof io !== 'undefined') {
+      const socket = io();
+      
+      socket.on('connect', async () => {
+        console.log('Socket conectado');
+        
+        const response = await window.apiRequest('/api/usuario-actual');
+        if (response.ok) {
+          const usuario = await response.json();
+          socket.emit('join-domiciliario', usuario.id);
+          console.log(`Unido a sala: domiciliario-${usuario.id}`);
+        }
+      });
+      
+      // Actualizar contadores en eventos de socket
+      socket.on('nuevo-pedido-geografico', async (data) => {
+        console.log('Nuevo pedido geográfico detectado');
+        await actualizarContadores();
+      });
+      
+      socket.on('estado-pedido-actualizado', async (data) => {
+        console.log('Estado de pedido actualizado');
+        await actualizarContadores();
+      });
+      
+      socket.on('pedido-removido', async (data) => {
+        console.log('Pedido removido');
+        await actualizarContadores();
+      });
+      
+      socket.on('pedido-tomado', async (data) => {
+        console.log('Pedido tomado');
+        await actualizarContadores();
+      });
+      
+      socket.on('pedido-liberado', async (data) => {
+        console.log('Pedido liberado');
+        await actualizarContadores();
+      });
+    }
+  });
+
+  // Actualizar al volver a la página
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      console.log('Página visible - actualizando contadores...');
+      actualizarContadores();
+    }
+  });
   </script>
 </body>
 </html>
