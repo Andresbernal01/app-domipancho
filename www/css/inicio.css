@@ -1,412 +1,637 @@
-/* Reset básico solo para elementos específicos de inicio */
-.main-container {
-  min-height: calc(100vh - 80px);
-  background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
-  padding: 1rem 0; /* Reduje el padding superior (antes 2rem) */
+/* ========================================
+   DOMIPANCHO - INICIO CSS MÓVIL APK
+   Optimizado para producción móvil
+======================================== */
 
+/* Reset y variables profesionales */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
 
-main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 2rem;
+:root {
+  /* Colores principales */
+  --primary-color: #e74c3c;
+  --secondary-color: #3498db;
+  --success-color: #22c55e;
+  --warning-color: #f39c12;
+  --danger-color: #ef4444;
+  
+  /* Fondos */
+  --dark-bg: #2c3e50;
+  --card-bg: #34495e;
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  
+  /* Textos */
+  --text-primary: #2c3e50;
+  --text-secondary: #7f8c8d;
+  --text-light: #ecf0f1;
+  --text-white: #ffffff;
+  
+  /* Gradientes */
+  --gradient-bg: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+  --gradient-success: linear-gradient(135deg, #22c55e, #16a34a);
+  --gradient-blue: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  --gradient-orange: linear-gradient(135deg, #f59e0b, #d97706);
+  --gradient-red: linear-gradient(135deg, #dc2626, #b91c1c);
 }
 
-/* Estados de carga y error */
-.loading {
+/* ========================================
+   BODY - Configuración principal móvil
+======================================== */
+html {
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+body {
+  background: var(--gradient-bg);
+  color: var(--text-light);
+  min-height: 100vh;
+  height: 100vh;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 200px;
-  color: #64748b;
-  font-size: 1.1rem;
-  font-weight: 500;
-}
-
-.loading p {
-  position: relative;
-  padding-left: 2rem;
-}
-
-.loading p::before {
-  content: '';
-  position: absolute;
+  flex-direction: column;
+  padding: 0;
+  margin: 0;
+  position: fixed;
+  width: 100%;
+  top: 0;
   left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 20px;
-  height: 20px;
-  border: 2px solid #e74c3c;
-  border-top: 2px solid transparent;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
-@keyframes spin {
-  0% { transform: translateY(-50%) rotate(0deg); }
-  100% { transform: translateY(-50%) rotate(360deg); }
+/* Partículas de fondo */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    radial-gradient(circle at 20% 80%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(231, 76, 60, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(52, 152, 219, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ========================================
+   MAIN CONTAINER
+======================================== */
+.main-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  padding-top: 0.5rem;
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  z-index: 1;
+}
+
+/* ========================================
+   CONTADOR DE PEDIDOS ACTIVOS
+======================================== */
+.pedidos-activos-contador {
+  margin: 0 auto 1.2rem;
+  background: var(--gradient-blue);
+  color: white;
+  padding: 0.9rem 1.5rem;
+  border-radius: 20px;
+  font-size: 1rem;
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  max-width: 280px;
+  width: 100%;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+}
+
+.pedidos-activos-contador:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.3);
+}
+
+.pedidos-activos-contador.limite-cerca {
+  background: var(--gradient-orange);
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+  animation: pulse-warning 2s ease-in-out infinite;
+}
+
+.pedidos-activos-contador.limite-alcanzado {
+  background: var(--gradient-red);
+  box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+  animation: pulse-danger 1.5s ease-in-out infinite;
+}
+
+#numPedidosActivos {
+  font-size: 1.1rem;
+  font-weight: 800;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ========================================
+   LOADING Y ERROR
+======================================== */
+.loading,
+.error {
+  text-align: center;
+  padding: 2rem 1.5rem;
+  margin: 2rem auto;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  max-width: 400px;
+  width: calc(100% - 2rem);
+}
+
+.loading p,
+.error p {
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.loading::before {
+  content: '';
+  display: block;
+  width: 50px;
+  height: 50px;
+  margin: 0 auto 1rem;
+  border: 4px solid rgba(34, 197, 94, 0.2);
+  border-top-color: var(--success-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 .error {
-  text-align: center;
-  padding: 3rem 2rem;
-  background: #fee;
-  border: 1px solid #fcc;
-  border-radius: 15px;
-  margin: 2rem auto;
-  max-width: 500px;
-  color: #c53030;
+  border: 2px solid var(--danger-color);
 }
 
-.error p {
+.error::before {
+  content: '⚠️';
+  display: block;
+  font-size: 3rem;
   margin-bottom: 1rem;
-  font-weight: 500;
 }
 
-/* Grid principal de opciones */
+.error button {
+  margin-top: 1rem;
+  padding: 0.8rem 1.5rem;
+  background: var(--gradient-success);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+  transition: all 0.3s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.error button:active {
+  transform: scale(0.97);
+}
+
+/* ========================================
+   MAIN CONTENT - Grid de opciones
+======================================== */
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
 .cajon-opcion {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2rem;
-  opacity: 0;
-  animation: fadeInUp 0.8s ease forwards;
-  margin-top: 10px;
+  grid-template-columns: 1fr;
+  gap: 1.2rem;
+  padding: 0;
+  width: 100%;
 }
 
-/* Tarjetas individuales */
-.cajon-opcion > div {
+/* ========================================
+   OPTION CARDS - Tarjetas principales
+======================================== */
+.option-card {
+  position: relative;
+  overflow: visible;
   background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
   border-radius: 20px;
-  padding: 2.5rem;
+  padding: 1.8rem 1.5rem;
   box-shadow: 
     0 10px 25px rgba(0, 0, 0, 0.08),
-    0 4px 10px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(231, 76, 60, 0.1);
+    0 0 0 1px rgba(16, 185, 129, 0.1);
+  border: 2px solid transparent;
   cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: center;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  will-change: transform;
 }
 
-.cajon-opcion > div::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, 
-    rgba(231, 76, 60, 0.05) 0%, 
-    rgba(52, 152, 219, 0.05) 100%);
-  transition: left 0.5s ease;
+.option-card:active {
+  transform: scale(0.97);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.12);
 }
 
-.cajon-opcion > div:hover::before {
-  left: 0;
+.option-card:not(:active) {
+  animation: cardEntrance 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.cajon-opcion > div:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 
-    0 20px 40px rgba(0, 0, 0, 0.12),
-    0 8px 20px rgba(0, 0, 0, 0.08),
-    0 0 0 1px rgba(231, 76, 60, 0.2);
-}
-
-/* Iconos */
-.cajon-opcion .icono {
-  font-size: 3.5rem;
-  margin-bottom: 1.5rem;
-  display: block;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
-  transition: all 0.3s ease;
-  position: relative;
-  z-index: 2;
-}
-
-.cajon-opcion > div:hover .icono {
-  transform: scale(1.1) rotate(5deg);
-  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15));
-}
-
-/* Títulos */
-.cajon-opcion h2 {
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #2d3748;
-  margin-bottom: 1rem;
-  position: relative;
-  z-index: 2;
-  transition: color 0.3s ease;
-}
-
-.cajon-opcion > div:hover h2 {
-  color: #e74c3c;
-}
-
-/* Descripciones */
-.cajon-opcion p {
-  font-size: 0.95rem;
-  color: #64748b;
-  line-height: 1.6;
-  position: relative;
-  z-index: 2;
-  transition: color 0.3s ease;
-}
-
-.cajon-opcion > div:hover p {
-  color: #475569;
-}
-
-/* Animaciones de entrada escalonadas */
-.cajon-opcion > div:nth-child(1) { animation-delay: 0.1s; }
-.cajon-opcion > div:nth-child(2) { animation-delay: 0.2s; }
-.cajon-opcion > div:nth-child(3) { animation-delay: 0.3s; }
-.cajon-opcion > div:nth-child(4) { animation-delay: 0.4s; }
-.cajon-opcion > div:nth-child(5) { animation-delay: 0.5s; }
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
+/* Hover effect para tablets */
+@media (hover: hover) and (pointer: fine) {
+  .option-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    border-color: rgba(16, 185, 129, 0.3);
   }
+}
+
+/* Efecto especial para la card de Pedidos */
+.option-card.pedidos {
+  background: linear-gradient(145deg, #f0fdf4 0%, #dcfce7 100%);
+  border-color: rgba(34, 197, 94, 0.2);
+}
+
+.option-card.pedidos:active {
+  background: linear-gradient(145deg, #dcfce7 0%, #bbf7d0 100%);
+}
+
+/* ========================================
+   ICONOS DE LAS CARDS
+======================================== */
+.option-card .icono {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 1rem;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+  transition: transform 0.3s ease;
+}
+
+.option-card:active .icono {
+  transform: scale(0.95);
+}
+
+/* ========================================
+   TÍTULOS Y DESCRIPCIONES
+======================================== */
+.option-card h2 {
+  color: var(--text-primary);
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.3px;
+}
+
+.option-card p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+/* ========================================
+   CONTADOR DE PEDIDOS DISPONIBLES
+======================================== */
+.pedidos-disponibles-counter {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: var(--gradient-red);
+  color: white;
+  border-radius: 50%;
+  min-width: 32px;
+  height: 32px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 4px 15px rgba(255, 68, 68, 0.5);
+  animation: pulse-counter 2s ease-in-out infinite;
+  z-index: 10;
+  border: 3px solid white;
+  pointer-events: none;
+  letter-spacing: -0.5px;
+}
+
+.pedidos-disponibles-counter.show {
+  display: flex;
+}
+
+/* ========================================
+   ANIMACIONES
+======================================== */
+@keyframes spin {
   to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-warning {
+  0%, 100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes pulse-danger {
+  0%, 100% { 
+    opacity: 1;
+    transform: scale(1);
+    box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+  }
+  50% { 
+    opacity: 0.95;
+    transform: scale(1.03);
+    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.6);
+  }
+}
+
+@keyframes pulse-counter {
+  0%, 100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.85;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes cardEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-/* Efectos especiales para ciertas opciones */
-.cajon-opcion .horarios {
-  position: relative;
-}
-
-
-
-@keyframes pulse {
-  0%, 100% { 
-    transform: scale(1);
-    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
-  }
-  50% { 
-    transform: scale(1.05);
-    box-shadow: 0 6px 12px rgba(231, 76, 60, 0.4);
-  }
-}
-
-/* Estados activos */
-.cajon-opcion > div:active {
-  transform: translateY(-4px) scale(0.98);
-  transition-duration: 0.1s;
-}
-
-/* Responsive Design */
-@media (max-width: 1200px) {
-  .main-container {
-    padding: 1.5rem 0;
-  }
-  
-  main {
-    padding: 0 1.5rem;
-  }
-  
+/* ========================================
+   RESPONSIVE - Pantallas medianas
+======================================== */
+@media (min-width: 768px) {
   .cajon-opcion {
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .option-card {
+    padding: 2rem 1.8rem;
+  }
+  
+  .pedidos-activos-contador {
+    max-width: 320px;
+    font-size: 1rem;
+    padding: 1rem 1.8rem;
   }
 }
 
-@media (max-width: 768px) {
+/* ========================================
+   RESPONSIVE - Pantallas pequeñas
+======================================== */
+@media (max-width: 360px) {
   .main-container {
-    padding: 1rem 0;
+    padding: 0.8rem;
+    padding-top: 0.3rem;
   }
   
-  main {
-    padding: 0 1rem;
-  }
-  
-  .cajon-opcion {
-    grid-template-columns: 1fr;
-    gap: 1.2rem;
-  }
-  
-  .cajon-opcion > div {
-    padding: 2rem 1.5rem;
-    border-radius: 15px;
-  }
-  
-  .cajon-opcion .icono {
-    font-size: 3rem;
-    margin-bottom: 1.2rem;
-  }
-  
-  .cajon-opcion h2 {
-    font-size: 1.3rem;
-    margin-bottom: 0.8rem;
-  }
-  
-  .cajon-opcion p {
+  .pedidos-activos-contador {
     font-size: 0.9rem;
-  }
-  
-  .cajon-opcion .horarios::after {
-    top: 15px;
-    right: 15px;
-    padding: 0.25rem 0.6rem;
-    font-size: 0.65rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .cajon-opcion > div {
-    padding: 1.5rem 1.2rem;
-    border-radius: 12px;
-  }
-  
-  .cajon-opcion .icono {
-    font-size: 2.5rem;
+    padding: 0.8rem 1.2rem;
     margin-bottom: 1rem;
   }
   
-  .cajon-opcion h2 {
+  .cajon-opcion {
+    gap: 1rem;
+  }
+  
+  .option-card {
+    padding: 1.5rem 1.2rem;
+  }
+  
+  .option-card .icono {
+    font-size: 2.5rem;
+    margin-bottom: 0.8rem;
+  }
+  
+  .option-card h2 {
     font-size: 1.2rem;
-    margin-bottom: 0.7rem;
   }
   
-  .cajon-opcion p {
-    font-size: 0.85rem;
-    line-height: 1.5;
-  }
-  
-  .cajon-opcion > div:hover {
-    transform: translateY(-4px) scale(1.01);
-  }
-}
-
-/* Mejoras de accesibilidad */
-@media (prefers-reduced-motion: reduce) {
-  .cajon-opcion > div,
-  .cajon-opcion .icono,
-  .loading p::before {
-    animation: none;
-    transition: none;
-  }
-  
-  .cajon-opcion > div:hover {
-    transform: none;
-  }
-}
-
-/* Focus para teclado */
-.cajon-opcion > div:focus {
-  outline: 3px solid rgba(231, 76, 60, 0.4);
-  outline-offset: 2px;
-}
-
-
-
-
-/* Estilos para el botón de cerrar sesión */
-.logout-btn {
-  background-color: #e74c3c;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 0.6rem 1.2rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.logout-btn:hover {
-  background-color: #c0392b;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-.logout-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
-}
-
-/* Icono para el botón (opcional) */
-.logout-btn::before {
-  content: "🚪";
-  font-size: 1.1rem;
-}
-
-/* Media Queries para responsive */
-@media (max-width: 1200px) {
-  .logout-btn {
-    padding: 0.5rem 1rem;
+  .option-card p {
     font-size: 0.9rem;
   }
+  
+  .pedidos-disponibles-counter {
+    top: 12px;
+    right: 12px;
+    min-width: 28px;
+    height: 28px;
+    font-size: 13px;
+    border-width: 2px;
+  }
 }
 
-@media (max-width: 768px) {
-  .logout-btn {
-    padding: 0.4rem 0.8rem;
+/* ========================================
+   LANDSCAPE MODE
+======================================== */
+@media (orientation: landscape) and (max-height: 500px) {
+  .main-container {
+    padding: 0.5rem 1rem;
+  }
+  
+  .pedidos-activos-contador {
+    padding: 0.7rem 1.2rem;
+    font-size: 0.9rem;
+    margin-bottom: 0.8rem;
+  }
+  
+  .cajon-opcion {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.8rem;
+  }
+  
+  .option-card {
+    padding: 1.2rem 1rem;
+  }
+  
+  .option-card .icono {
+    font-size: 2.2rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .option-card h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0.3rem;
+  }
+  
+  .option-card p {
     font-size: 0.85rem;
-    border-radius: 6px;
+    line-height: 1.3;
   }
   
-  .logout-btn::before {
-    font-size: 1rem;
+  .pedidos-disponibles-counter {
+    top: 10px;
+    right: 10px;
+    min-width: 26px;
+    height: 26px;
+    font-size: 12px;
   }
 }
 
-@media (max-width: 480px) {
-  .logout-btn {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.8rem;
-    border-radius: 5px;
+/* ========================================
+   iOS SAFARI ESPECÍFICO
+======================================== */
+@supports (-webkit-touch-callout: none) {
+  html {
+    position: fixed;
+    width: 100%;
+    height: 100%;
   }
   
-  .logout-btn::before {
-    content: ""; /* Ocultar icono en móviles muy pequeños */
+  body {
+    min-height: 100vh;
+    height: 100vh;
+    position: fixed;
+    width: 100%;
+  }
+  
+  .main-container {
+    padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+  }
+  
+  .option-card {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
   }
 }
 
-/* Accesibilidad - reducir movimiento */
+/* ========================================
+   OPTIMIZACIONES DE RENDIMIENTO
+======================================== */
+.option-card,
+.pedidos-activos-contador,
+.pedidos-disponibles-counter {
+  will-change: transform;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* ========================================
+   ACCESIBILIDAD
+======================================== */
 @media (prefers-reduced-motion: reduce) {
-  .logout-btn {
-    transition: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
-  
-  .logout-btn:hover {
-    transform: none;
+}
+
+.option-card:focus-visible {
+  outline: 3px solid rgba(34, 197, 94, 0.5);
+  outline-offset: 3px;
+}
+
+/* ========================================
+   SCROLL SUAVE
+======================================== */
+* {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* ========================================
+   PREVENIR ZOOM EN INPUTS (iOS)
+======================================== */
+@media screen and (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
   }
 }
 
-/* Focus para teclado */
-.logout-btn:focus {
-  outline: 3px solid rgba(231, 76, 60, 0.4);
-  outline-offset: 2px;
+/* ========================================
+   SAFE AREAS PARA NOTCH
+======================================== */
+@supports (padding: max(0px)) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
 }
 
-
-
-
-.cajon-opcion > div {
-  padding: 2rem 1.5rem; /* Reducido de 2.5rem */
-  border-radius: 16px; /* Reducido de 20px */
+/* ========================================
+   ESTADOS ESPECIALES
+======================================== */
+.option-card[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
-.cajon-opcion .icono {
-  font-size: 2.8rem; /* Reducido de 3.5rem */
-  margin-bottom: 1.2rem; /* Reducido de 1.5rem */
+.option-card[aria-disabled="true"] .icono {
+  filter: grayscale(1) opacity(0.5);
 }
 
-.cajon-opcion h2 {
-  font-size: 1.2rem; /* Reducido de 1.4rem */
+/* ========================================
+   ANIMACIÓN PARA STAGGER EFFECT
+======================================== */
+.cajon-opcion .option-card:nth-child(1) {
+  animation-delay: 0.1s;
 }
 
-.cajon-opcion p {
-  font-size: 0.9rem; /* Reducido de 0.95rem */
+.cajon-opcion .option-card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.cajon-opcion .option-card:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.cajon-opcion .option-card:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+.cajon-opcion .option-card:nth-child(5) {
+  animation-delay: 0.5s;
 }

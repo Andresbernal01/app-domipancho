@@ -12,130 +12,15 @@
   <script src="js/socket-mock.js"></script>
   <script src="/js/notifications.js"></script>
 
-  <style>
-    .pedidos-activos-contador {
-      margin-bottom: 20px;
-      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-      color: white;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-size: 0.9em;
-      font-weight: bold;
-      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
-      border: 2px solid rgba(255, 255, 255, 0.2);
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
 
-    .pedidos-activos-contador:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-    }
 
-    .pedidos-activos-contador.limite-cerca {
-      background: linear-gradient(135deg, #f59e0b, #d97706);
-      box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
-    }
+  <!-- En el <head>, después del viewport: -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2c3e50">
 
-    .pedidos-activos-contador.limite-alcanzado {
-      background: linear-gradient(135deg, #dc2626, #b91c1c);
-      box-shadow: 0 2px 8px rgba(220, 38, 38, 0.3);
-      animation: pulse 2s infinite;
-    }
-    
-    .pedidos-disponibles-counter {
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      background: linear-gradient(135deg, #ff4444, #e74c3c);
-      color: white;
-      border-radius: 50%;
-      min-width: 28px;
-      height: 28px;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 700;
-      box-shadow: 0 4px 12px rgba(255, 68, 68, 0.4);
-      animation: pulse-counter 3s ease-in-out infinite;
-      z-index: 10;
-      border: 2px solid white;
-      pointer-events: none;
-    }
-    
-    .pedidos-disponibles-counter.show {
-      display: flex;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-    
-    @keyframes pulse-counter {
-      0%, 100% { 
-        opacity: 1;
-        transform: scale(1);
-      }
-      50% { 
-        opacity: 0.8;
-        transform: scale(1.1);
-      }
-    }
-    
-    .option-card {
-      position: relative;
-      overflow: visible;
-      background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-      border-radius: 20px;
-      padding: 2.5rem;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
-      border: 1px solid rgba(16, 185, 129, 0.1);
-      cursor: pointer;
-      transition: all 0.3s ease;
-      text-align: center;
-    }
-
-    .option-card:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-      border-color: rgba(16, 185, 129, 0.2);
-    }
-
-    .option-card:active {
-      transform: translateY(-2px);
-    }
-    
-    @media (max-width: 768px) {
-      .pedidos-disponibles-counter {
-        top: 12px;
-        right: 12px;
-        min-width: 24px;
-        height: 24px;
-        font-size: 12px;
-      }
-      
-      .option-card {
-        padding: 2rem 1.5rem;
-      }
-    }
-    
-    @media (max-width: 480px) {
-      .pedidos-disponibles-counter {
-        top: 10px;
-        right: 10px;
-        min-width: 22px;
-        height: 22px;
-        font-size: 11px;
-      }
-      
-      .option-card {
-        padding: 1.5rem 1.2rem;
-      }
-    }
-  </style>
+ 
 </head>
 <body>
   <header class="header">
@@ -160,10 +45,14 @@
   </header>
   
   <div class="main-container">
-    <div id="contadorPedidos" class="pedidos-activos-contador" 
-         onclick="window.location.href='domiciliarios.html'">
-      Pedidos activos: <span id="numPedidosActivos">0</span>/2
-    </div>
+<!-- En el contador de pedidos activos: -->
+<div id="contadorPedidos" class="pedidos-activos-contador" 
+     onclick="window.location.href='domiciliarios.html'"
+     role="button" 
+     tabindex="0" 
+     aria-label="Ver pedidos activos en curso">
+  Pedidos activos: <span id="numPedidosActivos">0</span>/2
+</div>
 
     <main>
       <div id="loading" class="loading">
@@ -180,15 +69,20 @@
       </div>
 
       <div id="opciones" class="cajon-opcion" style="display: none;">
-        <div class="option-card pedidos" onclick="verPedidosAsignados()" 
-             role="button" tabindex="0" onkeypress="handleKeyPress(event, verPedidosAsignados)" 
-             aria-label="Ver pedidos disponibles">
-          <span class="icono">📦</span>
-          <h2>Pedidos</h2>
-          <p>Consulta los pedidos que puedes realizar.</p>
-          <div class="pedidos-disponibles-counter" id="pedidosDisponiblesCounter" 
-               aria-live="polite">0</div>
-        </div>
+        <div class="option-card pedidos" 
+        onclick="verPedidosAsignados()" 
+        role="button" 
+        tabindex="0" 
+        onkeypress="handleKeyPress(event, verPedidosAsignados)" 
+        aria-label="Ver pedidos disponibles para tomar">
+     <span class="icono" aria-hidden="true">📦</span>
+     <h2>Pedidos</h2>
+     <p>Consulta los pedidos que puedes realizar.</p>
+     <div class="pedidos-disponibles-counter" 
+          id="pedidosDisponiblesCounter" 
+          aria-live="polite" 
+          aria-atomic="true">0</div>
+   </div>
       
         <div class="option-card" onclick="verHistorialEntregas()">
           <span class="icono">📄</span>
