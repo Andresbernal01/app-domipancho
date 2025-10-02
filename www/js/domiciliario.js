@@ -83,10 +83,10 @@ function obtenerCostoDomicilio(pedido) {
 
   
 
-  
-
   document.addEventListener('DOMContentLoaded', async () => {
     await cargarUsuario();
+    
+    // Cargar pedidos inmediatamente
     await cargarPedidos();
     
     // Inicializar servicio de notificaciones móviles
@@ -99,11 +99,14 @@ function obtenerCostoDomicilio(pedido) {
       console.warn('⚠️ No se pudo inicializar notificaciones móviles:', error);
     }
     
-    // Conectar socket para notificaciones
+    // Variable para guardar el socket
+    let socketInstance = null;
+    
+    // Conectar socket
     if (typeof io !== 'undefined') {
-      const socket = io();
+      socketInstance = io();
       
-      socket.on('connect', async () => {
+      socketInstance.on('connect', async () => {
         console.log('🔌 Socket conectado');
         
         try {
@@ -112,44 +115,85 @@ function obtenerCostoDomicilio(pedido) {
             const usuario = await response.json();
             console.log(`👤 Usuario domiciliario: ${usuario.id}`);
             
-            // Unirse a sala específica
-            socket.emit('join-domiciliario', usuario.id);
+            socketInstance.emit('join-domiciliario', usuario.id);
             console.log(`🏠 Unido a sala: domiciliario-${usuario.id}`);
+            
+            setTimeout(async () => {
+              console.log('🔄 Recargando pedidos después de conexión socket...');
+              await cargarPedidos();
+            }, 2000);
           }
         } catch (error) {
           console.error('❌ Error al conectar socket:', error);
         }
       });
       
-      // ✅ NUEVO PEDIDO GEOGRÁFICO CON NOTIFICACIÓN MÓVIL
-      socket.on('nuevo-pedido-geografico', async (data) => {
-        console.log('📍 Nuevo pedido geográfico:', data);
+      // ⭐ LISTENER PRINCIPAL - NUEVO PEDIDO GEOGRÁFICO
+      socketInstance.on('nuevo-pedido-geografico', async (data) => {
+        console.log('📍 ========= NUEVO PEDIDO GEOGRÁFICO =========');
+        console.log('📦 Data recibida:', data);
+        console.log('🆔 Pedido ID:', data.pedido?.id);
+        console.log('📏 Distancia:', data.distancia);
         
-        // Notificación móvil potente (funciona con pantalla bloqueada)
+        // Notificación móvil
         if (mobileNotif) {
-          await mobileNotif.showNotification(
-            `🔔 Nuevo pedido a ${data.distancia?.toFixed(2) || '?'}km`,
-            {
-              body: `Pedido #${data.pedido.id} - ${data.pedido.nombre} ${data.pedido.apellido}`,
-              icon: '/img/logo.png',
-              data: { pedidoId: data.pedido.id }
-            }
-          );
+          try {
+            await mobileNotif.showNotification(
+              `🔔 Nuevo pedido a ${data.distancia?.toFixed(2) || '?'}km`,
+              {
+                body: `Pedido #${data.pedido.id} - ${data.pedido.nombre} ${data.pedido.apellido}`,
+                icon: '/img/logo.png',
+                data: { pedidoId: data.pedido.id }
+              }
+            );
+            console.log('✅ Notificación móvil enviada');
+          } catch (notifError) {
+            console.warn('⚠️ Error en notificación móvil:', notifError);
+          }
         }
         
-        // Verificar función
-        if (typeof mostrarPedidoGeografico === 'function') {
-          // Mostrar en UI
-          mostrarPedidoGeografico(data);
-        } else {
-          // Fallback: recargar pedidos
-          console.warn('⚠️ mostrarPedidoGeografico no disponible, recargando...');
+        // Mostrar en UI - CON VALIDACIÓN COMPLETA
+        console.log('🎨 Intentando mostrar en UI...');
+        
+        // Verificar que el contenedor existe
+        const contenedor = document.getElementById('listaPedidos');
+        if (!contenedor) {
+          console.error('❌ Contenedor listaPedidos NO encontrado');
+          return;
+        }
+        console.log('✅ Contenedor encontrado');
+        
+        // Verificar que el pedido no exista ya
+        const pedidoExistente = contenedor.querySelector(`[data-pedido-id="${data.pedido.id}"]`);
+        if (pedidoExistente) {
+          console.log('⚠️ Pedido ya existe en el DOM, no duplicar');
+          return;
+        }
+        console.log('✅ Pedido no existe, proceder a agregar');
+        
+        try {
+          // Llamar a la función global
+          if (typeof window.mostrarPedidoGeografico === 'function') {
+            console.log('✅ Función mostrarPedidoGeografico encontrada');
+            await window.mostrarPedidoGeografico(data);
+            console.log('✅ Pedido agregado al DOM exitosamente');
+          } else {
+            console.error('❌ Función mostrarPedidoGeografico NO existe');
+            console.log('🔄 Fallback: recargando lista completa...');
+            setTimeout(() => cargarPedidos(), 1000);
+          }
+        } catch (error) {
+          console.error('❌ Error al mostrar pedido:', error);
+          console.error('Stack:', error.stack);
+          console.log('🔄 Fallback: recargando lista completa...');
           setTimeout(() => cargarPedidos(), 1000);
         }
+        
+        console.log('========= FIN NUEVO PEDIDO GEOGRÁFICO =========');
       });
       
-      // ✅ PEDIDO REMOVIDO
-      socket.on('pedido-removido', (data) => {
+      // Otros listeners
+      socketInstance.on('pedido-removido', (data) => {
         console.log('🗑️ Pedido removido:', data);
         const pedidoCard = document.querySelector(`[data-pedido-id="${data.pedidoId}"]`);
         if (pedidoCard) {
@@ -160,11 +204,8 @@ function obtenerCostoDomicilio(pedido) {
         }
       });
   
-      // ✅ CAMBIO DE ESTADO
-      socket.on('estado-pedido-actualizado', (data) => {
+      socketInstance.on('estado-pedido-actualizado', (data) => {
         console.log('🔄 Estado actualizado:', data);
-        
-        // Si mi pedido fue tomado por otro, remover
         if (data.nuevoEstado !== 'esperando repartidor') {
           const pedidoCard = document.querySelector(`[data-pedido-id="${data.pedidoId}"]`);
           if (pedidoCard && !pedidoCard.classList.contains('mi-pedido')) {
@@ -173,19 +214,19 @@ function obtenerCostoDomicilio(pedido) {
         }
       });
   
-      // ✅ PEDIDO FUERA DE RADIO
-      socket.on('pedido-fuera-radio', (data) => {
+      socketInstance.on('pedido-fuera-radio', (data) => {
         console.log('🚫 Pedido fuera de radio:', data);
-        if (typeof removerPedidoFueraRadio === 'function') {
-          removerPedidoFueraRadio(data);
+        if (typeof window.removerPedidoFueraRadio === 'function') {
+          window.removerPedidoFueraRadio(data);
         }
       });
   
-      // ✅ PEDIDO LIBERADO
-      socket.on('pedido-liberado', (data) => {
+      socketInstance.on('pedido-liberado', (data) => {
         console.log('🔄 Pedido liberado:', data);
         setTimeout(() => cargarPedidos(), 1000);
       });
+      
+      console.log('✅ Todos los listeners de socket registrados');
       
     } else {
       console.error('❌ Socket.IO no disponible');
@@ -490,46 +531,36 @@ const total = subtotalProductos + costoDomicilio;
   }
 }
 
-// ✅ ASEGURAR QUE LA FUNCIÓN mostrarPedidoGeografico ESTÉ DISPONIBLE GLOBALMENTE
-// Función completa para mostrar pedido geográfico - MEJORADA
-// FunciÃ³n completa para mostrar pedido geogrÃ¡fico - MEJORADA CON DISTANCIA
-function mostrarPedidoGeografico(data) {
+// domiciliario.js - FUNCIÓN mostrarPedidoGeografico CORREGIDA CON VALIDACIÓN
+// domiciliario.js - FUNCIÓN mostrarPedidoGeografico COMPLETAMENTE CORREGIDA
+async function mostrarPedidoGeografico(data) {
   try {
-    console.log('📍 Mostrando pedido geográfico:', data);
+    console.log('📍 Notificación recibida para pedido:', data.pedido.id);
     
     const pedido = data.pedido;
-    const distancia = data.distancia;
+    const distanciaReportada = data.distancia;
+    const radioActual = data.radio_actual || 1.0;
     const esConexionInicial = data.conexion_inicial || false;
     
-    // Si es de conexión inicial, mostrar mensaje especial
-    if (esConexionInicial) {
-      console.log('🔔 Pedido encontrado al conectarse:', pedido.id);
-      
-      // Mostrar notificación especial
-      if (window.NotificationSystem) {
-        window.NotificationSystem.showNotification(
-          `🎯 Pedido cercano encontrado`,
-          {
-            body: `Pedido #${pedido.id} a ${distancia}km - ${pedido.nombre} ${pedido.apellido}`,
-            icon: '/img/logo.png'
-          }
-        );
-      }
-    }
+    // ✅ CONFIAR EN LA VALIDACIÓN DEL BACKEND
+    // El backend ya validó que este pedido está dentro del radio
+    console.log(`📍 Pedido ${pedido.id} validado por backend: ${distanciaReportada.toFixed(3)}km dentro de radio ${radioActual}km`);
     
-    // ✅ VERIFICAR QUE EL CONTENEDOR EXISTE
     const contenedor = document.getElementById('listaPedidos');
     if (!contenedor) {
       console.error('❌ Contenedor listaPedidos no encontrado');
       return;
     }
     
-    // Si el contenedor está vacío o tiene mensaje de "no hay pedidos"
+    // Buscar o crear el grid
+    let grid = contenedor.querySelector('.pedidos-grid');
+    
+    // Si hay mensaje de "no pedidos", reemplazarlo
     if (contenedor.querySelector('.no-pedidos')) {
       contenedor.innerHTML = '<div class="pedidos-grid"></div>';
+      grid = contenedor.querySelector('.pedidos-grid');
     }
     
-    let grid = contenedor.querySelector('.pedidos-grid');
     if (!grid) {
       contenedor.innerHTML = '<div class="pedidos-grid"></div>';
       grid = contenedor.querySelector('.pedidos-grid');
@@ -542,15 +573,15 @@ function mostrarPedidoGeografico(data) {
       return;
     }
 
-// ✅ Calcular subtotal y costo real
-const subtotalProductos = Array.isArray(pedido.productos) ? 
-  pedido.productos.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0) : 0;
+    // ✅ Calcular subtotal y costo real
+    const subtotalProductos = Array.isArray(pedido.productos) ? 
+      pedido.productos.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0) : 0;
 
-const costoDomicilio = obtenerCostoDomicilio(pedido);
-const total = subtotalProductos + costoDomicilio;
+    const costoDomicilio = obtenerCostoDomicilio(pedido);
+    const total = subtotalProductos + costoDomicilio;
 
     const badgeTexto = esConexionInicial ? '🔔 Pedido Encontrado' : '📍 Nuevo Pedido Cercano';
-    const borderColor = esConexionInicial ? '#3b82f6' : '#10b981'; // Azul para conexión inicial, verde para nuevos
+    const borderColor = esConexionInicial ? '#3b82f6' : '#10b981';
     const boxShadowColor = esConexionInicial ? 'rgba(59, 130, 246, 0.5)' : 'rgba(16, 185, 129, 0.5)';
 
     const pedidoHtml = `
@@ -568,7 +599,7 @@ const total = subtotalProductos + costoDomicilio;
         </div>
 
         <div class="distancia-info" style="text-align: center; background: linear-gradient(135deg, #dcfce7, #bbf7d0); padding: 10px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #10b981;">
-        <strong style="color: #059669;">📍 Dist restaurante: ${distancia.toFixed(3)}km</strong>
+          <strong style="color: #059669;">📍 Dist restaurante: ${distanciaReportada.toFixed(3)}km</strong>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
@@ -587,12 +618,12 @@ const total = subtotalProductos + costoDomicilio;
         </div>
 
         <div class="total-section" style="text-align: center; padding: 8px; margin: 10px 0;">
-        <div class="total-amount" style="font-size: 1.1em;">$${total.toLocaleString('es-CO')}</div>
-        <small style="font-size: 0.7em;">(Incluye domicilio: $${costoDomicilio.toLocaleString('es-CO')})</small>
-        ${pedido.tipo_tarifa === 'por_km' && pedido.distancia_km ? 
-          `<small style="display: block; font-size: 0.65em; color: #666;">(${pedido.distancia_km} km)</small>` : 
-          ''}
-      </div>
+          <div class="total-amount" style="font-size: 1.1em;">$${total.toLocaleString('es-CO')}</div>
+          <small style="font-size: 0.7em;">(Incluye domicilio: $${costoDomicilio.toLocaleString('es-CO')})</small>
+          ${pedido.tipo_tarifa === 'por_km' && pedido.distancia_km ? 
+            `<small style="display: block; font-size: 0.65em; color: #666;">(${pedido.distancia_km} km)</small>` : 
+            ''}
+        </div>
 
         <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-top: 12px;">
           <button class="btn-ver-detalles"
@@ -632,7 +663,6 @@ const total = subtotalProductos + costoDomicilio;
         nuevaTarjeta.style.transform = 'scale(1)';
       }, 100);
 
-      // Si es conexión inicial, añadir efecto especial
       if (esConexionInicial) {
         setTimeout(() => {
           nuevaTarjeta.style.animation = 'pulse 2s ease-in-out 3';
@@ -640,7 +670,7 @@ const total = subtotalProductos + costoDomicilio;
       }
     }
     
-    console.log(`✅ Pedido ${pedido.id} mostrado correctamente con distancia: ${distancia}km`);
+    console.log(`✅ Pedido ${pedido.id} mostrado correctamente con distancia: ${distanciaReportada}km`);
     
   } catch (error) {
     console.error('❌ Error al mostrar pedido geográfico:', error);
@@ -1327,4 +1357,16 @@ try {
 
 window.mostrarPedidoGeografico = mostrarPedidoGeografico;
 window.removerPedidoFueraRadio = removerPedidoFueraRadio;
+window.cargarPedidos = cargarPedidos;
 
+
+// ✅ EXPORTAR FUNCIONES CRÍTICAS AL SCOPE GLOBAL
+console.log('📤 Exportando funciones al scope global...');
+window.mostrarPedidoGeografico = mostrarPedidoGeografico;
+window.removerPedidoFueraRadio = removerPedidoFueraRadio;
+window.cargarPedidos = cargarPedidos;
+console.log('✅ Funciones exportadas:', {
+  mostrarPedidoGeografico: typeof window.mostrarPedidoGeografico,
+  removerPedidoFueraRadio: typeof window.removerPedidoFueraRadio,
+  cargarPedidos: typeof window.cargarPedidos
+});

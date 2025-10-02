@@ -225,51 +225,40 @@
   
   <!-- ✅ CARGAR UNIFIED GEOLOCATION -->
   <script src="js/unified-geolocation.js"></script>
+  
   <script>
-  // Mantener tracking activo cuando vuelves de domiciliarios.html
+  // ✅ INICIALIZACIÓN DE GEOLOCALIZACIÓN (UNA SOLA VEZ)
   document.addEventListener('DOMContentLoaded', async () => {
-    // Verificar que el servicio global existe y tiene permisos
+    console.log('🎯 Inicializando geolocalización unificada...');
+    
     if (window.unifiedGeoService) {
-      if (window.unifiedGeoService.permissionStatus === 'granted') {
-        // Si tiene permisos pero no está trackeando, reiniciar
-        if (!window.unifiedGeoService.isTracking) {
-          console.log('🔄 Reiniciando tracking en inicio_domi...');
-          await window.unifiedGeoService.startTracking();
-        } else {
-          console.log('✅ Tracking ya activo');
-        }
-      }
+      await window.unifiedGeoService.initialize();
+      await window.unifiedGeoService.startTracking();
+      console.log('✅ Tracking activo - ubicación enviándose al backend');
     }
   });
-  </script>
 
-<script>
-  // Función para ir a la página de pedidos
+  // FUNCIONES DE NAVEGACIÓN
   function verPedidosAsignados() {
     window.location.href = 'domiciliarios.html';
   }
 
-  // Función para ir al historial de entregas
   function verHistorialEntregas() {
     window.location.href = 'historial_entregas.html';
   }
 
-  // Función para ir a contabilidad
   function verContabilidad() {
     window.location.href = 'contabilidad.html';
   }
 
-  // Función para ir al perfil
   function verPerfil() {
     window.location.href = 'perfil_domiciliario.html';
   }
 
-  // Función para cambiar contraseña
   function cambiarPassword() {
     window.location.href = 'cambiar_password.html';
   }
 
-  // Función para logout (ya debería existir en info_header.js pero por si acaso)
   function logout() {
     if (confirm('¿Cerrar sesión?')) {
       fetch('/api/logout', { method: 'POST' })
@@ -283,14 +272,12 @@
     }
   }
 
-  // Manejar teclas para accesibilidad
   function handleKeyPress(event, callback) {
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       callback();
     }
   }
-</script>
+  </script>
 </body>
 </html>
-
