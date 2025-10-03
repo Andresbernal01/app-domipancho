@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="img/logo.png">
   <link rel="stylesheet" href="css/domiciliarios.css" />
-  <link rel="stylesheet" href="css/header.css">
 
   <link rel="stylesheet" href="/css/notifications.css">
     <script src="js/config.js"></script>
@@ -21,19 +20,15 @@
       <button class="btn-volver" onclick="window.location.href='inicio_domi.html'">
         ⬅ <span>Volver</span>
       </button>
-
-      <!-- Centro: Logo + Nombre -->
+  
+      <!-- Centro: Solo título -->
       <div class="header-center">
-        <img src="img/logo.png" alt="Logo DomiPancho" class="logo" />
-        <div class="restaurant-info">
-          <h1 id="restaurantName">Cargando...</h1>
-        </div>
+        <h1>📦 Pedidos Activos</h1>
       </div>
-
-      <!-- Info Pedidos y Usuario -->
-        <div id="contadorPedidos" class="pedidos-activos-contador">
-          Pedidos activos: <span id="numPedidosActivos">0</span>/2
-        </div>
+  
+      <!-- Contador de Pedidos -->
+      <div id="contadorPedidos" class="pedidos-activos-contador">
+        <span id="numPedidosActivos">0</span>/2
       </div>
     </div>
   </header>
@@ -87,7 +82,7 @@
       
       <div class="modal-acciones">
         <button onclick="confirmarNoEntregado()">🔴 Confirmar como No Entregado</button>
-        <button onclick="cerrarModal()">Cancelar</button>
+        <button onclick="cerrarModalProblema()">Cancelar</button>
       </div>
     </div>
   </div>

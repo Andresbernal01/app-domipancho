@@ -10,345 +10,573 @@
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="/js/notifications.js"></script>
-  <link rel="stylesheet" href="css/header.css">
   <script src="js/config.js"></script>
 
-  <style>
-/* Variables de colores para consistencia */
+<style>
+  /* contabilidad.css - Versión Profesional para App Móvil */
+
 :root {
+  /* Colores principales */
   --primary-color: #e74c3c;
+  --primary-hover: #c53030;
   --secondary-color: #3498db;
-  --success-color: #22c55e;
-  --warning-color: #f39c12;
-  --danger-color: #ef4444;
   
-  --dark-bg: #2c3e50;
+  /* Backgrounds */
+  --dark-bg: #1a202c;
+  --header-bg: #2d3748;
   --card-bg: #34495e;
-  --glass-bg: rgba(255, 255, 255, 0.95);
-  --glass-border: rgba(255, 255, 255, 0.2);
   
-  --text-primary: #2c3e50;
-  --text-secondary: #7f8c8d;
-  --text-light: #ecf0f1;
-  --text-white: #ffffff;
+  /* Colores de resumen */
+  --efectivo-color: #4ade80;
+  --app-color: #60a5fa;
+  --total-color: #fbbf24;
+  --pedidos-color: #a78bfa;
+  --pagar-color: #fb923c;
+  --sueldo-color: #10b981;
   
-  --border-color: #ecf0f1;
-  --hover-color: #c0392b;
-  --shadow-light: rgba(0, 0, 0, 0.05);
-  --shadow-medium: rgba(0, 0, 0, 0.1);
-  --shadow-strong: rgba(0, 0, 0, 0.15);
-  --shadow-card: rgba(0, 0, 0, 0.08);
+  /* Textos */
+  --text-primary: #2d3748;
+  --text-secondary: #718096;
+  --text-light: #f7fafc;
+  --text-muted: #a0aec0;
   
-  --gradient-primary: linear-gradient(135deg, var(--primary-color), var(--hover-color));
-  --gradient-secondary: linear-gradient(135deg, var(--secondary-color), #2980b9);
-  --gradient-bg: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
-  --gradient-card: linear-gradient(135deg, #ffffff, #f8fafc);
-  --gradient-header: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.95));
+  /* Sombras */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.2);
+  
+  /* Transiciones */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
-    
-    
-    .restaurant-info p {
-      color: #a3e635;
-      font-style: italic;
-      font-size: 0.9em;
-    }
-    
 
-    
-    .user-info {
-      text-align: right;
-      font-size: 0.9em;
-      color: #ccc;
-    }
-    
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
 
-    
-    .main-container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-    
-    /* Navegación de fechas */
-    .navegacion-fechas {
-      background: var(--dark-bg);
-      padding: 20px;
-      border-radius: 15px;
-      margin-bottom: 30px;
-      text-align: center;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-      border: 2px solid var(--success-color);
-      margin-top: 20px;
-    }
-    
-    .fecha-controls {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      flex-wrap: wrap;
-    }
-    
-    .btn-fecha {
-      padding: 12px 20px;
-      background: linear-gradient(135deg, #facc15, #f59e0b);
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: bold;
-      font-size: 0.9rem;
-      color: #000;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 10px rgba(250, 204, 21, 0.3);
-    }
-    
-    .btn-fecha:hover {
-      background: linear-gradient(135deg, #f59e0b, #d97706);
-      transform: translateY(-2px);
-      box-shadow: 0 6px 15px rgba(250, 204, 21, 0.4);
-    }
-    
-    .fecha-actual {
-      font-weight: bold;
-      color: #facc15;
-      font-size: 1.2rem;
-      padding: 10px 20px;
-      background: #333;
-      border-radius: 10px;
-      border: 2px solid #facc15;
-    }
-    
-    /* Resumen Grid mejorado */
-    .resumen-grid {
-      display: grid;
-      gap: 20px;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      margin-bottom: 30px;
-    }
-    
-    .resumen-item {
-      background: linear-gradient(135deg, #2a2a2a, #1e1e1e);
-      border: 2px solid #333;
-      border-radius: 15px;
-      padding: 20px;
-      text-align: center;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
-      transition: all 0.3s ease;
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .resumen-item::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, #facc15, #f59e0b);
-    }
-    
-    .resumen-item:hover {
-      transform: translateY(-5px);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-      border-color: #facc15;
-    }
-    
-    .resumen-item h4 {
-      font-size: 1rem;
-      margin-bottom: 10px;
-      color: #ccc;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-    
-    .resumen-item .valor {
-      font-weight: bold;
-      font-size: 1.6rem;
-      color: #facc15;
-      margin-bottom: 5px;
-    }
-    
-    .resumen-item .descripcion {
-      font-size: 0.8rem;
-      color: #999;
-      margin-top: 8px;
-    }
-    
-    /* Estilos específicos por tipo */
-    .resumen-item.efectivo {
-      border-color: #10b981;
-      background: linear-gradient(135deg, #2a2a2a, #1e3a2e);
-    }
-    .resumen-item.efectivo::before {
-      background: linear-gradient(90deg, #10b981, #047857);
-    }
-    .resumen-item.efectivo .valor {
-      color: #10b981;
-    }
-    
-    .resumen-item.app {
-      border-color: #3b82f6;
-      background: linear-gradient(135deg, #2a2a2a, #1e2a3a);
-    }
-    .resumen-item.app::before {
-      background: linear-gradient(90deg, #3b82f6, #1d4ed8);
-    }
-    .resumen-item.app .valor {
-      color: #3b82f6;
-    }
-    
-    .resumen-item.total {
-      border-color: #f437a5;
-      background: linear-gradient(135deg, #2a2a2a, #3a1e2e);
-    }
-    .resumen-item.total::before {
-      background: linear-gradient(90deg, #f437a5, #e11d48);
-    }
-    .resumen-item.total .valor {
-      color: #f437a5;
-      font-size: 1.8rem;
-    }
-    
-    .resumen-item.pedidos {
-      border-color: #8b5cf6;
-      background: linear-gradient(135deg, #2a2a2a, #2e1e3a);
-    }
-    .resumen-item.pedidos::before {
-      background: linear-gradient(90deg, #8b5cf6, #7c3aed);
-    }
-    .resumen-item.pedidos .valor {
-      color: #8b5cf6;
-    }
-    
-    .resumen-item.pago {
-      border-color: #f59e0b;
-      background: linear-gradient(135deg, #2a2a2a, #3a2e1e);
-    }
-    .resumen-item.pago::before {
-      background: linear-gradient(90deg, #f59e0b, #d97706);
-    }
-    .resumen-item.pago .valor {
-      color: #f59e0b;
-    }
-    
-    .resumen-item.sueldo {
-      border-color: #06d6a0;
-      background: linear-gradient(135deg, #2a2a2a, #1e3a35);
-    }
-    .resumen-item.sueldo::before {
-      background: linear-gradient(90deg, #06d6a0, #059669);
-    }
-    .resumen-item.sueldo .valor {
-      color: #06d6a0;
-    }
-    
-    /* Estados de carga y error */
-    .loading, .error {
-      text-align: center;
-      padding: 40px;
-      border-radius: 15px;
-      margin-top: 30px;
-    }
-    
-    .loading {
-      background: linear-gradient(135deg, #1e1e1e, #2a2a2a);
-      border: 2px solid #facc15;
-      color: #facc15;
-    }
-    
-    .loading .spinner {
-      display: inline-block;
-      width: 30px;
-      height: 30px;
-      border: 3px solid #333;
-      border-top: 3px solid #facc15;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 15px;
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    
-    .error {
-      background: linear-gradient(135deg, #2c1e1e, #1e1e1e);
-      border: 2px solid #ff4444;
-      color: #ff4444;
-    }
-    
-    /* Información adicional */
-    .info-adicional {
-      background: var(--dark-bg);
-      padding: 20px;
-      border-radius: 15px;
-      margin-top: 30px;
-      border: 2px solid var(--success-color);
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-      margin-bottom: 30px;
-    }
-    
-    .info-adicional h3 {
-      color: #facc15;
-      margin-bottom: 15px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    
-    .info-adicional ul {
-      list-style: none;
-      padding: 0;
-    }
-    
-    .info-adicional li {
-      padding: 8px 0;
-      border-bottom: 1px solid #333;
-      color: #ccc;
-    }
-    
-    .info-adicional li:last-child {
-      border-bottom: none;
-    }
-    
-    /* Media queries */
-    @media (max-width: 768px) {
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+  color: var(--text-light);
+}
 
-      
-      .fecha-controls {
-        flex-direction: column;
-        gap: 15px;
-      }
-      
-      .resumen-grid {
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 15px;
-      }
-      
-      .restaurant-info h1 { 
-        font-size: 1.5em; 
-      }
-    }
-    
-    @media (max-width: 480px) {
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  padding-bottom: env(safe-area-inset-bottom);
+}
 
-      
-      .resumen-item {
-        padding: 15px;
-      }
-      
-      .resumen-item .valor {
-        font-size: 1.4rem;
-      }
-      
-      .navegacion-fechas {
-        padding: 15px;
-      }
-    }
-  </style>
+/* ========== HEADER ========== */
+.header {
+  background: var(--header-bg);
+  padding: 12px 16px;
+  padding-top: max(12px, env(safe-area-inset-top));
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 100%;
+}
+
+.btn-volver {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-volver:active {
+  transform: scale(0.95);
+  background: var(--primary-hover);
+}
+
+.btn-volver span {
+  display: none;
+}
+
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+}
+
+.header-center .logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.restaurant-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.restaurant-info h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.restaurant-info p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.header-right {
+  display: none !important;
+}
+
+/* ========== MAIN CONTAINER ========== */
+.main-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+main {
+  flex: 1;
+  padding: 8px 16px 24px;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+
+/* ========== NAVEGACIÓN DE FECHAS ========== */
+.navegacion-fechas {
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+
+.fecha-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px;
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-fecha {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-fecha:active {
+  transform: scale(0.95);
+  background: var(--primary-hover);
+}
+
+.fecha-actual {
+  font-size: 14px;
+  font-weight: 700;
+  color: #facc15;
+  text-align: center;
+  flex: 1;
+  padding: 0 8px;
+}
+
+/* ========== LOADING ========== */
+.loading {
+  text-align: center;
+  padding: 40px 20px;
+  background: var(--card-bg);
+  border-radius: 16px;
+  margin: 16px 0;
+  box-shadow: var(--shadow-md);
+}
+
+.spinner {
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  border-top: 3px solid var(--primary-color);
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading h3 {
+  font-size: 16px;
+  color: var(--text-light);
+  margin-bottom: 8px;
+}
+
+.loading p {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* ========== RESUMEN CONTABILIDAD ========== */
+.resumen-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 0 4px;
+  animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.resumen-item {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 16px;
+  border-radius: 14px;
+  text-align: center;
+  box-shadow: var(--shadow-md);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.resumen-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, currentColor, transparent);
+  opacity: 0.5;
+}
+
+.resumen-item:active {
+  transform: scale(0.97);
+}
+
+.resumen-item h4 {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.resumen-item .valor {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-light);
+  margin-bottom: 4px;
+}
+
+.resumen-item .descripcion {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+/* Estilos específicos por tipo */
+.resumen-item.efectivo {
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.resumen-item.efectivo::before {
+  color: var(--efectivo-color);
+}
+
+.resumen-item.efectivo .valor {
+  color: var(--efectivo-color);
+}
+
+.resumen-item.app {
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+.resumen-item.app::before {
+  color: var(--app-color);
+}
+
+.resumen-item.app .valor {
+  color: var(--app-color);
+}
+
+.resumen-item.total {
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.resumen-item.total::before {
+  color: var(--total-color);
+}
+
+.resumen-item.total .valor {
+  color: var(--total-color);
+  font-size: 24px;
+}
+
+.resumen-item.pedidos {
+  border-color: rgba(167, 139, 250, 0.3);
+}
+
+.resumen-item.pedidos::before {
+  color: var(--pedidos-color);
+}
+
+.resumen-item.pedidos .valor {
+  color: var(--pedidos-color);
+}
+
+.resumen-item.pago {
+  border-color: rgba(251, 146, 60, 0.3);
+}
+
+.resumen-item.pago::before {
+  color: var(--pagar-color);
+}
+
+.resumen-item.pago .valor {
+  color: var(--pagar-color);
+}
+
+.resumen-item.sueldo {
+  border-color: rgba(16, 185, 129, 0.3);
+  grid-column: 1 / -1;
+}
+
+.resumen-item.sueldo::before {
+  color: var(--sueldo-color);
+}
+
+.resumen-item.sueldo .valor {
+  color: var(--sueldo-color);
+  font-size: 28px;
+}
+
+/* ========== INFORMACIÓN ADICIONAL ========== */
+.info-adicional {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 16px;
+  border-radius: 14px;
+  margin-top: 16px;
+  border: 2px solid rgba(96, 165, 250, 0.2);
+  box-shadow: var(--shadow-sm);
+}
+
+.info-adicional h3 {
+  font-size: 14px;
+  color: var(--app-color);
+  margin-bottom: 12px;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.info-adicional ul {
+  list-style: none;
+  padding: 0;
+}
+
+.info-adicional li {
+  padding: 10px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-light);
+  border-left: 3px solid var(--secondary-color);
+}
+
+.info-adicional li:last-child {
+  margin-bottom: 0;
+}
+
+.info-adicional strong {
+  color: #facc15;
+  font-weight: 700;
+}
+
+/* ========== ERROR STATE ========== */
+.error {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 32px 20px;
+  margin: 16px 0;
+  text-align: center;
+  border: 2px solid rgba(231, 76, 60, 0.3);
+  box-shadow: var(--shadow-md);
+}
+
+.error h3 {
+  font-size: 18px;
+  margin-bottom: 12px;
+  color: var(--primary-color);
+}
+
+.error p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.error button {
+  margin-top: 8px;
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all var(--transition-fast);
+}
+
+.error button:active {
+  transform: scale(0.95);
+  background-color: #0056b3;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (min-width: 400px) {
+  .btn-volver span {
+    display: inline;
+  }
+  
+  .btn-fecha {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
+
+@media (min-width: 480px) {
+  main {
+    padding: 12px 24px 32px;
+  }
+  
+  .resumen-grid {
+    grid-template-columns: repeat(3, 1fr);
+    max-width: 700px;
+    margin: 0 auto 16px;
+  }
+  
+  .resumen-item.sueldo {
+    grid-column: 1 / -1;
+  }
+  
+  .info-adicional {
+    max-width: 700px;
+    margin: 16px auto 0;
+  }
+}
+
+@media (min-width: 768px) {
+  .resumen-grid {
+    max-width: 900px;
+  }
+  
+  .resumen-item.sueldo {
+    grid-column: 2 / 3;
+  }
+}
+
+/* ========== OPTIMIZACIONES DE RENDIMIENTO ========== */
+.resumen-item {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* ========== SCROLLBAR ========== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* ========== ANIMACIONES ADICIONALES ========== */
+@keyframes slideIn {
+  from {
+    transform: translateX(-10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.info-adicional li {
+  animation: slideIn 0.3s ease forwards;
+}
+
+.info-adicional li:nth-child(1) { animation-delay: 0.1s; }
+.info-adicional li:nth-child(2) { animation-delay: 0.2s; }
+.info-adicional li:nth-child(3) { animation-delay: 0.3s; }
+.info-adicional li:nth-child(4) { animation-delay: 0.4s; }
+</style> 
 </head>
 <body>
   <header class="header">
@@ -361,6 +589,7 @@
       <!-- Centro: Logo + Nombre -->
       <div class="header-center">
         <img src="img/logo.png" alt="Logo DomiPancho" class="logo" />
+
         <div class="restaurant-info">
           <h1 id="restaurantName">Cargando...</h1>
         </div>
@@ -410,140 +639,157 @@
   </div>
 
   <script>
+// ==========================================
+// CONTABILIDAD.JS - Script de Producción
+// ==========================================
+
 let fechaActual = new Date();
 // Ajustar a zona horaria de Colombia
 fechaActual = new Date(fechaActual.toLocaleString("en-US", {timeZone: "America/Bogota"}));
-    async function cargarUsuario() {
-      try {
-        const res = await window.apiRequest('/api/usuario-actual');
-        if (res.ok) {
-          const usuario = await res.json();
-          document.getElementById('userName').textContent = usuario.usuario || 'Usuario';
-        }
-      } catch (e) {
-        console.error('Error cargando usuario:', e);
-        document.getElementById('userName').textContent = 'Usuario';
-      }
-    }
 
-    function cambiarDia(delta) {
+/**
+ * Carga la información del usuario actual
+ */
+async function cargarUsuario() {
+  try {
+    const res = await window.apiRequest('/api/usuario-actual');
+    if (res.ok) {
+      const usuario = await res.json();
+      document.getElementById('userName').textContent = usuario.usuario || 'Usuario';
+    }
+  } catch (e) {
+    console.error('Error cargando usuario:', e);
+    document.getElementById('userName').textContent = 'Usuario';
+  }
+}
+
+/**
+ * Cambia el día actual para visualizar contabilidad
+ * @param {number} delta - Días a sumar o restar (-1 para anterior, +1 para siguiente)
+ */
+function cambiarDia(delta) {
   fechaActual.setDate(fechaActual.getDate() + delta);
   // Ajustar a zona horaria de Colombia
   fechaActual = new Date(fechaActual.toLocaleString("en-US", {timeZone: "America/Bogota"}));
   cargarResumen();
 }
 
-    async function cargarResumen() {
-      try {
-        // Mostrar estado de carga
-        document.getElementById('resumenContabilidad').innerHTML = `
-          <div class="loading">
-            <div class="spinner"></div>
-            <h3>Cargando datos contables...</h3>
-            <p>Procesando información del ${fechaActual.toLocaleDateString('es-CO')}</p>
-          </div>
-        `;
+/**
+ * Carga y muestra el resumen contable del día seleccionado
+ */
+async function cargarResumen() {
+  try {
+    // Mostrar estado de carga
+    document.getElementById('resumenContabilidad').innerHTML = `
+      <div class="loading">
+        <div class="spinner"></div>
+        <h3>Cargando datos contables...</h3>
+        <p>Procesando información del ${fechaActual.toLocaleDateString('es-CO')}</p>
+      </div>
+    `;
 
-        const fechaISO = fechaActual.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });        
-        // Actualizar texto de fecha
-        const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
-const fechaSeleccionada = fechaActual.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
-        
-        if (fechaSeleccionada === hoy) {
-          document.getElementById("fechaActualTexto").textContent = "📅 Hoy";
-        } else {
-          document.getElementById("fechaActualTexto").textContent = fechaActual.toLocaleDateString('es-CO', {
-            weekday: 'short',
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-          });
-        }
-
-        const res = await window.apiRequest('/api/resumen-contabilidad?fecha=' + fechaISO);
-        
-        if (!res.ok) {
-          throw new Error('Error al cargar datos');
-        }
-        
-        const data = await res.json();
-
-        const contenedor = document.getElementById('resumenContabilidad');
-        contenedor.innerHTML = `
-          <div class="resumen-grid">
-            <div class="resumen-item efectivo">
-              <h4>💵 Total Efectivo</h4>
-              <div class="valor">$${data.total_efectivo.toLocaleString('es-CO')}</div>
-              <div class="descripcion">Dinero en efectivo cobrado</div>
-            </div>
-            
-            <div class="resumen-item app">
-              <h4>📱 Total App</h4>
-              <div class="valor">$${data.total_app.toLocaleString('es-CO')}</div>
-              <div class="descripcion">Pagos digitales procesados</div>
-            </div>
-            
-            <div class="resumen-item total">
-              <h4>💰 Total General</h4>
-              <div class="valor">$${data.total.toLocaleString('es-CO')}</div>
-              <div class="descripcion">Suma de efectivo y app</div>
-            </div>
-            
-            <div class="resumen-item pedidos">
-              <h4>📦 Total Pedidos</h4>
-              <div class="valor">${data.total_pedidos}</div>
-              <div class="descripcion">Pedidos entregados hoy</div>
-            </div>
-            
-            <div class="resumen-item pago">
-              <h4>🏢 A Pagar a DomiPancho</h4>
-              <div class="valor">$${data.total_efectivo.toLocaleString('es-CO')}</div>
-              <div class="descripcion">Efectivo a entregar</div>
-            </div>
-            
-            <div class="resumen-item sueldo">
-  <h4>💸 Tu Sueldo</h4>
-  <div class="valor">$${data.sueldo.toLocaleString('es-CO')}</div>
-  <div class="descripcion">${data.total_pedidos} entregas (domicilio - $500 c/u)</div>
-</div>
-          </div>
-        `;
-
-      } catch (error) {
-        console.error('Error al cargar resumen:', error);
-        document.getElementById('resumenContabilidad').innerHTML = `
-  <div class="error" style="text-align: center;">
-    <h3>⚠️ Error al cargar datos</h3>
-    <p>No se pudieron cargar los datos contables para la fecha seleccionada.</p>
-    <p>Intenta recargar la página o selecciona otra fecha.</p>
-    <button onclick="window.location.href='index.html'" style="
-      margin-top: 8px;
-      padding: 6px 12px;
-      background-color: #007bff;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    ">
-      Ir a Login
-    </button>
-  </div>
-`;
-
-      }
+    const fechaISO = fechaActual.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+    
+    // Actualizar texto de fecha
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+    const fechaSeleccionada = fechaActual.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+    
+    if (fechaSeleccionada === hoy) {
+      document.getElementById("fechaActualTexto").textContent = "📅 Hoy";
+    } else {
+      document.getElementById("fechaActualTexto").textContent = fechaActual.toLocaleDateString('es-CO', {
+        weekday: 'short',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
     }
 
-    // Cargar datos al iniciar
-    document.addEventListener('DOMContentLoaded', async () => {
-      await cargarUsuario();
-      await cargarResumen();
+    const res = await window.apiRequest('/api/resumen-contabilidad?fecha=' + fechaISO);
+    
+    if (!res.ok) {
+      throw new Error('Error al cargar datos');
+    }
+    
+    const data = await res.json();
 
-      // Configurar notificaciones
-      if (typeof NotificationSystem !== 'undefined') {
-        const notiDomi = new NotificationSystem(true);
-        notiDomi.requestPermission();
-      }
-    });
+    const contenedor = document.getElementById('resumenContabilidad');
+    contenedor.innerHTML = `
+      <div class="resumen-grid">
+        <div class="resumen-item efectivo">
+          <h4>💵 Total Efectivo</h4>
+          <div class="valor">$${data.total_efectivo.toLocaleString('es-CO')}</div>
+          <div class="descripcion">Dinero en efectivo cobrado</div>
+        </div>
+        
+        <div class="resumen-item app">
+          <h4>📱 Total App</h4>
+          <div class="valor">$${data.total_app.toLocaleString('es-CO')}</div>
+          <div class="descripcion">Pagos digitales procesados</div>
+        </div>
+        
+        <div class="resumen-item total">
+          <h4>💰 Total General</h4>
+          <div class="valor">$${data.total.toLocaleString('es-CO')}</div>
+          <div class="descripcion">Suma de efectivo y app</div>
+        </div>
+        
+        <div class="resumen-item pedidos">
+          <h4>📦 Total Pedidos</h4>
+          <div class="valor">${data.total_pedidos}</div>
+          <div class="descripcion">Pedidos entregados hoy</div>
+        </div>
+        
+        <div class="resumen-item pago">
+          <h4>🏢 A Pagar a DomiPancho</h4>
+          <div class="valor">$${data.total_efectivo.toLocaleString('es-CO')}</div>
+          <div class="descripcion">Efectivo a entregar</div>
+        </div>
+        
+        <div class="resumen-item sueldo">
+          <h4>💸 Tu Sueldo</h4>
+          <div class="valor">$${data.sueldo.toLocaleString('es-CO')}</div>
+          <div class="descripcion">${data.total_pedidos} entregas (domicilio - $500 c/u)</div>
+        </div>
+      </div>
+    `;
+
+  } catch (error) {
+    console.error('Error al cargar resumen:', error);
+    document.getElementById('resumenContabilidad').innerHTML = `
+      <div class="error" style="text-align: center;">
+        <h3>⚠️ Error al cargar datos</h3>
+        <p>No se pudieron cargar los datos contables para la fecha seleccionada.</p>
+        <p>Intenta recargar la página o selecciona otra fecha.</p>
+        <button onclick="window.location.href='index.html'" style="
+          margin-top: 8px;
+          padding: 6px 12px;
+          background-color: #007bff;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        ">
+          Ir a Login
+        </button>
+      </div>
+    `;
+  }
+}
+
+/**
+ * Inicialización al cargar el documento
+ */
+document.addEventListener('DOMContentLoaded', async () => {
+  await cargarUsuario();
+  await cargarResumen();
+
+  // Configurar notificaciones
+  if (typeof NotificationSystem !== 'undefined') {
+    const notiDomi = new NotificationSystem(true);
+    notiDomi.requestPermission();
+  }
+});
   </script>
 
   <script src="js/info_header.js"></script>

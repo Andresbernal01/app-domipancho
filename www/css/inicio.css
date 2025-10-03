@@ -1,637 +1,408 @@
-/* ========================================
-   DOMIPANCHO - INICIO CSS MÓVIL APK
-   Optimizado para producción móvil
-======================================== */
+:root {
+  /* Colores principales del sistema */
+  --primary-color: #e74c3c;
+  --primary-hover: #c53030;
+  --primary-light: rgba(231, 76, 60, 0.1);
+  --secondary-color: #3498db;
+  
+  /* Backgrounds */
+  --dark-bg: #1a202c;
+  --header-bg: #2d3748;
+  --card-bg: #34495e;
+  --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  
+  /* Textos */
+  --text-primary: #2d3748;
+  --text-secondary: #718096;
+  --text-light: #f7fafc;
+  --text-muted: #a0aec0;
+  --gradient-bg: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+  
+  /* Estados */
+  --success-color: #38a169;
+  --error-color: #e53e3e;
+  --warning-color: #f39c12;
+  
+  /* Sombras */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.2);
+  
+  /* Transiciones */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-/* Reset y variables profesionales */
 * {
-  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
 
-:root {
-  /* Colores principales */
-  --primary-color: #e74c3c;
-  --secondary-color: #3498db;
-  --success-color: #22c55e;
-  --warning-color: #f39c12;
-  --danger-color: #ef4444;
-  
-  /* Fondos */
-  --dark-bg: #2c3e50;
-  --card-bg: #34495e;
-  --glass-bg: rgba(255, 255, 255, 0.95);
-  
-  /* Textos */
-  --text-primary: #2c3e50;
-  --text-secondary: #7f8c8d;
-  --text-light: #ecf0f1;
-  --text-white: #ffffff;
-  
-  /* Gradientes */
-  --gradient-bg: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
-  --gradient-success: linear-gradient(135deg, #22c55e, #16a34a);
-  --gradient-blue: linear-gradient(135deg, #3b82f6, #1d4ed8);
-  --gradient-orange: linear-gradient(135deg, #f59e0b, #d97706);
-  --gradient-red: linear-gradient(135deg, #dc2626, #b91c1c);
-}
-
-/* ========================================
-   BODY - Configuración principal móvil
-======================================== */
-html {
-  height: 100%;
-  overflow: hidden;
-  position: fixed;
+html, body {
   width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background: var(--gradient-bg);
+  color: var(--text-light);
 }
 
 body {
-  background: var(--gradient-bg);
-  color: var(--text-light);
-  min-height: 100vh;
-  height: 100vh;
   display: flex;
   flex-direction: column;
-  padding: 0;
-  margin: 0;
-  position: fixed;
-  width: 100%;
-  top: 0;
-  left: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Partículas de fondo */
-body::before {
-  content: '';
-  position: fixed;
+/* ========== HEADER ========== */
+.header {
+  background: var(--header-bg);
+  padding: 12px 16px;
+  padding-top: max(12px, env(safe-area-inset-top));
+  box-shadow: var(--shadow-md);
+  position: sticky;
   top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-image: 
-    radial-gradient(circle at 20% 80%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(231, 76, 60, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 40% 40%, rgba(52, 152, 219, 0.1) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 0;
+  z-index: 100;
 }
 
-/* ========================================
-   MAIN CONTAINER
-======================================== */
+.header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 100%;
+}
+
+.logout-btn {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+}
+
+.logout-btn:active {
+  transform: scale(0.95);
+  background: var(--primary-hover);
+}
+
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.restaurant-info h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-right {
+  flex-shrink: 0;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.user-icon {
+  font-size: 18px;
+}
+
+.user-label {
+  display: none;
+}
+
+#userName {
+  color: var(--text-light);
+  font-weight: 600;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ========== CONTADOR DE PEDIDOS ACTIVOS ========== */
+.pedidos-activos-contador {
+  background: linear-gradient(135deg, var(--card-bg) 0%, #2c3e50 100%);
+  color: white;
+  padding: 14px 20px;
+  margin: 16px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.pedidos-activos-contador:active {
+  transform: scale(0.98);
+  box-shadow: var(--shadow-md);
+}
+
+#numPedidosActivos {
+  color: #4ade80;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.pedidos-activos-contador.limite-cerca {
+  background: linear-gradient(135deg, var(--warning-color) 0%, #e67e22 100%);
+  border-color: rgba(255, 255, 255, 0.3);
+  animation: pulse-warning 2s ease-in-out infinite;
+}
+
+.pedidos-activos-contador.limite-cerca #numPedidosActivos {
+  color: #fff;
+}
+
+.pedidos-activos-contador.limite-alcanzado {
+  background: linear-gradient(135deg, var(--error-color) 0%, #c0392b 100%);
+  border-color: rgba(255, 255, 255, 0.4);
+  animation: pulse-danger 1.5s ease-in-out infinite;
+}
+
+.pedidos-activos-contador.limite-alcanzado #numPedidosActivos {
+  color: #fff;
+}
+
+@keyframes pulse-warning {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+  }
+  50% {
+    box-shadow: 0 4px 25px rgba(243, 156, 18, 0.6);
+  }
+}
+
+@keyframes pulse-danger {
+  0%, 100% {
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.5);
+  }
+  50% {
+    box-shadow: 0 4px 25px rgba(231, 76, 60, 0.8);
+  }
+}
+
+/* ========== MAIN CONTAINER ========== */
 .main-container {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 1rem;
-  padding-top: 0.5rem;
-  padding-bottom: env(safe-area-inset-bottom, 1rem);
   overflow-y: auto;
-  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
-  position: relative;
-  z-index: 1;
 }
 
-/* ========================================
-   CONTADOR DE PEDIDOS ACTIVOS
-======================================== */
-.pedidos-activos-contador {
-  margin: 0 auto 1.2rem;
-  background: var(--gradient-blue);
-  color: white;
-  padding: 0.9rem 1.5rem;
-  border-radius: 20px;
-  font-size: 1rem;
-  font-weight: 700;
-  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  max-width: 280px;
-  width: 100%;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-  font-size: 0.95rem;
-}
-
-.pedidos-activos-contador:active {
-  transform: scale(0.97);
-  box-shadow: 0 2px 10px rgba(59, 130, 246, 0.3);
-}
-
-.pedidos-activos-contador.limite-cerca {
-  background: var(--gradient-orange);
-  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
-  animation: pulse-warning 2s ease-in-out infinite;
-}
-
-.pedidos-activos-contador.limite-alcanzado {
-  background: var(--gradient-red);
-  box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
-  animation: pulse-danger 1.5s ease-in-out infinite;
-}
-
-#numPedidosActivos {
-  font-size: 1.1rem;
-  font-weight: 800;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-/* ========================================
-   LOADING Y ERROR
-======================================== */
-.loading,
-.error {
-  text-align: center;
-  padding: 2rem 1.5rem;
-  margin: 2rem auto;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  max-width: 400px;
-  width: calc(100% - 2rem);
-}
-
-.loading p,
-.error p {
-  color: var(--text-primary);
-  font-size: 1rem;
-  font-weight: 500;
-  line-height: 1.6;
-}
-
-.loading::before {
-  content: '';
-  display: block;
-  width: 50px;
-  height: 50px;
-  margin: 0 auto 1rem;
-  border: 4px solid rgba(34, 197, 94, 0.2);
-  border-top-color: var(--success-color);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-.error {
-  border: 2px solid var(--danger-color);
-}
-
-.error::before {
-  content: '⚠️';
-  display: block;
-  font-size: 3rem;
-  margin-bottom: 1rem;
-}
-
-.error button {
-  margin-top: 1rem;
-  padding: 0.8rem 1.5rem;
-  background: var(--gradient-success);
-  color: white;
-  border: none;
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
-  transition: all 0.3s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.error button:active {
-  transform: scale(0.97);
-}
-
-/* ========================================
-   MAIN CONTENT - Grid de opciones
-======================================== */
 main {
   flex: 1;
-  width: 100%;
-  max-width: 100%;
-  margin: 0 auto;
+  padding: 0 16px 24px;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
 }
 
+/* ========== LOADING Y ERROR ========== */
+.loading, .error {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-light);
+  font-size: 16px;
+}
+
+.error {
+  color: var(--error-color);
+}
+
+/* ========== GRID DE OPCIONES ========== */
 .cajon-opcion {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.2rem;
-  padding: 0;
-  width: 100%;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  padding: 8px 0;
 }
 
-/* ========================================
-   OPTION CARDS - Tarjetas principales
-======================================== */
+/* ========== OPTION CARDS ========== */
 .option-card {
-  position: relative;
-  overflow: visible;
-  background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
-  border-radius: 20px;
-  padding: 1.8rem 1.5rem;
-  box-shadow: 
-    0 10px 25px rgba(0, 0, 0, 0.08),
-    0 0 0 1px rgba(16, 185, 129, 0.1);
-  border: 2px solid transparent;
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  text-align: center;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  will-change: transform;
+  transition: all var(--transition-normal);
+  box-shadow: var(--shadow-md);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  min-height: 160px;
 }
 
 .option-card:active {
-  transform: scale(0.97);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.12);
+  transform: translateY(-4px) scale(0.98);
+  box-shadow: var(--shadow-lg);
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
-.option-card:not(:active) {
-  animation: cardEntrance 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Hover effect para tablets */
-@media (hover: hover) and (pointer: fine) {
-  .option-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-    border-color: rgba(16, 185, 129, 0.3);
-  }
-}
-
-/* Efecto especial para la card de Pedidos */
-.option-card.pedidos {
-  background: linear-gradient(145deg, #f0fdf4 0%, #dcfce7 100%);
-  border-color: rgba(34, 197, 94, 0.2);
-}
-
-.option-card.pedidos:active {
-  background: linear-gradient(145deg, #dcfce7 0%, #bbf7d0 100%);
-}
-
-/* ========================================
-   ICONOS DE LAS CARDS
-======================================== */
 .option-card .icono {
-  font-size: 3rem;
-  display: block;
-  margin-bottom: 1rem;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
-  transition: transform 0.3s ease;
+  font-size: 42px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
-.option-card:active .icono {
-  transform: scale(0.95);
-}
-
-/* ========================================
-   TÍTULOS Y DESCRIPCIONES
-======================================== */
 .option-card h2 {
-  color: var(--text-primary);
-  font-size: 1.3rem;
+  font-size: 15px;
   font-weight: 700;
-  margin-bottom: 0.5rem;
-  letter-spacing: -0.3px;
+  color: var(--text-light);
+  text-align: center;
+  line-height: 1.3;
 }
 
 .option-card p {
-  color: var(--text-secondary);
-  font-size: 0.95rem;
-  line-height: 1.5;
-  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+  display: none;
 }
 
-/* ========================================
-   CONTADOR DE PEDIDOS DISPONIBLES
-======================================== */
+/* Card especial de Pedidos con contador */
+.option-card.pedidos {
+  background: linear-gradient(135deg, var(--primary-color) 0%, #c0392b 100%);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 20px rgba(231, 76, 60, 0.3);
+}
+
+.option-card.pedidos:active {
+  box-shadow: 0 12px 30px rgba(231, 76, 60, 0.4);
+}
+
+.option-card.pedidos h2 {
+  font-size: 16px;
+}
+
+/* ========== CONTADOR DE PEDIDOS DISPONIBLES ========== */
 .pedidos-disponibles-counter {
   position: absolute;
-  top: 15px;
-  right: 15px;
-  background: var(--gradient-red);
-  color: white;
-  border-radius: 50%;
-  min-width: 32px;
-  height: 32px;
+  top: 8px;
+  right: 8px;
+  background: #4ade80;
+  color: #1a202c;
+  font-weight: 800;
+  font-size: 14px;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 14px;
   display: none;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
-  font-weight: 800;
-  box-shadow: 0 4px 15px rgba(255, 68, 68, 0.5);
-  animation: pulse-counter 2s ease-in-out infinite;
-  z-index: 10;
-  border: 3px solid white;
-  pointer-events: none;
-  letter-spacing: -0.5px;
+  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.5);
+  animation: bounce-in 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
 .pedidos-disponibles-counter.show {
   display: flex;
 }
 
-/* ========================================
-   ANIMACIONES
-======================================== */
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes pulse-warning {
-  0%, 100% { 
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% { 
-    opacity: 0.9;
-    transform: scale(1.02);
-  }
-}
-
-@keyframes pulse-danger {
-  0%, 100% { 
-    opacity: 1;
-    transform: scale(1);
-    box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
-  }
-  50% { 
-    opacity: 0.95;
-    transform: scale(1.03);
-    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.6);
-  }
-}
-
-@keyframes pulse-counter {
-  0%, 100% { 
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% { 
-    opacity: 0.85;
-    transform: scale(1.15);
-  }
-}
-
-@keyframes cardEntrance {
+@keyframes bounce-in {
   0% {
+    transform: scale(0);
     opacity: 0;
-    transform: translateY(20px);
+  }
+  50% {
+    transform: scale(1.2);
   }
   100% {
+    transform: scale(1);
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
-/* ========================================
-   RESPONSIVE - Pantallas medianas
-======================================== */
-@media (min-width: 768px) {
+/* ========== RESPONSIVE PARA PANTALLAS MÁS GRANDES ========== */
+@media (min-width: 400px) {
+  .option-card p {
+    display: block;
+  }
+  
+  .option-card {
+    min-height: 180px;
+    padding: 24px 16px;
+  }
+}
+
+@media (min-width: 480px) {
   .cajon-opcion {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.5rem;
-    max-width: 800px;
+    max-width: 600px;
     margin: 0 auto;
   }
   
-  .option-card {
-    padding: 2rem 1.8rem;
+  main {
+    padding: 0 24px 32px;
   }
   
   .pedidos-activos-contador {
-    max-width: 320px;
-    font-size: 1rem;
-    padding: 1rem 1.8rem;
+    margin: 20px auto;
+    max-width: 600px;
   }
 }
 
-/* ========================================
-   RESPONSIVE - Pantallas pequeñas
-======================================== */
-@media (max-width: 360px) {
-  .main-container {
-    padding: 0.8rem;
-    padding-top: 0.3rem;
-  }
-  
-  .pedidos-activos-contador {
-    font-size: 0.9rem;
-    padding: 0.8rem 1.2rem;
-    margin-bottom: 1rem;
-  }
-  
-  .cajon-opcion {
-    gap: 1rem;
-  }
-  
-  .option-card {
-    padding: 1.5rem 1.2rem;
-  }
-  
-  .option-card .icono {
-    font-size: 2.5rem;
-    margin-bottom: 0.8rem;
-  }
-  
-  .option-card h2 {
-    font-size: 1.2rem;
-  }
-  
-  .option-card p {
-    font-size: 0.9rem;
-  }
-  
-  .pedidos-disponibles-counter {
-    top: 12px;
-    right: 12px;
-    min-width: 28px;
-    height: 28px;
-    font-size: 13px;
-    border-width: 2px;
-  }
-}
-
-/* ========================================
-   LANDSCAPE MODE
-======================================== */
-@media (orientation: landscape) and (max-height: 500px) {
-  .main-container {
-    padding: 0.5rem 1rem;
-  }
-  
-  .pedidos-activos-contador {
-    padding: 0.7rem 1.2rem;
-    font-size: 0.9rem;
-    margin-bottom: 0.8rem;
-  }
-  
-  .cajon-opcion {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 0.8rem;
-  }
-  
-  .option-card {
-    padding: 1.2rem 1rem;
-  }
-  
-  .option-card .icono {
-    font-size: 2.2rem;
-    margin-bottom: 0.5rem;
-  }
-  
-  .option-card h2 {
-    font-size: 1.1rem;
-    margin-bottom: 0.3rem;
-  }
-  
-  .option-card p {
-    font-size: 0.85rem;
-    line-height: 1.3;
-  }
-  
-  .pedidos-disponibles-counter {
-    top: 10px;
-    right: 10px;
-    min-width: 26px;
-    height: 26px;
-    font-size: 12px;
-  }
-}
-
-/* ========================================
-   iOS SAFARI ESPECÍFICO
-======================================== */
-@supports (-webkit-touch-callout: none) {
-  html {
-    position: fixed;
-    width: 100%;
-    height: 100%;
-  }
-  
-  body {
-    min-height: 100vh;
-    height: 100vh;
-    position: fixed;
-    width: 100%;
-  }
-  
-  .main-container {
-    padding-bottom: max(env(safe-area-inset-bottom), 1rem);
-  }
-  
-  .option-card {
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-  }
-}
-
-/* ========================================
-   OPTIMIZACIONES DE RENDIMIENTO
-======================================== */
+/* ========== OPTIMIZACIONES DE RENDIMIENTO ========== */
 .option-card,
 .pedidos-activos-contador,
-.pedidos-disponibles-counter {
-  will-change: transform;
+.logout-btn {
   -webkit-transform: translateZ(0);
   transform: translateZ(0);
+  will-change: transform;
 }
 
-/* ========================================
-   ACCESIBILIDAD
-======================================== */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+/* ========== MEJORAS DE ACCESIBILIDAD ========== */
+.option-card:focus-visible,
+.pedidos-activos-contador:focus-visible,
+.logout-btn:focus-visible {
+  outline: 3px solid var(--secondary-color);
+  outline-offset: 2px;
 }
 
-.option-card:focus-visible {
-  outline: 3px solid rgba(34, 197, 94, 0.5);
-  outline-offset: 3px;
-}
-
-/* ========================================
-   SCROLL SUAVE
-======================================== */
-* {
-  -webkit-overflow-scrolling: touch;
+/* ========== SCROLL SUAVE ========== */
+.main-container {
   scroll-behavior: smooth;
 }
 
-/* ========================================
-   PREVENIR ZOOM EN INPUTS (iOS)
-======================================== */
-@media screen and (max-width: 767px) {
-  input,
-  select,
-  textarea {
-    font-size: 16px !important;
-  }
-}
-
-/* ========================================
-   SAFE AREAS PARA NOTCH
-======================================== */
-@supports (padding: max(0px)) {
+/* ========== FIX PARA TECLADOS VIRTUALES ========== */
+@supports (height: 100dvh) {
   body {
-    padding-top: env(safe-area-inset-top);
-    padding-left: env(safe-area-inset-left);
-    padding-right: env(safe-area-inset-right);
+    min-height: 100dvh;
   }
-}
-
-/* ========================================
-   ESTADOS ESPECIALES
-======================================== */
-.option-card[aria-disabled="true"] {
-  opacity: 0.6;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-.option-card[aria-disabled="true"] .icono {
-  filter: grayscale(1) opacity(0.5);
-}
-
-/* ========================================
-   ANIMACIÓN PARA STAGGER EFFECT
-======================================== */
-.cajon-opcion .option-card:nth-child(1) {
-  animation-delay: 0.1s;
-}
-
-.cajon-opcion .option-card:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.cajon-opcion .option-card:nth-child(3) {
-  animation-delay: 0.3s;
-}
-
-.cajon-opcion .option-card:nth-child(4) {
-  animation-delay: 0.4s;
-}
-
-.cajon-opcion .option-card:nth-child(5) {
-  animation-delay: 0.5s;
 }

@@ -1,598 +1,567 @@
-/* ========================================
-   DOMIPANCHO - LOGIN CSS MÓVIL APK
-   Optimizado para producción móvil
-======================================== */
+/* ============================================
+   DOMIPANCHO - LOGIN MOBILE APP
+   CSS Profesional para producción
+   Optimizado para APK Capacitor
+   ============================================ */
 
-/* Reset y variables profesionales */
+/* Reset y variables globales */
 * {
-  box-sizing: border-box;
   margin: 0;
   padding: 0;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
 }
 
 :root {
-  /* Colores principales */
+  /* Colores principales del sistema */
   --primary-color: #e74c3c;
+  --primary-hover: #c53030;
+  --primary-light: rgba(231, 76, 60, 0.1);
   --secondary-color: #3498db;
-  --success-color: #22c55e;
-  --warning-color: #f39c12;
-  --danger-color: #ef4444;
   
-  /* Fondos */
-  --dark-bg: #2c3e50;
+  /* Backgrounds */
+  --dark-bg: #1a202c;
+  --header-bg: #2d3748;
   --card-bg: #34495e;
   --glass-bg: rgba(255, 255, 255, 0.95);
+  --glass-border: rgba(255, 255, 255, 0.2);
   
   /* Textos */
-  --text-primary: #2c3e50;
-  --text-secondary: #7f8c8d;
-  --text-light: #ecf0f1;
-  --text-white: #ffffff;
+  --text-primary: #2d3748;
+  --text-secondary: #718096;
+  --text-light: #f7fafc;
+  --text-muted: #a0aec0;
+  --gradient-bg: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%)
   
-  /* Gradientes */
-  --gradient-bg: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
-  --gradient-success: linear-gradient(135deg, #22c55e, #16a34a);
+  
+  /* Estados */
+  --success-color: #38a169;
+  --error-color: #e53e3e;
+  --warning-color: #f39c12;
+  
+  /* Sombras */
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.15);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.2);
+  
+  /* Transiciones */
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ========================================
-   BODY - Configuración principal móvil
-======================================== */
-html {
-  height: 100%;
-  overflow: hidden;
-  position: fixed;
-  width: 100%;
-}
-
+/* Body y estructura principal */
 body {
-  background: var(--gradient-bg);
-  color: var(--text-light);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--card-bg);
   min-height: 100vh;
-  height: 100vh;
   display: flex;
-  justify-content: flex-start;
   align-items: center;
-  padding: 0;
-  margin: 0;
+  justify-content: center;
+  color: var(--text-primary);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   position: fixed;
   width: 100%;
-  top: 0;
-  left: 0;
-  overflow-y: scroll;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
+  height: 100%;
 }
 
-/* Partículas de fondo */
+/* Patrón de fondo decorativo */
 body::before {
   content: '';
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   background-image: 
-    radial-gradient(circle at 20% 80%, rgba(34, 197, 94, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 80% 20%, rgba(231, 76, 60, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 40% 40%, rgba(52, 152, 219, 0.1) 0%, transparent 50%);
+    radial-gradient(circle at 20% 80%, rgba(231, 76, 60, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(52, 152, 219, 0.1) 0%, transparent 50%);
   pointer-events: none;
   z-index: 0;
 }
 
-/* ========================================
-   CONTENEDOR LOGIN - Optimizado móvil
-======================================== */
+/* Contenedor principal del login */
 .login-container {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  padding: 2rem 1.5rem;
-  border-radius: 25px;
-  box-shadow: 
-    0 20px 40px rgba(0, 0, 0, 0.15),
-    0 0 0 1px rgba(255, 255, 255, 0.1);
-  width: calc(100% - 30px);
-  max-width: 400px;
-  min-height: auto;
-  text-align: center;
-  border: 2px solid var(--success-color);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
   position: relative;
   z-index: 1;
-  margin: auto;
-  flex-shrink: 0;
-  animation: fadeInScale 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
-.login-container::before {
+/* Caja del formulario */
+.login-box {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: var(--shadow-xl);
+  border: 1px solid var(--glass-border);
+  animation: fadeInUp 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Efecto de brillo sutil en la caja */
+.login-box::before {
   content: '';
   position: absolute;
   top: 0;
-  left: 0;
+  left: -100%;
   width: 100%;
-  height: 2px;
-  background: var(--gradient-success);
-  z-index: 1;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.1), 
+    transparent);
+  animation: shine 3s infinite;
 }
 
-.login-box {
-  position: relative;
-  z-index: 2;
+@keyframes shine {
+  0%, 100% { left: -100%; }
+  50% { left: 100%; }
 }
 
-/* ========================================
-   LOGO
-======================================== */
+/* Logo */
 .logo {
-  width: 85px;
-  height: 85px;
-  object-fit: cover;
+  width: 100px;
+  height: 100px;
   border-radius: 50%;
-  margin-bottom: 1rem;
-  box-shadow: 0 10px 25px rgba(34, 197, 94, 0.3);
-  transition: transform 0.3s ease;
-  border: 3px solid var(--success-color);
+  margin: 0 auto 1.5rem;
   display: block;
-  margin-left: auto;
-  margin-right: auto;
+  box-shadow: 0 8px 24px rgba(231, 76, 60, 0.3);
+  border: 3px solid var(--glass-border);
+  transition: transform var(--transition-normal);
+  animation: pulse 2s ease-in-out infinite;
 }
 
-.logo:active {
-  transform: scale(0.95);
+.logo:hover {
+  transform: scale(1.05) rotate(5deg);
 }
 
-/* ========================================
-   TÍTULOS
-======================================== */
-h1 {
-  font-size: 1.8rem;
-  color: var(--text-primary);
-  margin-bottom: 0.3rem;
+@keyframes pulse {
+  0%, 100% { 
+    transform: scale(1);
+    box-shadow: 0 8px 24px rgba(231, 76, 60, 0.3);
+  }
+  50% { 
+    transform: scale(1.02);
+    box-shadow: 0 12px 28px rgba(231, 76, 60, 0.4);
+  }
+}
+
+/* Títulos */
+.login-box h1 {
+  color: var(--primary-color);
+  font-size: 2rem;
   font-weight: 800;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  margin-bottom: 0.5rem;
   letter-spacing: -0.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .eslogan {
-  font-style: italic;
-  color: var(--success-color);
-  margin-bottom: 1.5rem;
+  color: var(--text-secondary);
   font-size: 0.95rem;
-  font-weight: 500;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 2rem;
+  opacity: 0.9;
 }
 
-/* ========================================
-   FORMULARIO
-======================================== */
-form {
+/* Formulario */
+#loginForm {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
 
-/* Inputs optimizados para móvil */
-input[type="text"],
-input[type="password"] {
+/* Inputs */
+#loginForm input[type="text"],
+#loginForm input[type="password"] {
   width: 100%;
-  padding: 0.85rem 1rem;
-  border-radius: 15px;
-  border: 2px solid var(--success-color);
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: var(--text-primary);
-  font-size: 16px; /* 16px evita zoom en iOS */
-  outline: none;
-  transition: all 0.3s ease;
+  padding: 1rem 1.25rem;
+  border: 2px solid rgba(226, 232, 240, 0.5);
+  border-radius: 16px;
+  font-size: 1rem;
   font-weight: 500;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
+  transition: all var(--transition-normal);
+  outline: none;
   -webkit-appearance: none;
   appearance: none;
 }
 
-input::placeholder {
-  color: var(--text-secondary);
-  font-weight: 400;
+#loginForm input[type="text"]:focus,
+#loginForm input[type="password"]:focus {
+  border-color: var(--primary-color);
+  background: white;
+  box-shadow: 0 0 0 4px var(--primary-light), var(--shadow-md);
+  transform: translateY(-2px);
 }
 
-input:focus {
-  border-color: var(--success-color);
-  background: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.1);
+#loginForm input::placeholder {
+  color: var(--text-muted);
+  font-weight: 500;
 }
 
-input:focus::placeholder {
-  color: transparent;
-}
-
-/* ========================================
-   CHECKBOX PERSONALIZADO
-======================================== */
-label {
+/* Checkbox personalizado */
+#loginForm label {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  color: var(--text-primary);
-  font-size: 0.9rem;
-  font-weight: 500;
+  gap: 0.75rem;
   cursor: pointer;
   user-select: none;
   -webkit-user-select: none;
-  padding: 0.5rem;
-  margin: 0.5rem 0;
+  padding: 0.5rem 0;
 }
 
-input[type="checkbox"] {
+#loginForm input[type="checkbox"] {
   width: 20px;
   height: 20px;
-  min-width: 20px;
-  min-height: 20px;
-  border: 2px solid var(--success-color);
-  border-radius: 5px;
   cursor: pointer;
-  margin: 0;
-  accent-color: var(--success-color);
-  transition: all 0.3s ease;
+  accent-color: var(--primary-color);
+  border-radius: 6px;
 }
 
-input[type="checkbox"]:checked {
-  background: var(--success-color);
+#loginForm label span {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
-label span {
-  flex: 1;
-  text-align: left;
-}
-
-/* ========================================
-   BOTÓN
-======================================== */
-button {
-  background: var(--gradient-success);
-  color: var(--text-white);
-  padding: 0.9rem 1.3rem;
-  font-weight: 700;
-  font-size: 1rem;
+/* Botón principal */
+#loginBtn {
+  width: 100%;
+  padding: 1rem;
+  margin-top: 0.5rem;
   border: none;
-  border-radius: 15px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--primary-color) 0%, #c53030 100%);
+  color: white;
+  font-size: 1.05rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 8px 20px rgba(34, 197, 94, 0.3);
+  transition: all var(--transition-normal);
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-top: 0.5rem;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
+  position: relative;
+  overflow: hidden;
 }
 
-button:active {
-  transform: scale(0.97);
-  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+#loginBtn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
 }
 
-button:disabled {
-  background: linear-gradient(135deg, #9ca3af, #6b7280);
+#loginBtn:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+#loginBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(231, 76, 60, 0.4);
+}
+
+#loginBtn:active {
+  transform: translateY(0);
+}
+
+#loginBtn:disabled {
+  background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
   cursor: not-allowed;
-  transform: none;
-  box-shadow: 0 4px 12px rgba(156, 163, 175, 0.2);
-  opacity: 0.7;
-}
-
-button:disabled:active {
+  opacity: 0.6;
   transform: none;
 }
 
-/* ========================================
-   LINK DE RECUPERACIÓN
-======================================== */
-.olvide-link {
-  margin-top: 1rem;
-  display: inline-block;
-  font-size: 0.9rem;
-  color: var(--success-color);
-  text-decoration: none;
-  transition: all 0.3s ease;
-  font-weight: 500;
-  padding: 0.5rem 1rem;
-  border-radius: 10px;
-  background: rgba(34, 197, 94, 0.1);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.olvide-link:active {
-  transform: scale(0.97);
-  background: var(--success-color);
-  color: var(--text-white);
-}
-
-/* ========================================
-   MENSAJES
-======================================== */
+/* Mensajes de error y éxito */
 .error-message,
 .success-message {
-  font-size: 0.9rem;
-  margin-top: 1rem;
-  padding: 0.9rem 1rem;
+  padding: 1rem;
   border-radius: 12px;
-  font-weight: 500;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid;
+  margin-top: 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
   display: none;
-  animation: slideInUp 0.4s ease-out;
+  animation: slideDown 0.3s ease;
 }
 
 .error-message {
-  color: #ffffff;
-  background: rgba(239, 68, 68, 0.95);
-  border-color: var(--danger-color);
-  box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
+  background: rgba(229, 62, 62, 0.1);
+  color: var(--error-color);
+  border: 2px solid rgba(229, 62, 62, 0.3);
 }
 
 .success-message {
-  color: #ffffff;
-  background: rgba(34, 197, 94, 0.95);
-  border-color: var(--success-color);
-  box-shadow: 0 4px 15px rgba(34, 197, 94, 0.2);
+  background: rgba(56, 161, 105, 0.1);
+  color: var(--success-color);
+  border: 2px solid rgba(56, 161, 105, 0.3);
 }
 
-/* ========================================
-   ANIMACIONES
-======================================== */
-@keyframes fadeInScale {
-  0% {
+@keyframes slideDown {
+  from {
     opacity: 0;
-    transform: scale(0.95) translateY(10px);
+    transform: translateY(-10px);
   }
-  100% {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
-}
-
-@keyframes slideInUp {
-  0% {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  100% {
+  to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-@keyframes spin {
+/* Link de recuperación */
+.olvide-link {
+  display: block;
+  text-align: center;
+  margin-top: 10px;
+  color: var(--primary-color);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all var(--transition-fast);
+  padding: 0.5rem;
+}
+
+.olvide-link:hover {
+  color: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.olvide-link:active {
+  transform: translateY(0);
+}
+
+/* Animaciones de entrada */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
   to {
-    transform: rotate(360deg);
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
-/* ========================================
-   LOADING STATE
-======================================== */
-button.loading {
-  position: relative;
-  color: transparent;
-  pointer-events: none;
-}
+/* Optimizaciones para diferentes tamaños de móviles */
 
-button.loading::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 20px;
-  height: 20px;
-  margin: -10px 0 0 -10px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  border-top-color: var(--text-white);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-/* ========================================
-   RESPONSIVE - PANTALLAS PEQUEÑAS
-======================================== */
-@media (max-height: 700px) {
-  body {
-    justify-content: flex-start;
-    padding: 20px 0;
+/* Móviles grandes (>= 414px) */
+@media (min-width: 414px) {
+  .login-box {
+    padding: 3rem 2.5rem;
   }
   
+  .logo {
+    width: 110px;
+    height: 110px;
+  }
+  
+  .login-box h1 {
+    font-size: 2.2rem;
+  }
+}
+
+/* Móviles medianos (375px - 413px) */
+@media (max-width: 413px) {
   .login-container {
-    margin: 20px auto;
-    padding: 1.5rem 1.3rem;
+    padding: 1.25rem;
+  }
+  
+  .login-box {
+    padding: 2rem 1.75rem;
+    max-width: 380px;
+  }
+  
+  .logo {
+    width: 90px;
+    height: 90px;
+  }
+  
+  .login-box h1 {
+    font-size: 1.85rem;
+  }
+  
+  .eslogan {
+    font-size: 0.9rem;
+  }
+}
+
+/* Móviles pequeños (<= 375px) */
+@media (max-width: 375px) {
+  .login-container {
+    padding: 1rem;
+  }
+  
+  .login-box {
+    padding: 1.75rem 1.5rem;
+    border-radius: 20px;
+  }
+  
+  .logo {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 1.25rem;
+  }
+  
+  .login-box h1 {
+    font-size: 1.7rem;
+    margin-bottom: 0.4rem;
+  }
+  
+  .eslogan {
+    font-size: 0.85rem;
+    margin-bottom: 1.75rem;
+  }
+  
+  #loginForm {
+    gap: 0.9rem;
+  }
+  
+  #loginForm input[type="text"],
+  #loginForm input[type="password"] {
+    padding: 0.9rem 1.1rem;
+    font-size: 0.95rem;
+  }
+  
+  #loginBtn {
+    padding: 0.95rem;
+    font-size: 1rem;
+  }
+}
+
+/* Móviles muy pequeños (<= 320px) */
+@media (max-width: 320px) {
+  .login-container {
+    padding: 0.75rem;
+  }
+  
+  .login-box {
+    padding: 1.5rem 1.25rem;
+    border-radius: 18px;
   }
   
   .logo {
     width: 70px;
     height: 70px;
-    margin-bottom: 0.8rem;
+    margin-bottom: 1rem;
   }
   
-  h1 {
-    font-size: 1.6rem;
-    margin-bottom: 0.2rem;
+  .login-box h1 {
+    font-size: 1.5rem;
   }
   
   .eslogan {
+    font-size: 0.8rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  #loginForm {
+    gap: 0.8rem;
+  }
+  
+  #loginForm input[type="text"],
+  #loginForm input[type="password"] {
+    padding: 0.85rem 1rem;
     font-size: 0.9rem;
-    margin-bottom: 1.2rem;
+    border-radius: 14px;
   }
   
-  form {
-    gap: 0.85rem;
-  }
-  
-  input[type="text"],
-  input[type="password"] {
-    padding: 0.75rem 0.9rem;
-  }
-  
-  button {
-    padding: 0.8rem 1.1rem;
-  }
-  
-  label {
+  #loginForm label span {
     font-size: 0.85rem;
-    margin: 0.3rem 0;
+  }
+  
+  #loginBtn {
+    padding: 0.9rem;
+    font-size: 0.95rem;
+    border-radius: 14px;
+  }
+  
+  .error-message,
+  .success-message {
+    padding: 0.9rem;
+    font-size: 0.85rem;
   }
   
   .olvide-link {
-    margin-top: 0.8rem;
-    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+    margin-top: 1.25rem;
   }
 }
 
-/* ========================================
-   LANDSCAPE MODE
-======================================== */
-@media (orientation: landscape) and (max-height: 500px) {
-  body {
-    justify-content: flex-start;
-    padding: 15px 0;
+/* Orientación horizontal en móviles */
+@media (max-height: 600px) and (orientation: landscape) {
+  .login-container {
+    padding: 1rem;
+    align-items: flex-start;
+    padding-top: 2rem;
   }
   
-  .login-container {
-    margin: 15px auto;
-    padding: 1.2rem 1.5rem;
-    overflow: visible;
+  .login-box {
+    padding: 1.5rem 2rem;
+    margin: 0 auto;
   }
   
   .logo {
     width: 60px;
     height: 60px;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
   }
   
-  h1 {
-    font-size: 1.4rem;
-    margin-bottom: 0.2rem;
+  .login-box h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0.25rem;
   }
   
   .eslogan {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     margin-bottom: 1rem;
   }
   
-  form {
-    gap: 0.7rem;
+  #loginForm {
+    gap: 0.75rem;
   }
   
-  input[type="text"],
-  input[type="password"] {
-    padding: 0.7rem 0.85rem;
+  #loginForm input[type="text"],
+  #loginForm input[type="password"] {
+    padding: 0.75rem 1rem;
   }
   
-  button {
-    padding: 0.7rem 1rem;
-    font-size: 0.95rem;
-    margin-top: 0.3rem;
-  }
-  
-  label {
-    font-size: 0.8rem;
-    padding: 0.3rem;
-    margin: 0.2rem 0;
+  #loginBtn {
+    padding: 0.85rem;
+    margin-top: 0.25rem;
   }
   
   .olvide-link {
-    margin-top: 0.6rem;
-    padding: 0.35rem 0.7rem;
-    font-size: 0.85rem;
-  }
-  
-  .error-message,
-  .success-message {
-    font-size: 0.85rem;
-    padding: 0.7rem 0.85rem;
-    margin-top: 0.7rem;
+    margin-top: 1rem;
   }
 }
 
-/* ========================================
-   PANTALLAS MUY PEQUEÑAS
-======================================== */
-@media (max-width: 360px) {
-  .login-container {
-    padding: 1.5rem 1.2rem;
-    width: calc(100% - 20px);
-    margin: auto;
-  }
-  
-  .logo {
-    width: 70px;
-    height: 70px;
-  }
-  
-  h1 {
-    font-size: 1.6rem;
-  }
-  
-  .eslogan {
-    font-size: 0.9rem;
-  }
-  
-  input[type="text"],
-  input[type="password"] {
-    padding: 0.75rem 0.85rem;
-  }
-  
-  button {
-    padding: 0.8rem 1rem;
-  }
-  
-  label {
-    font-size: 0.85rem;
-  }
-}
-
-/* ========================================
-   iOS SAFARI ESPECÍFICO
-======================================== */
-@supports (-webkit-touch-callout: none) {
-  html {
-    position: fixed;
-    width: 100%;
-    height: 100%;
-  }
-  
-  body {
-    min-height: 100vh;
-    height: 100vh;
-    position: fixed;
-    width: 100%;
-  }
-  
-  .login-container {
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-  }
-  
-  input[type="text"],
-  input[type="password"] {
-    -webkit-appearance: none;
-    appearance: none;
-  }
-}
-
-/* ========================================
-   OPTIMIZACIONES DE RENDIMIENTO
-======================================== */
-.login-container,
-.logo,
-button,
-input {
-  will-change: transform;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-}
-
-/* ========================================
-   ACCESIBILIDAD
-======================================== */
+/* Mejoras de accesibilidad */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -603,30 +572,61 @@ input {
   }
 }
 
-input:focus,
-button:focus,
-.olvide-link:focus,
-input[type="checkbox"]:focus {
-  outline: 2px solid rgba(34, 197, 94, 0.5);
-  outline-offset: 2px;
+
+
+/* Optimización para Capacitor */
+@supports (-webkit-touch-callout: none) {
+  /* iOS específico */
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  
+  #loginForm input[type="text"],
+  #loginForm input[type="password"] {
+    -webkit-user-select: text;
+    user-select: text;
+  }
 }
 
-/* ========================================
-   SCROLL SUAVE
-======================================== */
-* {
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
-}
-
-/* ========================================
-   PREVENIR ZOOM EN INPUTS (iOS)
-======================================== */
-@media screen and (max-width: 767px) {
-  input[type="text"],
-  input[type="password"],
-  select,
-  textarea {
+/* Prevenir zoom en iOS */
+@media screen and (max-width: 768px) {
+  #loginForm input[type="text"],
+  #loginForm input[type="password"] {
     font-size: 16px !important;
   }
+}
+
+/* Mejoras de rendimiento */
+* {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  perspective: 1000;
+}
+
+/* Loading state para el botón */
+#loginBtn.loading {
+  pointer-events: none;
+  position: relative;
+  color: transparent;
+}
+
+#loginBtn.loading::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  top: 50%;
+  left: 50%;
+  margin-left: -10px;
+  margin-top: -10px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

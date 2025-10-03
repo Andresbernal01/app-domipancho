@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="img/logo.png">
   <link rel="stylesheet" href="css/domiciliarios.css">
-  <link rel="stylesheet" href="css/header.css">
   <script src="js/config.js"></script>
 
 
@@ -15,35 +14,330 @@
   <script src="/js/notifications.js"></script>
 <link rel="stylesheet" href="/css/notifications.css">
 
-  <style>
-    .perfil-card {
-      background-color:#2c3e50;
-      padding: 30px;
-      border-radius: 15px;
-      max-width: 500px;
-      margin: 0 auto;
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-      border: 2px solid #22c55e;
-      text-align: center;
-    }
+<style>
+  /* perfil_domiciliario.css - Versión Profesional para App Móvil */
 
-    .perfil-card h2 {
-      color: #facc15;
-      margin-bottom: 20px;
-    }
+:root {
+  /* Colores principales */
+  --primary-color: #e74c3c;
+  --primary-hover: #c53030;
+  --secondary-color: #3498db;
+  
+  /* Backgrounds */
+  --dark-bg: #1a202c;
+  --header-bg: #2d3748;
+  --card-bg: #34495e;
+  
+  /* Textos */
+  --text-primary: #2d3748;
+  --text-secondary: #718096;
+  --text-light: #f7fafc;
+  --text-muted: #a0aec0;
+  
+  /* Sombras */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.2);
+  
+  /* Transiciones */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-    .perfil-dato {
-      margin: 15px 0;
-      color: #ccc;
-      font-size: 1.1em;
-    }
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
 
-    .perfil-dato strong {
-      color: #a3e635;
-    }
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+  color: var(--text-light);
+}
 
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: -webkit-fill-available;
+  padding-bottom: env(safe-area-inset-bottom);
+}
 
-  </style>
+/* ========== HEADER ========== */
+.header {
+  background: var(--header-bg);
+  padding: 12px 16px;
+  padding-top: max(12px, env(safe-area-inset-top));
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 100%;
+}
+
+.btn-volver {
+  background: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-volver:active {
+  transform: scale(0.95);
+  background: var(--primary-hover);
+}
+
+.btn-volver span {
+  display: none;
+}
+
+.header-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+}
+
+.header-center .logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+
+.restaurant-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.restaurant-info h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.restaurant-info p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.header-right {
+  display: none !important;
+}
+
+/* ========== MAIN CONTAINER ========== */
+.main-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+main {
+  flex: 1;
+  padding: 20px 16px 24px;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+/* ========== LOADING / ERROR ========== */
+.loading, .error {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-light);
+  width: 100%;
+}
+
+.error {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 32px 20px;
+  margin: 16px 0;
+  max-width: 500px;
+  width: 100%;
+}
+
+.error h3 {
+  font-size: 18px;
+  margin-bottom: 12px;
+  color: var(--primary-color);
+}
+
+.error p {
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.error button {
+  margin-top: 8px;
+  padding: 10px 20px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 14px;
+}
+
+.error button:active {
+  transform: scale(0.95);
+  background: var(--primary-hover);
+}
+
+/* ========== PERFIL CARD ========== */
+#perfilContainer {
+  width: 100%;
+  max-width: 500px;
+}
+
+.perfil-card {
+  background: var(--card-bg);
+  border-radius: 16px;
+  padding: 32px 24px;
+  box-shadow: var(--shadow-lg);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.perfil-card h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-light);
+  text-align: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.perfil-dato {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: var(--text-light);
+  line-height: 1.5;
+  border-left: 4px solid var(--secondary-color);
+  transition: all var(--transition-fast);
+}
+
+.perfil-dato:hover {
+  background: rgba(0, 0, 0, 0.4);
+  transform: translateX(4px);
+}
+
+.perfil-dato:last-child {
+  margin-bottom: 0;
+}
+
+.perfil-dato strong {
+  color: #4ade80;
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+/* ========== RESPONSIVE ========== */
+@media (min-width: 400px) {
+  .btn-volver span {
+    display: inline;
+  }
+  
+  .perfil-card {
+    padding: 40px 32px;
+  }
+  
+  .perfil-card h2 {
+    font-size: 26px;
+  }
+  
+  .perfil-dato {
+    font-size: 15px;
+    padding: 18px;
+  }
+}
+
+@media (min-width: 480px) {
+  main {
+    padding: 32px 24px 40px;
+  }
+}
+
+/* ========== SCROLLBAR ========== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* ========== OPTIMIZACIONES DE RENDIMIENTO ========== */
+.perfil-card {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  will-change: transform;
+}
+</style>
+  
 </head>
 <body>
 
