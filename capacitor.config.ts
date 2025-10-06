@@ -13,18 +13,19 @@ const config: CapacitorConfig = {
     ]
   },
   plugins: {
-    plugins: {
-      BackgroundGeolocation: {
-        notificationTitle: "DomiPancho - Entrega activa",
-        notificationText: "Rastreando tu ubicación",
-        notificationIcon: "ic_stat_icon_config_sample",
-        notificationColor: "#facc15",
-        backgroundMessage: "Tu ubicación se está compartiendo",
-        distanceFilter: 10,
-        stale: false,
-        stopOnTerminate: false,  // ✅ NO detener al cerrar app
-        startOnBoot: false
-      }
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"]
+    },
+    BackgroundGeolocation: {
+      notificationTitle: "DomiPancho - Entrega activa",
+      notificationText: "Rastreando tu ubicación",
+      notificationIcon: "ic_stat_icon_config_sample",
+      notificationColor: "#facc15",
+      backgroundMessage: "Tu ubicación se está compartiendo",
+      distanceFilter: 10,
+      stale: false,
+      stopOnTerminate: false,
+      startOnBoot: false
     },
     Geolocation: {
       permissions: ['fine', 'coarse', 'background'],
@@ -36,9 +37,6 @@ const config: CapacitorConfig = {
       smallIcon: "ic_stat_icon_config_sample",
       iconColor: "#facc15",
       sound: "notificacion.mp3"
-    },
-    PushNotifications: {
-      presentationOptions: ["badge", "sound", "alert"]
     }
   },
   android: {

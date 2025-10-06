@@ -40,6 +40,98 @@
       </div>
     </div>
   </header>
+
+  <!-- Switch de notificaciones -->
+<!-- Switch de notificaciones -->
+<div class="notificaciones-control">
+  <div class="switch-container">
+    <span class="switch-label">🔔 Notificaciones con sonido</span>
+    <label class="switch">
+      <input type="checkbox" id="switchNotificaciones" checked>
+      <span class="slider"></span>
+    </label>
+  </div>
+  <p class="switch-descripcion">
+    Desactiva el sonido si no quieres ser interrumpido. Las notificaciones seguirán llegando silenciosamente.
+  </p>
+</div>
+
+<style>
+.notificaciones-control {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 15px 20px;
+  margin: 10px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+.switch-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.switch-label {
+  color: white;
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 60px;
+  height: 34px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255,255,255,0.3);
+  transition: .4s;
+  border-radius: 34px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 26px;
+  width: 26px;
+  left: 4px;
+  bottom: 4px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+
+input:checked + .slider {
+  background-color: #4CAF50;
+}
+
+input:checked + .slider:before {
+  transform: translateX(26px);
+}
+
+.switch-descripcion {
+  color: rgba(255,255,255,0.9);
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.4;
+}
+</style>
+
+
   
   <div class="main-container">
 <!-- En el contador de pedidos activos: -->
@@ -107,6 +199,7 @@
       </div>
     </main>
   </div>
+  <script src="js/fcm-notifications.js" type="module"></script>
 
   <script src="js/inactividad.js"></script>
   <script src="js/info_header.js"></script>
@@ -265,6 +358,28 @@
         await actualizarContadores();
       });
     }
+
+
+    const switchNotificaciones = document.getElementById('switchNotificaciones');
+    if (window.fcmNotificationService) {
+    // Inicializar FCM
+    await window.fcmNotificationService.inicializar();
+    
+    // Cargar estado guardado
+    const estadoActual = window.fcmNotificationService.cargarEstadoNotificaciones();
+    switchNotificaciones.checked = estadoActual;
+    
+    console.log('🔔 Estado inicial notificaciones:', estadoActual ? 'CON sonido' : 'SIN sonido');
+    
+    // Listener del switch
+    switchNotificaciones.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        window.fcmNotificationService.activarNotificaciones();
+      } else {
+        window.fcmNotificationService.desactivarNotificaciones();
+      }
+    });
+  }
   });
 
   // Actualizar al volver a la página

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "718449256068",
+    "project_id": "comidas-c3fb3",
+    "storage_bucket": "comidas-c3fb3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:718449256068:android:bed732cbc1ac206cd804d1",
+        "android_client_info": {
+          "package_name": "com.domipancho.domiciliarios"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDvdWbTGx97NJR4ws61WbFCvARfBSPI7yc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

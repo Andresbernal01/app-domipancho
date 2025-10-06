@@ -179,6 +179,40 @@
     }
   });
   </script>
+
+<!-- Al final de domiciliarios.html, ANTES del cierre de </body> -->
+<script src="js/fcm-notifications.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('🎯 Inicializando geolocalización unificada...');
+  
+  // Inicializar geolocalización
+  if (window.unifiedGeoService) {
+    await window.unifiedGeoService.initialize();
+    await window.unifiedGeoService.startTracking();
+    console.log('✅ Tracking activo');
+  }
+  
+  // Inicializar FCM
+  if (window.fcmNotificationService) {
+    console.log('🔔 Inicializando FCM...');
+    await window.fcmNotificationService.inicializar();
+    window.fcmNotificationService.cargarEstadoNotificaciones();
+    console.log('✅ FCM inicializado, estado:', 
+      window.fcmNotificationService.notificacionesActivas ? 'CON sonido' : 'SIN sonido');
+  }
+});
+
+// Mantener tracking al cambiar de visibilidad
+document.addEventListener('visibilitychange', async () => {
+  if (!document.hidden && window.unifiedGeoService) {
+    if (!window.unifiedGeoService.isTracking && window.unifiedGeoService.permissionStatus === 'granted') {
+      console.log('📱 Página restaurada - reiniciando tracking...');
+      await window.unifiedGeoService.startTracking();
+    }
+  }
+});
+</script>
 </body>
 </html>
 
