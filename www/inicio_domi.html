@@ -9,15 +9,11 @@
   <script src="js/socket-mock.js"></script>
   <link rel="stylesheet" href="css/inicio.css">
 
-
-
-  <!-- En el <head>, después del viewport: -->
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#2c3e50">
-
- 
+  <!-- Meta tags para PWA -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#2c3e50">
 </head>
 <body>
   <header class="header">
@@ -40,107 +36,104 @@
     </div>
   </header>
 
-  <!-- Switch de notificaciones -->
-<!-- Switch de notificaciones -->
-<div class="notificaciones-control">
-  <div class="switch-container">
-    <span class="switch-label">🔔 Notificaciones con sonido</span>
-    <label class="switch">
-      <input type="checkbox" id="switchNotificaciones" checked>
-      <span class="slider"></span>
-    </label>
+  <!-- ✅ CONTROL DE NOTIFICACIONES FCM -->
+  <div class="notificaciones-control">
+    <div class="switch-container">
+      <span class="switch-label">🔔 Notificaciones con sonido</span>
+      <label class="switch">
+        <input type="checkbox" id="switchNotificaciones" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <p class="switch-descripcion">
+      Desactiva el sonido si no quieres ser interrumpido. Las notificaciones seguirán llegando silenciosamente.
+    </p>
   </div>
-  <p class="switch-descripcion">
-    Desactiva el sonido si no quieres ser interrumpido. Las notificaciones seguirán llegando silenciosamente.
-  </p>
-</div>
 
-<style>
-.notificaciones-control {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 15px 20px;
-  margin: 10px;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-}
+  <style>
+  .notificaciones-control {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 15px 20px;
+    margin: 10px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  }
 
-.switch-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
+  .switch-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
 
-.switch-label {
-  color: white;
-  font-weight: 600;
-  font-size: 16px;
-}
+  .switch-label {
+    color: white;
+    font-weight: 600;
+    font-size: 16px;
+  }
 
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 60px;
-  height: 34px;
-}
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+  }
 
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
 
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(255,255,255,0.3);
-  transition: .4s;
-  border-radius: 34px;
-}
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255,255,255,0.3);
+    transition: .4s;
+    border-radius: 34px;
+  }
 
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 26px;
-  width: 26px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
-}
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+  }
 
-input:checked + .slider {
-  background-color: #4CAF50;
-}
+  input:checked + .slider {
+    background-color: #4CAF50;
+  }
 
-input:checked + .slider:before {
-  transform: translateX(26px);
-}
+  input:checked + .slider:before {
+    transform: translateX(26px);
+  }
 
-.switch-descripcion {
-  color: rgba(255,255,255,0.9);
-  font-size: 13px;
-  margin: 0;
-  line-height: 1.4;
-}
-</style>
-
-
+  .switch-descripcion {
+    color: rgba(255,255,255,0.9);
+    font-size: 13px;
+    margin: 0;
+    line-height: 1.4;
+  }
+  </style>
   
   <div class="main-container">
-<!-- En el contador de pedidos activos: -->
-<div id="contadorPedidos" class="pedidos-activos-contador" 
-     onclick="window.location.href='domiciliarios.html'"
-     role="button" 
-     tabindex="0" 
-     aria-label="Ver pedidos activos en curso">
-  Pedidos activos: <span id="numPedidosActivos">0</span>/2
-</div>
+    <!-- Contador de pedidos activos -->
+    <div id="contadorPedidos" class="pedidos-activos-contador" 
+         onclick="window.location.href='domiciliarios.html'"
+         role="button" 
+         tabindex="0" 
+         aria-label="Ver pedidos activos en curso">
+      Pedidos activos: <span id="numPedidosActivos">0</span>/2
+    </div>
 
     <main>
       <div id="loading" class="loading">
@@ -158,22 +151,22 @@ input:checked + .slider:before {
 
       <div id="opciones" class="cajon-opcion" style="display: none;">
         <div class="option-card pedidos" 
-        onclick="verPedidosAsignados()" 
-        role="button" 
-        tabindex="0" 
-        onkeypress="handleKeyPress(event, verPedidosAsignados)" 
-        aria-label="Ver pedidos disponibles para tomar">
-     <span class="icono" aria-hidden="true">📦</span>
-     <h2>Pedidos</h2>
-     <p>Consulta los pedidos que puedes realizar.</p>
-     <div class="pedidos-disponibles-counter" 
-          id="pedidosDisponiblesCounter" 
-          aria-live="polite" 
-          aria-atomic="true">0</div>
-   </div>
+             onclick="verPedidosAsignados()" 
+             role="button" 
+             tabindex="0" 
+             onkeypress="handleKeyPress(event, verPedidosAsignados)" 
+             aria-label="Ver pedidos disponibles para tomar">
+          <span class="icono" aria-hidden="true">📦</span>
+          <h2>Pedidos</h2>
+          <p>Consulta los pedidos que puedes realizar.</p>
+          <div class="pedidos-disponibles-counter" 
+               id="pedidosDisponiblesCounter" 
+               aria-live="polite" 
+               aria-atomic="true">0</div>
+        </div>
       
         <div class="option-card" onclick="verHistorialEntregas()">
-          <span class="icono">📄</span>
+          <span class="icono">🔄</span>
           <h2>Historial de Entregas</h2>
           <p>Revisa los pedidos que ya has entregado anteriormente.</p>
         </div>
@@ -198,14 +191,15 @@ input:checked + .slider:before {
       </div>
     </main>
   </div>
-  <script src="js/fcm-notifications.js" type="module"></script>
 
+  <!-- ✅ SCRIPTS OPTIMIZADOS - SOLO FCM -->
+  <script src="js/fcm-notifications.js"></script>
   <script src="js/inactividad.js"></script>
   <script src="js/info_header.js"></script>
   <script src="js/unified-geolocation.js"></script>
   
   <script>
-  // FUNCIONES DE NAVEGACIÓN
+  // ========== FUNCIONES DE NAVEGACIÓN ==========
   function verPedidosAsignados() {
     window.location.href = 'domiciliarios.html';
   }
@@ -246,7 +240,7 @@ input:checked + .slider:before {
     }
   }
 
-  // ACTUALIZAR CONTADORES
+  // ========== ACTUALIZAR CONTADORES ==========
   async function actualizarContadores() {
     try {
       const res = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
@@ -292,99 +286,123 @@ input:checked + .slider:before {
         counterElement.classList.remove('show');
       }
       
-      console.log(`Contadores actualizados: ${numActivos} activos, ${numDisponibles} disponibles`);
+      console.log(`✅ Contadores actualizados: ${numActivos} activos, ${numDisponibles} disponibles`);
       
     } catch (error) {
-      console.error('Error actualizando contadores:', error);
+      console.error('❌ Error actualizando contadores:', error);
     }
   }
 
-  // INICIALIZACIÓN
+  // ========== INICIALIZACIÓN PRINCIPAL ==========
   document.addEventListener('DOMContentLoaded', async () => {
-    console.log('Inicializando página de inicio domiciliario...');
+    console.log('🎯 Inicializando página de inicio domiciliario...');
     
-    // Inicializar geolocalización
+    // ✅ 1. INICIALIZAR GEOLOCALIZACIÓN
     if (window.unifiedGeoService) {
-      await window.unifiedGeoService.initialize();
-      await window.unifiedGeoService.startTracking();
-      console.log('Tracking activo');
+      try {
+        await window.unifiedGeoService.initialize();
+        await window.unifiedGeoService.startTracking();
+        console.log('✅ Sistema de tracking activo');
+      } catch (error) {
+        console.error('❌ Error en geolocalización:', error);
+      }
     }
     
-    // Actualizar contadores inmediatamente
+    // ✅ 2. INICIALIZAR FCM Y CONFIGURAR SWITCH
+    const switchNotificaciones = document.getElementById('switchNotificaciones');
+    
+    if (window.fcmNotificationService) {
+      try {
+        console.log('🔔 Inicializando Firebase Cloud Messaging...');
+        
+        // Inicializar FCM
+        await window.fcmNotificationService.inicializar();
+        
+        // Cargar estado guardado del switch
+        const estadoActual = window.fcmNotificationService.cargarEstadoNotificaciones();
+        if (switchNotificaciones) {
+          switchNotificaciones.checked = estadoActual;
+        }
+        
+        console.log('✅ FCM inicializado correctamente');
+        console.log(`🔊 Estado inicial: ${estadoActual ? 'CON sonido' : 'SIN sonido'}`);
+        
+        // Configurar listener del switch
+        if (switchNotificaciones) {
+          switchNotificaciones.addEventListener('change', (e) => {
+            if (e.target.checked) {
+              window.fcmNotificationService.activarNotificaciones();
+              console.log('🔔 Notificaciones CON sonido activadas');
+            } else {
+              window.fcmNotificationService.desactivarNotificaciones();
+              console.log('🔕 Notificaciones SILENCIOSAS activadas');
+            }
+          });
+        }
+      } catch (error) {
+        console.error('❌ Error inicializando FCM:', error);
+      }
+    }
+    
+    // ✅ 3. ACTUALIZAR CONTADORES INMEDIATAMENTE
     await actualizarContadores();
     
-    // Actualizar contadores cada 10 segundos
+    // ✅ 4. ACTUALIZAR CONTADORES CADA 10 SEGUNDOS
     setInterval(actualizarContadores, 10000);
     
-    // Configurar Socket.IO para actualizaciones en tiempo real
+    // ✅ 5. CONFIGURAR SOCKET.IO PARA ACTUALIZACIONES EN TIEMPO REAL
     if (typeof io !== 'undefined') {
       const socket = io();
       
       socket.on('connect', async () => {
-        console.log('Socket conectado');
+        console.log('🔌 Socket conectado');
         
-        const response = await window.apiRequest('/api/usuario-actual');
-        if (response.ok) {
-          const usuario = await response.json();
-          socket.emit('join-domiciliario', usuario.id);
-          console.log(`Unido a sala: domiciliario-${usuario.id}`);
+        try {
+          const response = await window.apiRequest('/api/usuario-actual');
+          if (response.ok) {
+            const usuario = await response.json();
+            socket.emit('join-domiciliario', usuario.id);
+            console.log(`✅ Unido a sala: domiciliario-${usuario.id}`);
+          }
+        } catch (error) {
+          console.error('❌ Error obteniendo usuario:', error);
         }
       });
       
       // Actualizar contadores en eventos de socket
-      socket.on('nuevo-pedido-geografico', async (data) => {
-        console.log('Nuevo pedido geográfico detectado');
+      socket.on('nuevo-pedido-geografico', async () => {
+        console.log('📬 Nuevo pedido geográfico detectado');
         await actualizarContadores();
       });
       
-      socket.on('estado-pedido-actualizado', async (data) => {
-        console.log('Estado de pedido actualizado');
+      socket.on('estado-pedido-actualizado', async () => {
+        console.log('🔄 Estado de pedido actualizado');
         await actualizarContadores();
       });
       
-      socket.on('pedido-removido', async (data) => {
-        console.log('Pedido removido');
+      socket.on('pedido-removido', async () => {
+        console.log('🗑️ Pedido removido');
         await actualizarContadores();
       });
       
-      socket.on('pedido-tomado', async (data) => {
-        console.log('Pedido tomado');
+      socket.on('pedido-tomado', async () => {
+        console.log('✋ Pedido tomado');
         await actualizarContadores();
       });
       
-      socket.on('pedido-liberado', async (data) => {
-        console.log('Pedido liberado');
+      socket.on('pedido-liberado', async () => {
+        console.log('🔓 Pedido liberado');
         await actualizarContadores();
       });
     }
-
-
-    const switchNotificaciones = document.getElementById('switchNotificaciones');
-    if (window.fcmNotificationService) {
-    // Inicializar FCM
-    await window.fcmNotificationService.inicializar();
     
-    // Cargar estado guardado
-    const estadoActual = window.fcmNotificationService.cargarEstadoNotificaciones();
-    switchNotificaciones.checked = estadoActual;
-    
-    console.log('🔔 Estado inicial notificaciones:', estadoActual ? 'CON sonido' : 'SIN sonido');
-    
-    // Listener del switch
-    switchNotificaciones.addEventListener('change', (e) => {
-      if (e.target.checked) {
-        window.fcmNotificationService.activarNotificaciones();
-      } else {
-        window.fcmNotificationService.desactivarNotificaciones();
-      }
-    });
-  }
+    console.log('✅ Sistema completamente inicializado');
   });
 
-  // Actualizar al volver a la página
+  // ✅ 6. ACTUALIZAR AL VOLVER A LA PÁGINA
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
-      console.log('Página visible - actualizando contadores...');
+      console.log('👀 Página visible - actualizando contadores...');
       actualizarContadores();
     }
   });

@@ -881,20 +881,7 @@
     socketInstance.on('nuevo-pedido-geografico', async (data) => {
       console.log('Nuevo pedido geográfico:', data.pedido?.id);
       
-      if (mobileNotif) {
-        try {
-          await mobileNotif.showNotification(
-            `🔔 Nuevo pedido a ${data.distancia?.toFixed(2) || '?'}km`,
-            {
-              body: `Pedido #${data.pedido.id} - ${data.pedido.nombre} ${data.pedido.apellido}`,
-              icon: '/img/logo.png',
-              data: { pedidoId: data.pedido.id }
-            }
-          );
-        } catch (notifError) {
-          console.warn('Error en notificación móvil:', notifError);
-        }
-      }
+
       
       const contenedor = document.getElementById('listaPedidos');
       if (!contenedor) return;
@@ -951,13 +938,8 @@
     
     await cargarPedidos();
     
-    try {
-      mobileNotif = new MobileNotificationService();
-      await mobileNotif.createNotificationChannel();
-      console.log('Servicio de notificaciones móviles inicializado');
-    } catch (error) {
-      console.warn('No se pudo inicializar notificaciones móviles:', error);
-    }
+    console.log('✅ Sistema FCM disponible desde fcm-notifications.js');
+
     
     configurarSocket(usuario);
     

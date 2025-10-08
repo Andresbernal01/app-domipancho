@@ -6,27 +6,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="img/logo.png">
   <link rel="stylesheet" href="css/domiciliarios.css" />
-
   <link rel="stylesheet" href="/css/notifications.css">
-    <script src="js/config.js"></script>
-
-
+  <script src="js/config.js"></script>
 </head>
 <body>
 
   <header class="header">
     <div class="header-container">
-      <!-- Botón Volver -->
       <button class="btn-volver" onclick="window.location.href='inicio_domi.html'">
         ⬅ <span>Volver</span>
       </button>
   
-      <!-- Centro: Solo título -->
       <div class="header-center">
         <h1>📦 Pedidos Activos</h1>
       </div>
   
-      <!-- Contador de Pedidos -->
       <div id="contadorPedidos" class="pedidos-activos-contador">
         <span id="numPedidosActivos">0</span>/2
       </div>
@@ -43,6 +37,7 @@
 
   <div id="mensajeSistema" class="mensaje-sistema" style="display:none;"></div>
 
+  <!-- MODAL PROBLEMA -->
   <div id="modalProblema" class="modal-problema" style="display: none;">
     <div class="modal-contenido">
       <h2>❌ Reportar Problema con el Pedido</h2>
@@ -87,6 +82,7 @@
     </div>
   </div>
 
+  <!-- MODAL MÉTODO DE PAGO -->
   <div id="modalMetodoPago" class="modal-problema" style="display: none;">
     <div class="modal-contenido">
       <h2>💳 Selecciona el Método de Pago</h2>
@@ -118,7 +114,7 @@
     </div>
   </div>
 
-
+  <!-- MODAL LIBERAR PEDIDO -->
   <div id="modalLiberarPedido" class="modal-problema" style="display: none;">
     <div class="modal-contenido">
       <h2>🔄 Liberar Pedido</h2>
@@ -147,71 +143,67 @@
     </div>
   </div>
 
-
-
+  <!-- ✅ SCRIPTS OPTIMIZADOS - SOLO FCM -->
   <script src="js/socket-mock.js"></script>
-  <script src="js/notification-service.js"></script>
   <script src="js/unified-geolocation.js"></script>
   <script src="js/inactividad.js"></script>
   <script src="js/domiciliario.js"></script>
+  <script src="js/fcm-notifications.js"></script>
 
-  <!-- INICIALIZAR GEOLOCALIZACIÓN ÚNICA -->
   <script>
   document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🎯 Inicializando geolocalización unificada...');
+    console.log('🎯 Inicializando sistema de domiciliarios...');
     
-    // Usar instancia global
+    // ✅ 1. INICIALIZAR GEOLOCALIZACIÓN
     if (window.unifiedGeoService) {
-      await window.unifiedGeoService.initialize();
-      await window.unifiedGeoService.startTracking();
-      console.log('✅ Tracking activo');
+      try {
+        await window.unifiedGeoService.initialize();
+        await window.unifiedGeoService.startTracking();
+        console.log('✅ Sistema de tracking de ubicación activo');
+      } catch (error) {
+        console.error('❌ Error inicializando geolocalización:', error);
+      }
     }
+    
+    // ✅ 2. INICIALIZAR FCM (Firebase Cloud Messaging)
+    if (window.fcmNotificationService) {
+      console.log('🔔 Inicializando Firebase Cloud Messaging...');
+      
+      try {
+        const inicializado = await window.fcmNotificationService.inicializar();
+        
+        if (inicializado) {
+          // Cargar preferencias de sonido guardadas
+          const estadoNotificaciones = window.fcmNotificationService.cargarEstadoNotificaciones();
+          console.log('✅ FCM inicializado correctamente');
+          console.log(`🔊 Notificaciones: ${estadoNotificaciones ? 'CON sonido' : 'SILENCIOSAS'}`);
+        } else {
+          console.warn('⚠️ FCM no disponible (probablemente navegador web)');
+        }
+      } catch (error) {
+        console.error('❌ Error inicializando FCM:', error);
+      }
+    }
+    
+    console.log('✅ Sistema completamente inicializado');
   });
 
-  // Mantener tracking al cambiar de visibilidad
+  // ✅ 3. MANTENER TRACKING AL VOLVER A LA APP
   document.addEventListener('visibilitychange', async () => {
     if (!document.hidden && window.unifiedGeoService) {
-      if (!window.unifiedGeoService.isTracking && window.unifiedGeoService.permissionStatus === 'granted') {
-        console.log('📱 Página restaurada - reiniciando tracking...');
-        await window.unifiedGeoService.startTracking();
+      if (!window.unifiedGeoService.isTracking && 
+          window.unifiedGeoService.permissionStatus === 'granted') {
+        console.log('📱 Aplicación restaurada - reiniciando tracking...');
+        
+        try {
+          await window.unifiedGeoService.startTracking();
+          console.log('✅ Tracking reiniciado correctamente');
+        } catch (error) {
+          console.error('❌ Error reiniciando tracking:', error);
+        }
       }
     }
   });
   </script>
-
-<!-- Al final de domiciliarios.html, ANTES del cierre de </body> -->
-<script src="js/fcm-notifications.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🎯 Inicializando geolocalización unificada...');
-  
-  // Inicializar geolocalización
-  if (window.unifiedGeoService) {
-    await window.unifiedGeoService.initialize();
-    await window.unifiedGeoService.startTracking();
-    console.log('✅ Tracking activo');
-  }
-  
-  // Inicializar FCM
-  if (window.fcmNotificationService) {
-    console.log('🔔 Inicializando FCM...');
-    await window.fcmNotificationService.inicializar();
-    window.fcmNotificationService.cargarEstadoNotificaciones();
-    console.log('✅ FCM inicializado, estado:', 
-      window.fcmNotificationService.notificacionesActivas ? 'CON sonido' : 'SIN sonido');
-  }
-});
-
-// Mantener tracking al cambiar de visibilidad
-document.addEventListener('visibilitychange', async () => {
-  if (!document.hidden && window.unifiedGeoService) {
-    if (!window.unifiedGeoService.isTracking && window.unifiedGeoService.permissionStatus === 'granted') {
-      console.log('📱 Página restaurada - reiniciando tracking...');
-      await window.unifiedGeoService.startTracking();
-    }
-  }
-});
-</script>
 </body>
 </html>
-

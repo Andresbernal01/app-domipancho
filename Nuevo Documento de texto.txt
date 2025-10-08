@@ -1,0 +1,7 @@
+npx cap copy android
+npx cap sync android
+cd android
+.\gradlew.bat clean
+.\gradlew.bat assembleDebug
+cd ..
+Copy-Item "android\app\build\outputs\apk\debug\app-debug.apk" -Destination ".\domipancho.apk"
