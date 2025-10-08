@@ -294,110 +294,113 @@
   }
 
   // ========== INICIALIZACIÓN PRINCIPAL ==========
-  document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🎯 Inicializando página de inicio domiciliario...');
-    
-    // ✅ 1. INICIALIZAR GEOLOCALIZACIÓN
-    if (window.unifiedGeoService) {
-      try {
-        await window.unifiedGeoService.initialize();
-        await window.unifiedGeoService.startTracking();
-        console.log('✅ Sistema de tracking activo');
-      } catch (error) {
-        console.error('❌ Error en geolocalización:', error);
-      }
+// inicio_domi.html - REEMPLAZAR SECCION DE INICIALIZACION
+
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('🎯 Inicializando página de inicio domiciliario...');
+  
+  // ✅ 1. INICIALIZAR GEOLOCALIZACIÓN
+  if (window.unifiedGeoService) {
+    try {
+      await window.unifiedGeoService.initialize();
+      await window.unifiedGeoService.startTracking();
+      console.log('✅ Sistema de tracking activo');
+    } catch (error) {
+      console.error('❌ Error en geolocalización:', error);
     }
-    
-    // ✅ 2. INICIALIZAR FCM Y CONFIGURAR SWITCH
-    const switchNotificaciones = document.getElementById('switchNotificaciones');
-    
-    if (window.fcmNotificationService) {
-      try {
-        console.log('🔔 Inicializando Firebase Cloud Messaging...');
-        
-        // Inicializar FCM
-        await window.fcmNotificationService.inicializar();
-        
-        // Cargar estado guardado del switch
-        const estadoActual = window.fcmNotificationService.cargarEstadoNotificaciones();
-        if (switchNotificaciones) {
-          switchNotificaciones.checked = estadoActual;
-        }
-        
-        console.log('✅ FCM inicializado correctamente');
-        console.log(`🔊 Estado inicial: ${estadoActual ? 'CON sonido' : 'SIN sonido'}`);
-        
-        // Configurar listener del switch
-        if (switchNotificaciones) {
-          switchNotificaciones.addEventListener('change', (e) => {
-            if (e.target.checked) {
-              window.fcmNotificationService.activarNotificaciones();
-              console.log('🔔 Notificaciones CON sonido activadas');
-            } else {
-              window.fcmNotificationService.desactivarNotificaciones();
-              console.log('🔕 Notificaciones SILENCIOSAS activadas');
-            }
-          });
-        }
-      } catch (error) {
-        console.error('❌ Error inicializando FCM:', error);
-      }
-    }
-    
-    // ✅ 3. ACTUALIZAR CONTADORES INMEDIATAMENTE
-    await actualizarContadores();
-    
-    // ✅ 4. ACTUALIZAR CONTADORES CADA 10 SEGUNDOS
-    setInterval(actualizarContadores, 10000);
-    
-    // ✅ 5. CONFIGURAR SOCKET.IO PARA ACTUALIZACIONES EN TIEMPO REAL
-    if (typeof io !== 'undefined') {
-      const socket = io();
+  }
+  
+  // ✅ 2. INICIALIZAR FCM Y CONFIGURAR SWITCH
+  const switchNotificaciones = document.getElementById('switchNotificaciones');
+  
+  if (window.fcmNotificationService) {
+    try {
+      console.log('🔔 Inicializando Firebase Cloud Messaging...');
       
-      socket.on('connect', async () => {
-        console.log('🔌 Socket conectado');
-        
-        try {
-          const response = await window.apiRequest('/api/usuario-actual');
-          if (response.ok) {
-            const usuario = await response.json();
-            socket.emit('join-domiciliario', usuario.id);
-            console.log(`✅ Unido a sala: domiciliario-${usuario.id}`);
+      // Inicializar FCM (esto carga el estado desde el servidor)
+      await window.fcmNotificationService.inicializar();
+      
+      // ✅ Obtener estado actual desde el servicio (ya cargado desde BD)
+      const estadoActual = window.fcmNotificationService.notificacionesActivas;
+      
+      if (switchNotificaciones) {
+        switchNotificaciones.checked = estadoActual;
+      }
+      
+      console.log('✅ FCM inicializado correctamente');
+      console.log(`📊 Estado inicial: ${estadoActual ? 'CON sonido' : 'SIN sonido'}`);
+      
+      // ✅ Configurar listener del switch
+      if (switchNotificaciones) {
+        switchNotificaciones.addEventListener('change', async (e) => {
+          if (e.target.checked) {
+            await window.fcmNotificationService.activarNotificaciones();
+            console.log('🔔 Notificaciones CON sonido activadas');
+          } else {
+            await window.fcmNotificationService.desactivarNotificaciones();
+            console.log('🔕 Notificaciones SILENCIOSAS activadas');
           }
-        } catch (error) {
-          console.error('❌ Error obteniendo usuario:', error);
-        }
-      });
-      
-      // Actualizar contadores en eventos de socket
-      socket.on('nuevo-pedido-geografico', async () => {
-        console.log('📬 Nuevo pedido geográfico detectado');
-        await actualizarContadores();
-      });
-      
-      socket.on('estado-pedido-actualizado', async () => {
-        console.log('🔄 Estado de pedido actualizado');
-        await actualizarContadores();
-      });
-      
-      socket.on('pedido-removido', async () => {
-        console.log('🗑️ Pedido removido');
-        await actualizarContadores();
-      });
-      
-      socket.on('pedido-tomado', async () => {
-        console.log('✋ Pedido tomado');
-        await actualizarContadores();
-      });
-      
-      socket.on('pedido-liberado', async () => {
-        console.log('🔓 Pedido liberado');
-        await actualizarContadores();
-      });
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error inicializando FCM:', error);
     }
+  }
+  
+  // ✅ 3. ACTUALIZAR CONTADORES INMEDIATAMENTE
+  await actualizarContadores();
+  
+  // ✅ 4. ACTUALIZAR CONTADORES CADA 10 SEGUNDOS
+  setInterval(actualizarContadores, 10000);
+  
+  // ✅ 5. CONFIGURAR SOCKET.IO PARA ACTUALIZACIONES EN TIEMPO REAL
+  if (typeof io !== 'undefined') {
+    const socket = io();
     
-    console.log('✅ Sistema completamente inicializado');
-  });
+    socket.on('connect', async () => {
+      console.log('🔌 Socket conectado');
+      
+      try {
+        const response = await window.apiRequest('/api/usuario-actual');
+        if (response.ok) {
+          const usuario = await response.json();
+          socket.emit('join-domiciliario', usuario.id);
+          console.log(`✅ Unido a sala: domiciliario-${usuario.id}`);
+        }
+      } catch (error) {
+        console.error('❌ Error obteniendo usuario:', error);
+      }
+    });
+    
+    // Actualizar contadores en eventos de socket
+    socket.on('nuevo-pedido-geografico', async () => {
+      console.log('📬 Nuevo pedido geográfico detectado');
+      await actualizarContadores();
+    });
+    
+    socket.on('estado-pedido-actualizado', async () => {
+      console.log('🔄 Estado de pedido actualizado');
+      await actualizarContadores();
+    });
+    
+    socket.on('pedido-removido', async () => {
+      console.log('🗑️ Pedido removido');
+      await actualizarContadores();
+    });
+    
+    socket.on('pedido-tomado', async () => {
+      console.log('✋ Pedido tomado');
+      await actualizarContadores();
+    });
+    
+    socket.on('pedido-liberado', async () => {
+      console.log('🔓 Pedido liberado');
+      await actualizarContadores();
+    });
+  }
+  
+  console.log('✅ Sistema completamente inicializado');
+});
 
   // ✅ 6. ACTUALIZAR AL VOLVER A LA PÁGINA
   document.addEventListener('visibilitychange', () => {

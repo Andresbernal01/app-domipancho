@@ -16,27 +16,21 @@ const config: CapacitorConfig = {
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"]
     },
+    LocalNotifications: {
+      smallIcon: "ic_stat_icon_config_sample",
+      iconColor: "#facc15",
+      sound: "notificacion.mp3"
+    },
     BackgroundGeolocation: {
       notificationTitle: "DomiPancho - Entrega activa",
       notificationText: "Rastreando tu ubicación",
       notificationIcon: "ic_stat_icon_config_sample",
       notificationColor: "#facc15",
       backgroundMessage: "Tu ubicación se está compartiendo",
-      distanceFilter: 10,
+      distanceFilter: 5,
       stale: false,
       stopOnTerminate: false,
       startOnBoot: false
-    },
-    Geolocation: {
-      permissions: ['fine', 'coarse', 'background'],
-      backgroundLocationUpdates: true,
-      timeout: 60000,
-      maximumAge: 10000
-    },
-    LocalNotifications: {
-      smallIcon: "ic_stat_icon_config_sample",
-      iconColor: "#facc15",
-      sound: "notificacion.mp3"
     }
   },
   android: {
@@ -49,7 +43,8 @@ const config: CapacitorConfig = {
       "android.permission.WAKE_LOCK",
       "android.permission.FOREGROUND_SERVICE",
       "android.permission.FOREGROUND_SERVICE_LOCATION",
-      "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"
+      "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS",
+      "android.permission.SCHEDULE_EXACT_ALARM"
     ]
   }
 };
