@@ -68,6 +68,11 @@
 
     async checkForUpdates() {
       try {
+        // Obtener usuario actual primero
+        const userResponse = await window.apiRequest('/api/usuario-actual');
+        if (!userResponse.ok) return;
+        const usuario = await userResponse.json();
+        
         const response = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
         
         if (!response.ok) {
@@ -77,15 +82,15 @@
 
         const pedidos = await response.json();
         
-        // Detectar cambios
-        this.detectarCambios(pedidos);
+        // Detectar cambios con el ID del usuario
+        this.detectarCambios(pedidos, usuario.id);
         
       } catch (error) {
         console.error('❌ Error en checkForUpdates:', error);
       }
     }
 
-    detectarCambios(pedidosNuevos) {
+    detectarCambios(pedidosNuevos, usuarioId) {
       if (!this.lastPedidosState) {
         this.lastPedidosState = pedidosNuevos;
         return;
@@ -124,11 +129,33 @@
         });
       });
 
-      // Detectar pedidos removidos
-      const pedidosRemovidos = this.lastPedidosState.filter(viejo => 
-        viejo.estado === 'esperando repartidor' &&
-        !pedidosNuevos.some(nuevo => nuevo.id === viejo.id && nuevo.estado === 'esperando repartidor')
-      );
+      // ✅ DETECTAR PEDIDOS QUE DEBEN REMOVERSE
+      const pedidosRemovidos = this.lastPedidosState.filter(viejo => {
+        const pedidoNuevo = pedidosNuevos.find(nuevo => nuevo.id === viejo.id);
+        
+        // Caso 1: El pedido ya no existe
+        if (!pedidoNuevo) return true;
+        
+        // Caso 2: Era "esperando repartidor" y ahora está en otro estado
+        // PERO: Solo remover si NO es mi pedido
+        if (viejo.estado === 'esperando repartidor' && pedidoNuevo.estado !== 'esperando repartidor') {
+          // Si es mi pedido (asignado a mí), NO remover
+          if (pedidoNuevo.domiciliario_id === usuarioId) {
+            console.log(`✋ Pedido ${pedidoNuevo.id} es mío, NO remover`);
+            return false;
+          }
+          // Si lo tomó otro domiciliario, SÍ remover
+          console.log(`🚫 Pedido ${pedidoNuevo.id} tomado por otro, remover`);
+          return true;
+        }
+        
+        // Caso 3: Estados finales
+        if (pedidoNuevo.estado === 'entregado' || pedidoNuevo.estado === 'cancelado') {
+          return true;
+        }
+        
+        return false;
+      });
 
       pedidosRemovidos.forEach(pedido => {
         console.log(`🗑️ Pedido removido detectado: ${pedido.id}`);

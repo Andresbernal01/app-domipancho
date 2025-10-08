@@ -1,4 +1,4 @@
-// domiciliario.js - Versión Optimizada para Producción
+// domiciliario.js - Versión Optimizada para Producción (CORREGIDA)
 (function() {
   'use strict';
 
@@ -172,9 +172,16 @@
       return;
     }
 
+    // ✅ CORRECCIÓN: Ordenar correctamente - MIS PEDIDOS PRIMERO
     const pedidosOrdenados = pedidosAMostrar.sort((a, b) => {
-      if (a.estado === 'camino a tu casa' && b.estado !== 'camino a tu casa') return -1;
-      if (b.estado === 'camino a tu casa' && a.estado !== 'camino a tu casa') return 1;
+      const aEsMio = a.estado?.toLowerCase() === 'camino a tu casa';
+      const bEsMio = b.estado?.toLowerCase() === 'camino a tu casa';
+      
+      // Si uno es mío y el otro no, el mío va primero
+      if (aEsMio && !bEsMio) return -1;
+      if (!aEsMio && bEsMio) return 1;
+      
+      // Si ambos son míos o ambos disponibles, ordenar por fecha
       return new Date(a.fecha) - new Date(b.fecha);
     });
 
@@ -190,7 +197,7 @@
     const pedidosDisponiblesHtml = [];
 
     pedidosOrdenados.forEach(p => {
-      const esMiPedido = p.estado === 'camino a tu casa';
+      const esMiPedido = p.estado?.toLowerCase() === 'camino a tu casa';
       const html = generarHtmlPedido(p, esMiPedido, pedidosGeograficos, misActivos.length);
       
       if (esMiPedido) {
@@ -200,14 +207,19 @@
       }
     });
 
-    htmlContent += '<div class="pedidos-grid">';
-    htmlContent += misPedidosHtml.join('');
-    htmlContent += '</div>';
+    // ✅ MOSTRAR MIS PEDIDOS PRIMERO
+    if (misPedidosHtml.length > 0) {
+      htmlContent += '<div class="pedidos-grid">';
+      htmlContent += misPedidosHtml.join('');
+      htmlContent += '</div>';
+    }
 
+    // ✅ SEPARADOR SOLO SI HAY AMBOS TIPOS
     if (misPedidosHtml.length > 0 && pedidosDisponiblesHtml.length > 0) {
       htmlContent += '<div class="separador-pedidos"><span>📋 Más Pedidos Disponibles en tu Área</span></div>';
     }
 
+    // ✅ MOSTRAR PEDIDOS DISPONIBLES DESPUÉS
     if (pedidosDisponiblesHtml.length > 0) {
       htmlContent += '<div class="pedidos-grid">';
       htmlContent += pedidosDisponiblesHtml.join('');
@@ -313,22 +325,31 @@
       
       const contenedor = document.getElementById('listaPedidos');
       if (!contenedor) return;
-      
-      let grid = contenedor.querySelector('.pedidos-grid');
-      
-      if (contenedor.querySelector('.no-pedidos')) {
-        contenedor.innerHTML = '<div class="pedidos-grid"></div>';
-        grid = contenedor.querySelector('.pedidos-grid');
-      }
-      
-      if (!grid) {
-        contenedor.innerHTML = '<div class="pedidos-grid"></div>';
-        grid = contenedor.querySelector('.pedidos-grid');
-      }
 
-      if (grid.querySelector(`[data-pedido-id="${pedido.id}"]`)) {
+      // ✅ Verificar si ya existe
+      if (contenedor.querySelector(`[data-pedido-id="${pedido.id}"]`)) {
         console.log(`Pedido ${pedido.id} ya existe`);
         return;
+      }
+
+      // ✅ BUSCAR EL GRID CORRECTO (puede haber múltiples grids)
+      let grids = contenedor.querySelectorAll('.pedidos-grid');
+      let gridDisponibles = grids.length > 1 ? grids[1] : grids[0];
+      
+      // Si no hay grids, crear estructura
+      if (contenedor.querySelector('.no-pedidos')) {
+        contenedor.innerHTML = '<div class="pedidos-grid"></div>';
+        gridDisponibles = contenedor.querySelector('.pedidos-grid');
+      }
+      
+      if (!gridDisponibles) {
+        const alertas = contenedor.querySelectorAll('.alerta');
+        let htmlInicio = '';
+        alertas.forEach(alerta => {
+          htmlInicio += alerta.outerHTML;
+        });
+        contenedor.innerHTML = htmlInicio + '<div class="pedidos-grid"></div>';
+        gridDisponibles = contenedor.querySelector('.pedidos-grid');
       }
 
       const subtotalProductos = Array.isArray(pedido.productos) 
@@ -383,9 +404,10 @@
         </div>
       `;
 
-      grid.insertAdjacentHTML('afterbegin', pedidoHtml);
+      // ✅ INSERTAR AL FINAL DEL GRID DE DISPONIBLES
+      gridDisponibles.insertAdjacentHTML('beforeend', pedidoHtml);
       
-      const nuevaTarjeta = grid.querySelector(`[data-pedido-id="${pedido.id}"]`);
+      const nuevaTarjeta = gridDisponibles.querySelector(`[data-pedido-id="${pedido.id}"]`);
       if (nuevaTarjeta) {
         nuevaTarjeta.style.opacity = '0';
         nuevaTarjeta.style.transform = 'scale(0.9)';
@@ -434,9 +456,11 @@
     if (!confirm('¿Quieres tomar este pedido?')) return;
   
     const tarjeta = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
-    if (tarjeta) {
-      tarjeta.style.opacity = '0.5';
-      tarjeta.style.pointerEvents = 'none';
+    const btnTomar = tarjeta?.querySelector('.btn-tomar');
+    
+    if (btnTomar) {
+      btnTomar.disabled = true;
+      btnTomar.textContent = '⏳ Tomando...';
     }
 
     try {
@@ -446,63 +470,24 @@
       if (res.ok) {
         mostrarMensaje(`✅ Pedido asignado (${result.pedidosActivos || 1}/2 activos)`);
         
-        if (tarjeta) {
-          actualizarTarjetaPedidoTomado(tarjeta, pedidoId);
-          actualizarContadorPedidos(result.pedidosActivos || 1);
-        }
-        
-        setTimeout(() => cargarPedidos(), 2000);
+        // ✅ CORRECCIÓN DEFINITIVA: No usar setTimeout, recargar inmediatamente
+        actualizarContadorPedidos(result.pedidosActivos || 1);
+        await cargarPedidos(); // Esperar a que termine la recarga
       } else {
-        if (tarjeta) {
-          tarjeta.style.opacity = '1';
-          tarjeta.style.pointerEvents = 'auto';
+        if (btnTomar) {
+          btnTomar.disabled = false;
+          btnTomar.textContent = '📦 Tomar';
         }
         mostrarMensaje(`❌ ${result.error || 'No se pudo tomar el pedido'}`, 'error');
       }
     } catch (error) {
       console.error('Error al tomar pedido:', error);
-      if (tarjeta) {
-        tarjeta.style.opacity = '1';
-        tarjeta.style.pointerEvents = 'auto';
+      if (btnTomar) {
+        btnTomar.disabled = false;
+        btnTomar.textContent = '📦 Tomar';
       }
       mostrarMensaje('❌ Error de conexión', 'error');
     }
-  }
-
-  function actualizarTarjetaPedidoTomado(tarjeta, pedidoId) {
-    tarjeta.classList.add('mi-pedido', 'color-mi-pedido');
-    tarjeta.classList.remove('color-disponible', 'nuevo-geografico', 'conexion-inicial');
-    
-    const badges = tarjeta.querySelectorAll('.badge-geografico, .badge-nuevo, .badge-conexion');
-    badges.forEach(b => b.remove());
-    
-    if (!tarjeta.querySelector('.badge-mi-pedido')) {
-      tarjeta.insertAdjacentHTML('afterbegin', '<div class="badge-mi-pedido">🚛 Mi Pedido</div>');
-    }
-    
-    const botonesContainer = tarjeta.querySelector('.botones-pedido');
-    if (botonesContainer) {
-      botonesContainer.innerHTML = `
-        <button class="btn-liberar" onclick="abrirModalLiberar(${pedidoId})">🔄 Liberar</button>
-        <button class="btn-entregado" onclick="abrirModalPago(${pedidoId})">✅ Entregado</button>
-        <button class="btn-problema" onclick="abrirModalProblema(${pedidoId})">❌ Problema</button>
-      `;
-    }
-    
-    const estadoElement = tarjeta.querySelector('.estado');
-    if (estadoElement) {
-      estadoElement.textContent = 'camino a tu casa';
-      estadoElement.className = 'estado camino';
-    }
-    
-    const distanciaInfo = tarjeta.querySelector('.distancia-info');
-    if (distanciaInfo) distanciaInfo.remove();
-    
-    tarjeta.style.opacity = '1';
-    tarjeta.style.pointerEvents = 'auto';
-    
-    const grid = tarjeta.parentElement;
-    if (grid) grid.insertBefore(tarjeta, grid.firstChild);
   }
 
   // ========== MODALES ==========
@@ -881,8 +866,6 @@
     socketInstance.on('nuevo-pedido-geografico', async (data) => {
       console.log('Nuevo pedido geográfico:', data.pedido?.id);
       
-
-      
       const contenedor = document.getElementById('listaPedidos');
       if (!contenedor) return;
       
@@ -939,23 +922,10 @@
     await cargarPedidos();
     
     console.log('✅ Sistema FCM disponible desde fcm-notifications.js');
-
     
     configurarSocket(usuario);
     
-    // Inicializar sistema de notificaciones
-    try {
-      const notiDomi = new NotificationSystem(true);
-      notiDomi.requestPermission();
-      
-      const originalMostrar = notiDomi.mostrarNotificacion;
-      notiDomi.mostrarNotificacion = function(data) {
-        originalMostrar.call(this, data);
-        setTimeout(() => cargarPedidos(), 1000);
-      };
-    } catch (error) {
-      console.warn('No se pudo inicializar NotificationSystem:', error);
-    }
+    console.log('✅ Sistema de notificaciones FCM activo');
   }
 
   // ========== EVENT LISTENERS ==========

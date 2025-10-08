@@ -1,4 +1,4 @@
-// js/unified-geolocation.js - SISTEMA ÚNICO DE GEOLOCALIZACIÓN CORREGIDO
+// js/unified-geolocation.js - SISTEMA MEJORADO CON BACKGROUND TRACKING
 class UnifiedGeolocationService {
   constructor() {
     this.isNative = !!window.Capacitor;
@@ -6,6 +6,7 @@ class UnifiedGeolocationService {
     this.isTracking = false;
     this.lastPosition = null;
     this.updateInterval = null;
+    this.heartbeatInterval = null;
     
     // Verificar permisos guardados
     this.permissionStatus = localStorage.getItem('geo_permission_status') || 'prompt';
@@ -101,41 +102,38 @@ class UnifiedGeolocationService {
   }
 
   showPermissionDialog() {
-      // Solo mostrar UNA VEZ por sesión
-      const dialogShown = sessionStorage.getItem('permission_dialog_shown');
-      if (dialogShown) return;
-      
-      // Solo si no existe ya
-      if (document.getElementById('permissionDialog')) return;
-      
-      sessionStorage.setItem('permission_dialog_shown', 'true');
-      
-      const dialog = document.createElement('div');
-      dialog.id = 'permissionDialog';
-      dialog.style.cssText = `
-        position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        background: white; padding: 20px; border-radius: 12px; z-index: 10000;
-        max-width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-      `;
-      dialog.innerHTML = `
-        <h3 style="margin-top: 0; color: #333;">📍 Permiso de Ubicación</h3>
-        <p style="color: #666; line-height: 1.5;">
-          Para recibir pedidos cercanos y que los clientes rastreen tus entregas,
-          necesitamos acceso a tu ubicación <strong>todo el tiempo</strong>.
-        </p>
-        <p style="color: #666; line-height: 1.5;">
-          En la siguiente pantalla, selecciona:
-          <strong>"Permitir todo el tiempo"</strong>
-        </p>
-        <button id="close-perm-dialog" style="
-          background: #10b981; color: white; border: none; padding: 12px 24px;
-          border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold;
-        ">Entendido</button>
-      `;
-      document.body.appendChild(dialog);
-      
-      document.getElementById('close-perm-dialog').onclick = () => dialog.remove();
-    }
+    const dialogShown = sessionStorage.getItem('permission_dialog_shown');
+    if (dialogShown) return;
+    if (document.getElementById('permissionDialog')) return;
+    
+    sessionStorage.setItem('permission_dialog_shown', 'true');
+    
+    const dialog = document.createElement('div');
+    dialog.id = 'permissionDialog';
+    dialog.style.cssText = `
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: white; padding: 20px; border-radius: 12px; z-index: 10000;
+      max-width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    `;
+    dialog.innerHTML = `
+      <h3 style="margin-top: 0; color: #333;">📍 Permiso de Ubicación</h3>
+      <p style="color: #666; line-height: 1.5;">
+        Para recibir pedidos cercanos y que los clientes rastreen tus entregas,
+        necesitamos acceso a tu ubicación <strong>todo el tiempo</strong>.
+      </p>
+      <p style="color: #666; line-height: 1.5;">
+        En la siguiente pantalla, selecciona:
+        <strong>"Permitir todo el tiempo"</strong>
+      </p>
+      <button id="close-perm-dialog" style="
+        background: #10b981; color: white; border: none; padding: 12px 24px;
+        border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold;
+      ">Entendido</button>
+    `;
+    document.body.appendChild(dialog);
+    
+    document.getElementById('close-perm-dialog').onclick = () => dialog.remove();
+  }
 
   async startTracking() {
     if (this.isTracking) {
@@ -156,15 +154,17 @@ class UnifiedGeolocationService {
       await this.startWebTracking();
     }
 
-    // ✅ ACTUALIZAR SERVIDOR CADA 3 SEGUNDOS (antes 15)
+    // ✅ ACTUALIZAR SERVIDOR CADA 10 SEGUNDOS (antes 3)
     this.updateInterval = setInterval(() => {
       if (this.lastPosition) {
         this.updateServer(this.lastPosition);
       }
-    }, 3000); // 3 segundos
+    }, 10000); // 10 segundos
+
+    // ✅ NUEVO: HEARTBEAT CADA 60 SEGUNDOS
+    this.startHeartbeat();
   }
 
-  // ✅ FUNCIÓN CORREGIDA DENTRO DE LA CLASE
   async startNativeTracking() {
     const { BackgroundGeolocation } = window.Capacitor.Plugins;
     
@@ -186,16 +186,27 @@ class UnifiedGeolocationService {
 
     this.watcherId = await BackgroundGeolocation.addWatcher(
       {
+        // ✅ CONFIGURACIÓN MEJORADA PARA BACKGROUND
         backgroundMessage: "DomiPancho - Entrega activa",
         backgroundTitle: "Rastreando ubicación",
         requestPermissions: false,
         stale: false,
-        distanceFilter: 5 // ✅ REDUCIR de 10 a 5 metros
+        distanceFilter: 10, // Cada 10 metros
+        
+        // ✅ OPCIONES CRÍTICAS PARA BACKGROUND
+        backgroundActivityType: "otherNavigation", // iOS
+        requiresCharging: false,
+        requiresBatteryNotLow: false,
+        
+        // ✅ Android específico
+        notificationTitle: "DomiPancho",
+        notificationText: "Rastreando ubicación para entregas",
+        notificationIcon: "ic_stat_icon_config_sample"
       },
       callback
     );
 
-    console.log('✅ Tracking nativo iniciado');
+    console.log('✅ Tracking nativo iniciado con background support');
   }
 
   async startWebTracking() {
@@ -219,12 +230,36 @@ class UnifiedGeolocationService {
     console.log('✅ Tracking web iniciado');
   }
 
+  // ✅ NUEVO: SISTEMA DE HEARTBEAT
+  startHeartbeat() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+    }
+
+    this.heartbeatInterval = setInterval(async () => {
+      try {
+        await window.apiRequest('/api/domiciliario-heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        console.log('💓 Heartbeat enviado');
+      } catch (error) {
+        console.error('❌ Error en heartbeat:', error);
+      }
+    }, 60000); // Cada 60 segundos
+  }
+
   async stopTracking() {
     if (!this.isTracking) return;
 
     if (this.updateInterval) {
       clearInterval(this.updateInterval);
       this.updateInterval = null;
+    }
+
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
     }
 
     if (this.isNative && this.watcherId && window.Capacitor?.Plugins?.BackgroundGeolocation) {
@@ -245,12 +280,22 @@ class UnifiedGeolocationService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           latitud: position.latitude,
-          longitud: position.longitude
+          longitud: position.longitude,
+          timestamp: new Date().toISOString()
         })
       });
       console.log('✅ Ubicación enviada al servidor');
     } catch (error) {
       console.error('❌ Error enviando ubicación:', error);
+    }
+  }
+
+  // ✅ NUEVA FUNCIÓN: Forzar actualización de ubicación
+  async forceUpdate() {
+    if (this.lastPosition) {
+      await this.updateServer(this.lastPosition);
+    } else {
+      console.warn('⚠️ No hay última posición disponible');
     }
   }
 }

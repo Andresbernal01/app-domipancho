@@ -6,7 +6,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="img/logo.png">
   <link rel="stylesheet" href="css/domiciliarios.css" />
-  <link rel="stylesheet" href="/css/notifications.css">
   <script src="js/config.js"></script>
 </head>
 <body>
@@ -151,42 +150,43 @@
   <script src="js/fcm-notifications.js"></script>
 
   <script>
-  document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🎯 Inicializando sistema de domiciliarios...');
-    
-    // ✅ 1. INICIALIZAR GEOLOCALIZACIÓN
-    if (window.unifiedGeoService) {
-      try {
-        await window.unifiedGeoService.initialize();
-        await window.unifiedGeoService.startTracking();
-        console.log('✅ Sistema de tracking de ubicación activo');
-      } catch (error) {
-        console.error('❌ Error inicializando geolocalización:', error);
-      }
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('🎯 Inicializando sistema de domiciliarios...');
+  
+  // ✅ 1. INICIALIZAR GEOLOCALIZACIÓN
+  if (window.unifiedGeoService) {
+    try {
+      await window.unifiedGeoService.initialize();
+      await window.unifiedGeoService.startTracking();
+      console.log('✅ Sistema de tracking de ubicación activo');
+    } catch (error) {
+      console.error('❌ Error inicializando geolocalización:', error);
     }
+  }
+  
+  // ✅ 2. INICIALIZAR FCM (Firebase Cloud Messaging)
+  if (window.fcmNotificationService) {
+    console.log('🔔 Inicializando Firebase Cloud Messaging...');
     
-    // ✅ 2. INICIALIZAR FCM (Firebase Cloud Messaging)
-    if (window.fcmNotificationService) {
-      console.log('🔔 Inicializando Firebase Cloud Messaging...');
+    try {
+      const inicializado = await window.fcmNotificationService.inicializar();
       
-      try {
-        const inicializado = await window.fcmNotificationService.inicializar();
-        
-        if (inicializado) {
-          // Cargar preferencias de sonido guardadas
-          const estadoNotificaciones = window.fcmNotificationService.cargarEstadoNotificaciones();
-          console.log('✅ FCM inicializado correctamente');
-          console.log(`🔊 Notificaciones: ${estadoNotificaciones ? 'CON sonido' : 'SILENCIOSAS'}`);
-        } else {
-          console.warn('⚠️ FCM no disponible (probablemente navegador web)');
-        }
-      } catch (error) {
-        console.error('❌ Error inicializando FCM:', error);
+      if (inicializado) {
+        // ✅ CORRECCIÓN: El estado se carga automáticamente dentro de inicializar()
+        // No necesitamos llamar a cargarEstadoNotificaciones() aquí
+        const estadoActual = window.fcmNotificationService.notificacionesActivas;
+        console.log('✅ FCM inicializado correctamente');
+        console.log(`🔊 Notificaciones: ${estadoActual ? 'CON sonido' : 'SILENCIOSAS'}`);
+      } else {
+        console.warn('⚠️ FCM no disponible (probablemente navegador web)');
       }
+    } catch (error) {
+      console.error('❌ Error inicializando FCM:', error);
     }
-    
-    console.log('✅ Sistema completamente inicializado');
-  });
+  }
+  
+  console.log('✅ Sistema completamente inicializado');
+});
 
   // ✅ 3. MANTENER TRACKING AL VOLVER A LA APP
   document.addEventListener('visibilitychange', async () => {

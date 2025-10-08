@@ -1,9 +1,10 @@
-// fcm-notifications.js - Sistema de notificaciones FCM CORREGIDO
+// fcm-notifications.js - CON SOPORTE PARA DESPERTAR APP
+
 class FCMNotificationService {
   constructor() {
     this.fcmToken = null;
     this.isNative = !!window.Capacitor;
-    this.notificacionesActivas = true; // Por defecto activadas
+    this.notificacionesActivas = true;
     this.audio = new Audio('/audio/notificacion.mp3');
     this.audio.volume = 0.7;
   }
@@ -22,14 +23,11 @@ class FCMNotificationService {
         return false;
       }
       
-      // Solicitar permisos
       const result = await PushNotifications.requestPermissions();
       
       if (result.receive === 'granted') {
         await PushNotifications.register();
         this.configurarListeners();
-        
-        // ✅ Cargar estado de notificaciones desde el servidor
         await this.cargarEstadoNotificacionesServidor();
         
         console.log('✅ FCM inicializado correctamente');
@@ -59,11 +57,26 @@ class FCMNotificationService {
       console.error('❌ Error en registro FCM:', error);
     });
 
-    // 🔥 CRÍTICO: Notificación recibida mientras app está abierta
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      console.log('📬 Notificación FCM recibida (app abierta):', notification);
+    // 📥 NOTIFICACIÓN RECIBIDA (app abierta o cerrada)
+    PushNotifications.addListener('pushNotificationReceived', async (notification) => {
+      console.log('📬 Notificación FCM recibida:', notification);
       
-      // ✅ REPRODUCIR SONIDO según configuración
+      // ✅ VERIFICAR SI ES NOTIFICACIÓN DE "DESPERTAR"
+      const data = notification.data || {};
+      
+      if (data.type === 'wake_for_location') {
+        console.log('⏰ Notificación de despertar recibida - Actualizando ubicación...');
+        
+        // Forzar actualización de ubicación
+        if (window.unifiedGeoService) {
+          await window.unifiedGeoService.forceUpdate();
+        }
+        
+        // NO reproducir sonido para este tipo
+        return;
+      }
+      
+      // Para otras notificaciones, reproducir sonido según configuración
       if (this.notificacionesActivas) {
         this.audio.play().catch(console.error);
         console.log('🔔 Sonido reproducido');
@@ -71,15 +84,25 @@ class FCMNotificationService {
         console.log('🔕 Notificación silenciosa (sonido desactivado)');
       }
       
-      // ✅ MOSTRAR NOTIFICACIÓN LOCAL PERSONALIZADA (siempre, incluso en primer plano)
+      // Mostrar notificación local
       this.mostrarNotificacionLocal(notification);
     });
 
-    // Notificación tocada (cuando la app está cerrada/background)
+    // 👆 Notificación tocada
     PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
       console.log('👆 Notificación tocada:', action);
       
       const data = action.notification.data;
+      
+      // Si es de despertar, solo actualizar ubicación
+      if (data.type === 'wake_for_location') {
+        if (window.unifiedGeoService) {
+          window.unifiedGeoService.forceUpdate();
+        }
+        return;
+      }
+      
+      // Para pedidos, redirigir a la página
       if (data.pedidoId) {
         window.location.href = `/domiciliarios.html?id=${data.pedidoId}`;
       }
@@ -88,7 +111,6 @@ class FCMNotificationService {
     console.log('✅ Listeners FCM configurados');
   }
 
-  // 🆕 NUEVA FUNCIÓN: Mostrar notificación local cuando la app está en primer plano
   async mostrarNotificacionLocal(notification) {
     try {
       console.log('🔔 Intentando mostrar notificación local...');
@@ -101,8 +123,7 @@ class FCMNotificationService {
       }
   
       console.log('✅ LocalNotifications disponible, programando notificación...');
-  
-      // ✅ Crear notificación local que se muestra incluso con la app abierta
+
       const result = await LocalNotifications.schedule({
         notifications: [
           {
@@ -120,13 +141,10 @@ class FCMNotificationService {
       });
   
       console.log('✅ Notificación local programada:', result);
-      
-      // También mostrar banner HTML como respaldo
       this.mostrarNotificacionEnApp(notification);
       
     } catch (error) {
       console.error('❌ Error mostrando notificación local:', error);
-      // Fallback a banner HTML
       this.mostrarNotificacionEnApp(notification);
     }
   }
@@ -190,7 +208,6 @@ class FCMNotificationService {
     }, 8000);
   }
 
-  // ✅ GUARDAR EN SERVIDOR (Base de Datos)
   async activarNotificaciones() {
     this.notificacionesActivas = true;
     
@@ -202,7 +219,7 @@ class FCMNotificationService {
       });
 
       if (response.ok) {
-        console.log('🔔 Notificaciones con sonido ACTIVADAS (guardado en BD)');
+        console.log('🔔 Notificaciones con sonido ACTIVADAS');
       }
     } catch (error) {
       console.error('❌ Error guardando configuración:', error);
@@ -220,14 +237,13 @@ class FCMNotificationService {
       });
 
       if (response.ok) {
-        console.log('🔕 Notificaciones SILENCIOSAS (guardado en BD)');
+        console.log('🔕 Notificaciones SILENCIOSAS');
       }
     } catch (error) {
       console.error('❌ Error guardando configuración:', error);
     }
   }
 
-  // ✅ CARGAR DESDE SERVIDOR al iniciar
   async cargarEstadoNotificacionesServidor() {
     try {
       const response = await window.apiRequest('/api/domiciliario/configuracion-notificaciones');
@@ -235,14 +251,13 @@ class FCMNotificationService {
       if (response.ok) {
         const data = await response.json();
         this.notificacionesActivas = data.notificaciones_sonido !== false;
-        console.log(`📊 Estado cargado desde BD: ${this.notificacionesActivas ? 'CON sonido' : 'SIN sonido'}`);
+        console.log(`📊 Estado cargado: ${this.notificacionesActivas ? 'CON sonido' : 'SIN sonido'}`);
         return this.notificacionesActivas;
       }
     } catch (error) {
       console.error('❌ Error cargando configuración:', error);
     }
     
-    // Por defecto activadas
     return true;
   }
 
