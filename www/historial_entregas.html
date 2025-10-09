@@ -138,7 +138,7 @@ function renderizarHistorial(pedidos) {
     const estadoTexto = esEntregado ? 'Entregado' : 'No Entregado';
 
     return `
-      <div class="pedido-card ${esEntregado ? '' : 'cancelado'}" onclick="abrirDetallesPedido(${p.id})">
+    <div class="pedido-card ${esEntregado ? '' : 'cancelado'}">
         <div class="pedido-header-compacto ${estadoClass}">
           <div class="cliente-info-compacto">
             <h3>${p.nombre} ${p.apellido}</h3>
