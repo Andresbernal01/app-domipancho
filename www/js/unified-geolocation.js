@@ -1,21 +1,40 @@
-// js/unified-geolocation.js - SISTEMA MEJORADO CON BACKGROUND TRACKING
+// js/unified-geolocation.js - SISTEMA CON SERVICIO FOREGROUND NATIVO COMPLETO
+
 class UnifiedGeolocationService {
   constructor() {
     this.isNative = !!window.Capacitor;
-    this.watcherId = null;
     this.isTracking = false;
     this.lastPosition = null;
-    this.updateInterval = null;
-    this.heartbeatInterval = null;
-    
-    // Verificar permisos guardados
     this.permissionStatus = localStorage.getItem('geo_permission_status') || 'prompt';
+    
+    // ✅ Verificar si hay tracking pendiente al cargar
+    this.checkPendingTracking();
+  }
+
+  /**
+   * ✅ Verificar si hay un pedido activo al cargar la página
+   */
+  async checkPendingTracking() {
+    const tienePedidoActivo = localStorage.getItem('domiciliario_pedido_activo');
+    
+    if (tienePedidoActivo === 'true') {
+      console.log('🔄 Pedido activo detectado - reiniciando tracking automáticamente');
+      
+      setTimeout(async () => {
+        try {
+          await this.initialize();
+          await this.startTracking();
+          console.log('✅ Tracking reiniciado automáticamente');
+        } catch (error) {
+          console.error('❌ Error reiniciando tracking:', error);
+        }
+      }, 2000);
+    }
   }
 
   async initialize() {
     console.log('🎯 Inicializando sistema unificado de geolocalización');
     
-    // Si ya hay permiso, no mostrar modal
     if (this.permissionStatus === 'granted') {
       console.log('✅ Permisos ya otorgados previamente');
       return true;
@@ -42,7 +61,6 @@ class UnifiedGeolocationService {
     try {
       const { BackgroundGeolocation } = window.Capacitor.Plugins;
       
-      // Verificar permisos actuales
       const current = await BackgroundGeolocation.checkPermissions();
       
       if (current.location === 'granted' && current.coarseLocation === 'granted') {
@@ -52,7 +70,6 @@ class UnifiedGeolocationService {
         return true;
       }
 
-      // Solo mostrar modal si NO hay permisos
       this.showPermissionDialog();
       await new Promise(resolve => setTimeout(resolve, 2000));
       
@@ -147,66 +164,34 @@ class UnifiedGeolocationService {
     }
 
     this.isTracking = true;
+    
+    // ✅ GUARDAR ESTADO DE TRACKING
+    localStorage.setItem('tracking_activo', 'true');
 
-    if (this.isNative && window.Capacitor?.Plugins?.BackgroundGeolocation) {
-      await this.startNativeTracking();
+    // ✅ INICIAR SERVICIO FOREGROUND NATIVO
+    if (this.isNative) {
+      await this.startNativeService();
     } else {
       await this.startWebTracking();
     }
 
-    // ✅ ACTUALIZAR SERVIDOR CADA 10 SEGUNDOS (antes 3)
-    this.updateInterval = setInterval(() => {
-      if (this.lastPosition) {
-        this.updateServer(this.lastPosition);
-      }
-    }, 10000); // 10 segundos
-
-    // ✅ NUEVO: HEARTBEAT CADA 60 SEGUNDOS
-    this.startHeartbeat();
+    console.log('✅ Tracking iniciado correctamente');
   }
 
-  async startNativeTracking() {
-    const { BackgroundGeolocation } = window.Capacitor.Plugins;
-    
-    const callback = async (location, error) => {
-      if (error) {
-        console.error('Error en tracking:', error);
-        return;
+  async startNativeService() {
+    try {
+      // ✅ Usar el plugin personalizado de Capacitor
+      const { LocationService } = window.Capacitor.Plugins;
+      
+      if (LocationService) {
+        const result = await LocationService.startLocationService();
+        console.log('✅ Servicio foreground iniciado:', result);
+      } else {
+        console.warn('⚠️ Plugin LocationService no disponible');
       }
-
-      if (location) {
-        this.lastPosition = {
-          latitude: location.latitude,
-          longitude: location.longitude
-        };
-        console.log('📍 Nueva ubicación (native):', this.lastPosition);
-        await this.updateServer(this.lastPosition);
-      }
-    };
-
-    this.watcherId = await BackgroundGeolocation.addWatcher(
-      {
-        // ✅ CONFIGURACIÓN MEJORADA PARA BACKGROUND
-        backgroundMessage: "DomiPancho - Entrega activa",
-        backgroundTitle: "Rastreando ubicación",
-        requestPermissions: false,
-        stale: false,
-        distanceFilter: 10, // Cada 10 metros
-        
-        // ✅ OPCIONES CRÍTICAS PARA BACKGROUND
-        backgroundActivityType: "otherNavigation", // iOS
-        requiresCharging: false,
-        requiresBatteryNotLow: false,
-        
-        // ✅ Android específico
-        notificationTitle: "DomiPancho",
-        notificationText: "Rastreando ubicación para entregas",
-        notificationIcon: "ic_stat_icon_config_sample"
-      },
-      callback
-    );
-
-    console.log('✅ Tracking nativo iniciado con background support');
+    } catch (error) {
+      console.error('❌ Error iniciando servicio nativo:', error);
+    }
   }
 
   async startWebTracking() {
@@ -230,47 +215,46 @@ class UnifiedGeolocationService {
     console.log('✅ Tracking web iniciado');
   }
 
-  // ✅ NUEVO: SISTEMA DE HEARTBEAT
-  startHeartbeat() {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
+  async stopTracking() {
+    // ⚠️ VALIDAR: Solo detener si NO hay pedidos activos
+    const tienePedidoActivo = localStorage.getItem('domiciliario_pedido_activo');
+    
+    if (tienePedidoActivo === 'true') {
+      console.warn('⚠️ No se puede detener tracking: hay pedido activo');
+      return;
     }
 
-    this.heartbeatInterval = setInterval(async () => {
-      try {
-        await window.apiRequest('/api/domiciliario-heartbeat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' }
-        });
-        console.log('💓 Heartbeat enviado');
-      } catch (error) {
-        console.error('❌ Error en heartbeat:', error);
-      }
-    }, 60000); // Cada 60 segundos
-  }
-
-  async stopTracking() {
     if (!this.isTracking) return;
 
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-      this.updateInterval = null;
-    }
+    this.isTracking = false;
+    
+    // ✅ LIMPIAR ESTADO
+    localStorage.removeItem('tracking_activo');
 
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
-    }
-
-    if (this.isNative && this.watcherId && window.Capacitor?.Plugins?.BackgroundGeolocation) {
-      await window.Capacitor.Plugins.BackgroundGeolocation.removeWatcher({ id: this.watcherId });
+    // ✅ DETENER SERVICIO NATIVO
+    if (this.isNative) {
+      await this.stopNativeService();
     } else if (this.watcherId) {
       navigator.geolocation.clearWatch(this.watcherId);
+      this.watcherId = null;
     }
-
-    this.isTracking = false;
-    this.watcherId = null;
+    
     console.log('🛑 Tracking detenido');
+  }
+
+  async stopNativeService() {
+    try {
+      const { LocationService } = window.Capacitor.Plugins;
+      
+      if (LocationService) {
+        const result = await LocationService.stopLocationService();
+        console.log('✅ Servicio foreground detenido:', result);
+      } else {
+        console.warn('⚠️ Plugin LocationService no disponible');
+      }
+    } catch (error) {
+      console.error('❌ Error deteniendo servicio:', error);
+    }
   }
 
   async updateServer(position) {
@@ -290,7 +274,6 @@ class UnifiedGeolocationService {
     }
   }
 
-  // ✅ NUEVA FUNCIÓN: Forzar actualización de ubicación
   async forceUpdate() {
     if (this.lastPosition) {
       await this.updateServer(this.lastPosition);
@@ -300,5 +283,5 @@ class UnifiedGeolocationService {
   }
 }
 
-// Instancia global única
+// ✅ Instancia global única
 window.unifiedGeoService = new UnifiedGeolocationService();

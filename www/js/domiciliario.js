@@ -462,17 +462,24 @@
       btnTomar.disabled = true;
       btnTomar.textContent = '⏳ Tomando...';
     }
-
+  
     try {
       const res = await window.apiRequest(`/api/pedidos/${pedidoId}/tomar`, { method: 'POST' });
       const result = await res.json();
-
+  
       if (res.ok) {
-        mostrarMensaje(`✅ Pedido asignado (${result.pedidosActivos || 1}/2 activos)`);
+        // ✅ MARCAR PEDIDO COMO ACTIVO
+        localStorage.setItem('domiciliario_pedido_activo', 'true');
+        localStorage.setItem('domiciliario_pedido_id', pedidoId);
         
-        // ✅ CORRECCIÓN DEFINITIVA: No usar setTimeout, recargar inmediatamente
+        // ✅ INICIAR SERVICIO DE TRACKING
+        if (window.unifiedGeoService) {
+          await window.unifiedGeoService.startTracking();
+        }
+        
+        mostrarMensaje(`✅ Pedido asignado (${result.pedidosActivos || 1}/2 activos)`);
         actualizarContadorPedidos(result.pedidosActivos || 1);
-        await cargarPedidos(); // Esperar a que termine la recarga
+        await cargarPedidos();
       } else {
         if (btnTomar) {
           btnTomar.disabled = false;
@@ -527,12 +534,12 @@
       mostrarMensaje('⚠️ Selecciona un método de pago primero', 'error');
       return;
     }
-
+  
     const btnConfirmar = document.getElementById('btnConfirmarEntrega');
     const textoOriginal = btnConfirmar.innerHTML;
     btnConfirmar.disabled = true;
     btnConfirmar.innerHTML = '⏳ Confirmando...';
-
+  
     try {
       const res = await window.apiRequest(`/api/pedidos/${window.pedidoSeleccionado}/estado-domiciliario`, {
         method: 'PUT',
@@ -545,6 +552,30 @@
       if (res.ok) {
         const metodoPagoTexto = metodo.value === 'efectivo' ? 'efectivo' : 'pago por App';
         mostrarMensaje(`✅ Pedido entregado exitosamente con ${metodoPagoTexto}`);
+        
+        // ✅ VERIFICAR SI HAY MÁS PEDIDOS ACTIVOS
+        const usuario = await window.apiRequest('/api/usuario-actual');
+        const usuarioData = await usuario.json();
+        
+        const { data: pedidosActivos } = await supabase
+          .from('pedidos_domipancho')
+          .select('id')
+          .eq('domiciliario_id', usuarioData.id)
+          .eq('estado', 'camino a tu casa');
+        
+        if (!pedidosActivos || pedidosActivos.length === 0) {
+          // ✅ NO HAY MÁS PEDIDOS - DETENER TRACKING
+          console.log('🛑 No hay más pedidos activos - deteniendo servicio');
+          localStorage.removeItem('domiciliario_pedido_activo');
+          localStorage.removeItem('domiciliario_pedido_id');
+          
+          if (window.unifiedGeoService) {
+            await window.unifiedGeoService.stopTracking();
+          }
+        } else {
+          console.log(`✅ Aún hay ${pedidosActivos.length} pedidos activos - manteniendo servicio`);
+        }
+        
         cerrarModalPago();
         setTimeout(() => location.reload(), 1500);
       } else {
@@ -597,38 +628,18 @@
       mostrarMensaje('Error: No se ha seleccionado un pedido', 'error');
       return;
     }
-
+  
     const motivo = document.getElementById('motivo').value;
     const detalleMotivo = document.getElementById('detalle_motivo').value;
     const llamoRestaurante = document.querySelector('input[name="llamo_restaurante"]:checked')?.value;
     const accion = document.getElementById('accion_pedido').value;
     const explicacionNoDevolvi = document.getElementById('explicacion_no_devolvi')?.value || '';
-
-    if (!motivo) {
-      mostrarMensaje('⚠️ Debes seleccionar un motivo para el problema', 'error');
+  
+    if (!motivo || (motivo === 'otro' && !detalleMotivo.trim()) || !llamoRestaurante || !accion || (accion === 'no lo devolví' && !explicacionNoDevolvi.trim())) {
+      mostrarMensaje('⚠️ Completa todos los campos requeridos', 'error');
       return;
     }
-
-    if (motivo === 'otro' && !detalleMotivo.trim()) {
-      mostrarMensaje('⚠️ Debes explicar el motivo cuando seleccionas "Otro"', 'error');
-      return;
-    }
-
-    if (!llamoRestaurante) {
-      mostrarMensaje('⚠️ Debes indicar si llamaste al restaurante', 'error');
-      return;
-    }
-
-    if (!accion) {
-      mostrarMensaje('⚠️ Debes indicar qué hiciste con el pedido', 'error');
-      return;
-    }
-
-    if (accion === 'no lo devolví' && !explicacionNoDevolvi.trim()) {
-      mostrarMensaje('⚠️ Debes explicar por qué no devolviste el pedido', 'error');
-      return;
-    }
-
+  
     let comentario = 'REPORTE DE PROBLEMA:\n';
     comentario += `Motivo: ${motivo}\n`;
     if (motivo === 'otro' && detalleMotivo.trim()) {
@@ -639,16 +650,16 @@
     if (accion === 'no lo devolví' && explicacionNoDevolvi.trim()) {
       comentario += `Explicación de por qué no lo devolvió: ${explicacionNoDevolvi.trim()}`;
     }
-
+  
     if (!confirm('¿Estás seguro de marcar este pedido como NO ENTREGADO? Esta acción no se puede deshacer.')) {
       return;
     }
-
+  
     const btnConfirmar = document.querySelector('.modal-contenido button[onclick="confirmarNoEntregado()"]');
     const textoOriginal = btnConfirmar.innerHTML;
     btnConfirmar.disabled = true;
     btnConfirmar.innerHTML = '⏳ Enviando reporte...';
-
+  
     try {
       const res = await window.apiRequest(`/api/pedidos/${pedidoProblemaId}/estado-domiciliario`, {
         method: 'PUT',
@@ -658,11 +669,32 @@
           comentario_domiciliario: comentario
         })
       });
-
+  
       const result = await res.json();
-
+  
       if (res.ok) {
         mostrarMensaje('✅ Pedido marcado como no entregado - Reporte enviado exitosamente');
+        
+        // ✅ VERIFICAR SI HAY MÁS PEDIDOS ACTIVOS
+        const usuario = await window.apiRequest('/api/usuario-actual');
+        const usuarioData = await usuario.json();
+        
+        const { data: pedidosActivos } = await supabase
+          .from('pedidos_domipancho')
+          .select('id')
+          .eq('domiciliario_id', usuarioData.id)
+          .eq('estado', 'camino a tu casa');
+        
+        if (!pedidosActivos || pedidosActivos.length === 0) {
+          console.log('🛑 No hay más pedidos activos - deteniendo servicio');
+          localStorage.removeItem('domiciliario_pedido_activo');
+          localStorage.removeItem('domiciliario_pedido_id');
+          
+          if (window.unifiedGeoService) {
+            await window.unifiedGeoService.stopTracking();
+          }
+        }
+        
         cerrarModalProblema();
         setTimeout(() => cargarPedidos(), 1000);
       } else {

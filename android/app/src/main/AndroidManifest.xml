@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application
         android:allowBackup="true"
@@ -38,6 +40,21 @@
             </intent-filter>
         </activity>
 
+        <!-- ✅ SERVICIO DE TRACKING PERSISTENTE -->
+        <service
+            android:name=".LocationForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location"
+            android:stopWithTask="false" />
+
+        <!-- ✅ BROADCAST RECEIVER PARA REINICIAR SERVICIO -->
+        <receiver
+            android:name=".ServiceRestarter"
+            android:enabled="true"
+            android:exported="false" />
+
+        <!-- Servicio de Background Geolocation (Capacitor) -->
         <service
             android:name="com.getcapacitor.community.backgroundgeolocation.BackgroundGeolocationService"
             android:enabled="true"

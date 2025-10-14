@@ -153,18 +153,54 @@
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🎯 Inicializando sistema de domiciliarios...');
   
-  // ✅ 1. INICIALIZAR GEOLOCALIZACIÓN
+  // ✅ 1. VERIFICAR SI HAY PEDIDOS ACTIVOS PRIMERO
+  let tienePedidosActivos = false;
+  
+  try {
+    const response = await window.apiRequest('/api/pedidos-domiciliario');
+    if (response.ok) {
+      const pedidos = await response.json();
+      
+      const pedidosActivos = pedidos.filter(p => 
+        p.estado?.toLowerCase() === 'camino a tu casa'
+      );
+      
+      tienePedidosActivos = pedidosActivos.length > 0;
+      
+      if (tienePedidosActivos) {
+        console.log(`✅ ${pedidosActivos.length} pedidos activos detectados - tracking obligatorio`);
+        localStorage.setItem('domiciliario_pedido_activo', 'true');
+        
+        // Guardar IDs de pedidos activos
+        const pedidosIds = pedidosActivos.map(p => p.id);
+        localStorage.setItem('domiciliario_pedidos_ids', JSON.stringify(pedidosIds));
+      } else {
+        console.log('ℹ️ No hay pedidos activos - tracking opcional');
+        localStorage.removeItem('domiciliario_pedido_activo');
+        localStorage.removeItem('domiciliario_pedidos_ids');
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error verificando pedidos activos:', error);
+  }
+  
+  // ✅ 2. INICIALIZAR GEOLOCALIZACIÓN
   if (window.unifiedGeoService) {
     try {
       await window.unifiedGeoService.initialize();
       await window.unifiedGeoService.startTracking();
       console.log('✅ Sistema de tracking de ubicación activo');
+      
+      // Si tiene pedidos activos, mostrar recordatorio
+      if (tienePedidosActivos) {
+        console.log('🔒 Tracking bloqueado hasta entregar pedidos activos');
+      }
     } catch (error) {
       console.error('❌ Error inicializando geolocalización:', error);
     }
   }
   
-  // ✅ 2. INICIALIZAR FCM (Firebase Cloud Messaging)
+  // ✅ 3. INICIALIZAR FCM (Firebase Cloud Messaging)
   if (window.fcmNotificationService) {
     console.log('🔔 Inicializando Firebase Cloud Messaging...');
     
@@ -172,11 +208,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       const inicializado = await window.fcmNotificationService.inicializar();
       
       if (inicializado) {
-        // ✅ CORRECCIÓN: El estado se carga automáticamente dentro de inicializar()
-        // No necesitamos llamar a cargarEstadoNotificaciones() aquí
         const estadoActual = window.fcmNotificationService.notificacionesActivas;
         console.log('✅ FCM inicializado correctamente');
-        console.log(`🔊 Notificaciones: ${estadoActual ? 'CON sonido' : 'SILENCIOSAS'}`);
+        console.log(`📊 Notificaciones: ${estadoActual ? 'CON sonido' : 'SILENCIOSAS'}`);
       } else {
         console.warn('⚠️ FCM no disponible (probablemente navegador web)');
       }
@@ -188,12 +222,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   console.log('✅ Sistema completamente inicializado');
 });
 
-  // ✅ 3. MANTENER TRACKING AL VOLVER A LA APP
-  document.addEventListener('visibilitychange', async () => {
-    if (!document.hidden && window.unifiedGeoService) {
+// ✅ 3. MANTENER TRACKING AL VOLVER A LA APP
+document.addEventListener('visibilitychange', async () => {
+  if (!document.hidden && window.unifiedGeoService) {
+    console.log('📱 Aplicación restaurada del background');
+    
+    // Verificar si hay pedidos activos
+    const tienePedidoActivo = localStorage.getItem('domiciliario_pedido_activo');
+    
+    if (tienePedidoActivo === 'true') {
+      console.log('🔄 Pedido activo detectado - asegurando tracking');
+      
+      // Reiniciar tracking si se detuvo
       if (!window.unifiedGeoService.isTracking && 
           window.unifiedGeoService.permissionStatus === 'granted') {
-        console.log('📱 Aplicación restaurada - reiniciando tracking...');
+        console.log('🔄 Reiniciando tracking...');
         
         try {
           await window.unifiedGeoService.startTracking();
@@ -201,9 +244,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
           console.error('❌ Error reiniciando tracking:', error);
         }
+      } else {
+        console.log('✅ Tracking ya está activo');
       }
     }
-  });
+  }
+});
   </script>
 </body>
 </html>
