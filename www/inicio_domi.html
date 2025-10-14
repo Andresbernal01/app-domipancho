@@ -36,30 +36,35 @@
     </div>
   </header>
 
-<!-- ✅ CONTROL DE NOTIFICACIONES FCM - MEJORADO -->
-<div class="notificaciones-control">
+<!-- ✅ CONTROL DE DISPONIBILIDAD -->
+<div class="disponibilidad-control">
   <div class="switch-container">
-    <span class="switch-label">🔔 Notificaciones con sonido</span>
+    <span class="switch-label">🟢 Disponible para pedidos</span>
     <button class="help-btn" id="helpBtn" aria-label="Mostrar información">ℹ</button>
     <label class="switch">
-      <input type="checkbox" id="switchNotificaciones" checked>
+      <input type="checkbox" id="switchDisponibilidad" checked>
       <span class="slider"></span>
     </label>
   </div>
   <p class="switch-descripcion" id="switchDescripcion" style="display: none;">
-    Desactiva el sonido si no quieres ser interrumpido. Las notificaciones seguirán llegando silenciosamente.
+    Cuando estés disponible, recibirás pedidos cercanos y se rastreará tu ubicación. 
+    Al marcar no disponible, dejarás de recibir pedidos y se detendrá el rastreo.
   </p>
 </div>
 
-  <style>
-  /* ✅ CONTROL DE NOTIFICACIONES FCM - MEJORADO */
-.notificaciones-control {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+<style>
+/* ✅ ESTILOS PARA DISPONIBILIDAD */
+.disponibilidad-control {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
   padding: 15px 20px;
   margin: 10px;
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.2);
   transition: all var(--transition-normal);
+}
+
+.disponibilidad-control.no-disponible {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
 }
 
 .switch-container {
@@ -92,11 +97,6 @@
   transform: scale(1.1);
 }
 
-.help-btn:focus-visible {
-  outline: 2px solid white;
-  outline-offset: 2px;
-}
-
 .switch-label {
   color: white;
   font-weight: 600;
@@ -104,7 +104,7 @@
   flex: 1;
 }
 
-/* Estilos para el switch (toggle) */
+/* Switch styles */
 .switch {
   position: relative;
   display: inline-block;
@@ -144,19 +144,13 @@
 }
 
 input:checked + .slider {
-  background-color: #4CAF50;
+  background-color: rgba(255,255,255,0.5);
 }
 
 input:checked + .slider:before {
   transform: translateX(26px);
 }
 
-/* Estados de focus para accesibilidad */
-.switch input:focus + .slider {
-  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.3);
-}
-
-/* Descripción con animación */
 .switch-descripcion {
   color: rgba(255,255,255,0.9);
   font-size: 13px;
@@ -178,9 +172,9 @@ input:checked + .slider:before {
   }
 }
 
-/* Responsive para pantallas pequeñas */
+/* Responsive */
 @media (max-width: 480px) {
-  .notificaciones-control {
+  .disponibilidad-control {
     padding: 12px 16px;
     margin: 8px;
   }
@@ -197,22 +191,13 @@ input:checked + .slider:before {
   .slider:before {
     height: 20px;
     width: 20px;
-    left: 4px;
-    bottom: 4px;
   }
   
   input:checked + .slider:before {
     transform: translateX(22px);
   }
-  
-  .help-btn {
-    width: 22px;
-    height: 22px;
-    font-size: 12px;
-    margin: 0 8px;
-  }
 }
-  </style>
+</style>
   
   <div class="main-container">
     <!-- Contador de pedidos activos -->
@@ -388,61 +373,110 @@ input:checked + .slider:before {
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🎯 Inicializando página de inicio domiciliario...');
   
-  // ✅ 1. INICIALIZAR GEOLOCALIZACIÓN
-  if (window.unifiedGeoService) {
-    try {
-      await window.unifiedGeoService.initialize();
-      await window.unifiedGeoService.startTracking();
-      console.log('✅ Sistema de tracking activo');
-    } catch (error) {
-      console.error('❌ Error en geolocalización:', error);
+  // ✅ 1. CARGAR ESTADO DE DISPONIBILIDAD DESDE SERVIDOR
+  const switchDisponibilidad = document.getElementById('switchDisponibilidad');
+  const disponibilidadControl = document.querySelector('.disponibilidad-control');
+  
+  try {
+    const response = await window.apiRequest('/api/domiciliario/estado-disponibilidad');
+    if (response.ok) {
+      const data = await response.json();
+      const disponible = data.disponible !== false;
+      
+      switchDisponibilidad.checked = disponible;
+      
+      // Actualizar estilo visual
+      if (!disponible) {
+        disponibilidadControl.classList.add('no-disponible');
+        document.querySelector('.switch-label').textContent = '🔴 No disponible';
+      }
+      
+      console.log(`📊 Estado inicial: ${disponible ? 'DISPONIBLE' : 'NO DISPONIBLE'}`);
     }
+  } catch (error) {
+    console.error('❌ Error cargando disponibilidad:', error);
   }
   
-  // ✅ 2. INICIALIZAR FCM Y CONFIGURAR SWITCH
-  const switchNotificaciones = document.getElementById('switchNotificaciones');
+  // ✅ 2. INICIALIZAR SEGÚN DISPONIBILIDAD
+  if (switchDisponibilidad.checked) {
+    // ✅ DISPONIBLE: Iniciar geolocalización
+    if (window.unifiedGeoService) {
+      try {
+        await window.unifiedGeoService.initialize();
+        await window.unifiedGeoService.startTracking();
+        console.log('✅ Sistema de tracking activo (disponible)');
+      } catch (error) {
+        console.error('❌ Error en geolocalización:', error);
+      }
+    }
+  } else {
+    // ❌ NO DISPONIBLE: NO iniciar tracking
+    console.log('⏸️ No disponible - tracking NO iniciado');
+  }
   
+  // ✅ 3. CONFIGURAR LISTENER DEL SWITCH
+  switchDisponibilidad.addEventListener('change', async (e) => {
+    const disponible = e.target.checked;
+    
+    try {
+      // Actualizar estado en servidor
+      const response = await window.apiRequest('/api/domiciliario/cambiar-disponibilidad', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ disponible: disponible })
+      });
+      
+      if (response.ok) {
+        // Actualizar UI
+        if (disponible) {
+          disponibilidadControl.classList.remove('no-disponible');
+          document.querySelector('.switch-label').textContent = '🟢 Disponible para pedidos';
+          
+          // ✅ INICIAR TRACKING
+          if (window.unifiedGeoService) {
+            await window.unifiedGeoService.initialize();
+            await window.unifiedGeoService.startTracking();
+          }
+          
+          console.log('✅ DISPONIBLE - Tracking iniciado');
+        } else {
+          disponibilidadControl.classList.add('no-disponible');
+          document.querySelector('.switch-label').textContent = '🔴 No disponible';
+          
+          // ❌ DETENER TRACKING
+          if (window.unifiedGeoService) {
+            await window.unifiedGeoService.stopTracking();
+          }
+          
+          console.log('⏸️ NO DISPONIBLE - Tracking detenido');
+        }
+      } else {
+        // Revertir cambio si falla
+        e.target.checked = !disponible;
+        alert('Error al cambiar disponibilidad');
+      }
+    } catch (error) {
+      console.error('❌ Error:', error);
+      e.target.checked = !disponible;
+      alert('Error de conexión');
+    }
+  });
+  
+  // ✅ 4. INICIALIZAR FCM (siempre activo)
   if (window.fcmNotificationService) {
     try {
-      console.log('🔔 Inicializando Firebase Cloud Messaging...');
-      
-      // Inicializar FCM (esto carga el estado desde el servidor)
       await window.fcmNotificationService.inicializar();
-      
-      // ✅ Obtener estado actual desde el servicio (ya cargado desde BD)
-      const estadoActual = window.fcmNotificationService.notificacionesActivas;
-      
-      if (switchNotificaciones) {
-        switchNotificaciones.checked = estadoActual;
-      }
-      
-      console.log('✅ FCM inicializado correctamente');
-      console.log(`📊 Estado inicial: ${estadoActual ? 'CON sonido' : 'SIN sonido'}`);
-      
-      // ✅ Configurar listener del switch
-      if (switchNotificaciones) {
-        switchNotificaciones.addEventListener('change', async (e) => {
-          if (e.target.checked) {
-            await window.fcmNotificationService.activarNotificaciones();
-            console.log('🔔 Notificaciones CON sonido activadas');
-          } else {
-            await window.fcmNotificationService.desactivarNotificaciones();
-            console.log('🔕 Notificaciones SILENCIOSAS activadas');
-          }
-        });
-      }
+      console.log('✅ FCM inicializado');
     } catch (error) {
-      console.error('❌ Error inicializando FCM:', error);
+      console.error('❌ Error FCM:', error);
     }
   }
   
-  // ✅ 3. ACTUALIZAR CONTADORES INMEDIATAMENTE
+  // ✅ 5. ACTUALIZAR CONTADORES
   await actualizarContadores();
-  
-  // ✅ 4. ACTUALIZAR CONTADORES CADA 10 SEGUNDOS
   setInterval(actualizarContadores, 10000);
   
-  // ✅ 5. CONFIGURAR SOCKET.IO PARA ACTUALIZACIONES EN TIEMPO REAL
+  // ✅ 6. CONFIGURAR SOCKET.IO
   if (typeof io !== 'undefined') {
     const socket = io();
     
@@ -454,36 +488,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (response.ok) {
           const usuario = await response.json();
           socket.emit('join-domiciliario', usuario.id);
-          console.log(`✅ Unido a sala: domiciliario-${usuario.id}`);
         }
       } catch (error) {
-        console.error('❌ Error obteniendo usuario:', error);
+        console.error('❌ Error usuario:', error);
       }
     });
     
-    // Actualizar contadores en eventos de socket
     socket.on('nuevo-pedido-geografico', async () => {
-      console.log('📬 Nuevo pedido geográfico detectado');
       await actualizarContadores();
     });
     
     socket.on('estado-pedido-actualizado', async () => {
-      console.log('🔄 Estado de pedido actualizado');
       await actualizarContadores();
     });
     
     socket.on('pedido-removido', async () => {
-      console.log('🗑️ Pedido removido');
       await actualizarContadores();
     });
     
     socket.on('pedido-tomado', async () => {
-      console.log('✋ Pedido tomado');
       await actualizarContadores();
     });
     
     socket.on('pedido-liberado', async () => {
-      console.log('🔓 Pedido liberado');
       await actualizarContadores();
     });
   }
@@ -491,16 +518,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   console.log('✅ Sistema completamente inicializado');
 });
 
-  // ✅ 6. ACTUALIZAR AL VOLVER A LA PÁGINA
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-      console.log('👀 Página visible - actualizando contadores...');
-      actualizarContadores();
-    }
-  });
+// ✅ ACTUALIZAR AL VOLVER A LA PÁGINA
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    console.log('👀 Página visible - actualizando...');
+    actualizarContadores();
+  }
+});
 
-
-  // Agregar al final del script, antes del cierre 
+// Helper para descripción
 document.addEventListener('DOMContentLoaded', function() {
   const helpBtn = document.getElementById('helpBtn');
   const descripcion = document.getElementById('switchDescripcion');
@@ -509,8 +535,6 @@ document.addEventListener('DOMContentLoaded', function() {
     helpBtn.addEventListener('click', function() {
       const isVisible = descripcion.style.display === 'block';
       descripcion.style.display = isVisible ? 'none' : 'block';
-      
-      // Opcional: Cambiar el ícono para indicar estado
       helpBtn.textContent = isVisible ? 'ℹ' : '✕';
     });
   }

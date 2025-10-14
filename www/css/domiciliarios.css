@@ -903,3 +903,16 @@ main {
   transform: scale(0.95);
   background: var(--primary-hover);
 }
+
+/* ✅ Botón bloqueado cuando no está disponible */
+.btn-tomar[data-requiere-disponible="true"]:disabled:not([disabled*="Límite"]) {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.btn-tomar[data-requiere-disponible="true"]:disabled:not([disabled*="Límite"])::after {
+  content: " - Activa 'Disponible' primero";
+  font-size: 0.85em;
+  opacity: 0.9;
+}

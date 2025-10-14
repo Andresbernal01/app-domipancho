@@ -41,6 +41,7 @@ public class LocationForegroundService extends Service implements LocationListen
     private String serverUrl = "https://domipancho.com";
     private long lastUpdateTime = 0;
     private static final long UPDATE_INTERVAL = 10000; // 10 segundos
+    private boolean tienePedidosActivos = false; // ✅ NUEVO
     
     @Override
     public void onCreate() {
@@ -49,19 +50,18 @@ public class LocationForegroundService extends Service implements LocationListen
         
         createNotificationChannel();
         
-        // ✅ Wake Lock PARTIAL - Mantiene CPU activa incluso con pantalla apagada
+        // ✅ Wake Lock PARTIAL
         PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
         wakeLock = powerManager.newWakeLock(
             PowerManager.PARTIAL_WAKE_LOCK,
             "DomiPancho::LocationWakeLock"
         );
-        wakeLock.acquire(); // ⚠️ Se libera en onDestroy
+        wakeLock.acquire();
         Log.d(TAG, "✅ Wake Lock adquirido");
         
-        // ✅ Handler para actualizaciones periódicas
         handler = new Handler(Looper.getMainLooper());
         
-        // ✅ Runnable para actualización de ubicación (cada 10 segundos)
+        // ✅ Runnable para actualización de ubicación
         locationUpdateRunnable = new Runnable() {
             @Override
             public void run() {
@@ -76,12 +76,13 @@ public class LocationForegroundService extends Service implements LocationListen
             }
         };
         
-        // ✅ Runnable para heartbeat (cada 60 segundos)
+        // ✅ Runnable para heartbeat + verificar pedidos activos
         heartbeatRunnable = new Runnable() {
             @Override
             public void run() {
                 sendHeartbeat();
-                handler.postDelayed(this, 60000);
+                verificarPedidosActivos(); // ✅ NUEVO
+                handler.postDelayed(this, 30000); // Cada 30 segundos
             }
         };
     }
@@ -90,19 +91,20 @@ public class LocationForegroundService extends Service implements LocationListen
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(TAG, "✅ onStartCommand - Iniciando servicio foreground");
         
-        // ✅ Iniciar como Foreground Service INMEDIATAMENTE
+        // ✅ Verificar si tiene pedidos activos al iniciar
+        verificarPedidosActivos();
+        
+        // ✅ Iniciar como Foreground Service
         Notification notification = createNotification();
         startForeground(NOTIFICATION_ID, notification);
         
-        // ✅ Iniciar tracking de ubicación
+        // ✅ Iniciar tracking
         startLocationTracking();
         
         // ✅ Iniciar handlers
         handler.post(locationUpdateRunnable);
         handler.post(heartbeatRunnable);
         
-        // ✅ START_STICKY + REDELIVER_INTENT = Android reinicia el servicio si es terminado
-        // Y entrega el último intent
         return START_REDELIVER_INTENT;
     }
     
@@ -110,31 +112,31 @@ public class LocationForegroundService extends Service implements LocationListen
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
         
         try {
-            // ✅ GPS Provider - Máxima precisión
+            // ✅ GPS Provider
             if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                 locationManager.requestLocationUpdates(
                     LocationManager.GPS_PROVIDER,
-                    5000,  // 5 segundos
-                    5,     // 5 metros
+                    5000,
+                    5,
                     this,
                     Looper.getMainLooper()
                 );
                 Log.d(TAG, "✅ GPS Provider activado");
             }
             
-            // ✅ Network Provider - Backup
+            // ✅ Network Provider
             if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
                 locationManager.requestLocationUpdates(
                     LocationManager.NETWORK_PROVIDER,
-                    10000, // 10 segundos
-                    10,    // 10 metros
+                    10000,
+                    10,
                     this,
                     Looper.getMainLooper()
                 );
                 Log.d(TAG, "✅ Network Provider activado");
             }
             
-            // ✅ Obtener última ubicación conocida
+            // ✅ Última ubicación conocida
             Location lastKnownGPS = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
             Location lastKnownNetwork = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
             
@@ -158,7 +160,7 @@ public class LocationForegroundService extends Service implements LocationListen
             Log.d(TAG, "📍 Nueva ubicación: " + location.getLatitude() + ", " + location.getLongitude() 
                 + " - Precisión: " + location.getAccuracy() + "m");
             
-            // ✅ Actualizar notificación con última ubicación
+            // ✅ Actualizar notificación
             updateNotificationWithLocation(location);
         }
     }
@@ -167,6 +169,71 @@ public class LocationForegroundService extends Service implements LocationListen
         Notification notification = createNotificationWithLocation(location);
         NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.notify(NOTIFICATION_ID, notification);
+    }
+    
+    // ✅ NUEVA FUNCIÓN: Verificar si tiene pedidos activos
+    private void verificarPedidosActivos() {
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(serverUrl + "/api/pedidos-domiciliario");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("X-Requested-With", "XMLHttpRequest");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+                
+                int responseCode = conn.getResponseCode();
+                if (responseCode == 200) {
+                    // Leer respuesta
+                    java.io.BufferedReader br = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(conn.getInputStream(), "utf-8")
+                    );
+                    StringBuilder response = new StringBuilder();
+                    String responseLine;
+                    while ((responseLine = br.readLine()) != null) {
+                        response.append(responseLine.trim());
+                    }
+                    
+                    // Parsear JSON
+                    org.json.JSONArray pedidos = new org.json.JSONArray(response.toString());
+                    
+                    // Contar pedidos "camino a tu casa"
+                    int count = 0;
+                    for (int i = 0; i < pedidos.length(); i++) {
+                        JSONObject pedido = pedidos.getJSONObject(i);
+                        String estado = pedido.optString("estado", "");
+                        if ("camino a tu casa".equals(estado)) {
+                            count++;
+                        }
+                    }
+                    
+                    boolean tienePedidos = count > 0;
+                    
+                    // Solo actualizar si cambió
+                    if (tienePedidosActivos != tienePedidos) {
+                        tienePedidosActivos = tienePedidos;
+                        Log.d(TAG, "📊 Pedidos activos: " + tienePedidos);
+                        
+                        // Actualizar notificación
+                        if (lastLocation != null) {
+                            handler.post(() -> updateNotificationWithLocation(lastLocation));
+                        }
+                    }
+                    
+                } else {
+                    Log.e(TAG, "❌ Error verificando pedidos - Código: " + responseCode);
+                }
+                
+            } catch (Exception e) {
+                Log.e(TAG, "❌ Error verificando pedidos: " + e.getMessage());
+            } finally {
+                if (conn != null) {
+                    conn.disconnect();
+                }
+            }
+        }).start();
     }
     
     private void sendLocationToServer(Location location) {
@@ -182,7 +249,6 @@ public class LocationForegroundService extends Service implements LocationListen
                 conn.setConnectTimeout(15000);
                 conn.setReadTimeout(15000);
                 
-                // ✅ Crear JSON
                 JSONObject json = new JSONObject();
                 json.put("latitud", location.getLatitude());
                 json.put("longitud", location.getLongitude());
@@ -190,7 +256,6 @@ public class LocationForegroundService extends Service implements LocationListen
                 json.put("accuracy", location.getAccuracy());
                 json.put("provider", location.getProvider());
                 
-                // ✅ Enviar
                 OutputStream os = conn.getOutputStream();
                 os.write(json.toString().getBytes(StandardCharsets.UTF_8));
                 os.flush();
@@ -198,7 +263,7 @@ public class LocationForegroundService extends Service implements LocationListen
                 
                 int responseCode = conn.getResponseCode();
                 if (responseCode == 200) {
-                    Log.d(TAG, "✅ Ubicación enviada - Lat: " + location.getLatitude() + ", Lon: " + location.getLongitude());
+                    Log.d(TAG, "✅ Ubicación enviada");
                 } else {
                     Log.e(TAG, "❌ Error enviando ubicación - Código: " + responseCode);
                 }
@@ -234,7 +299,7 @@ public class LocationForegroundService extends Service implements LocationListen
                 
                 int responseCode = conn.getResponseCode();
                 if (responseCode == 200) {
-                    Log.d(TAG, "💓 Heartbeat enviado exitosamente");
+                    Log.d(TAG, "💓 Heartbeat enviado");
                 } else {
                     Log.e(TAG, "❌ Error heartbeat - Código: " + responseCode);
                 }
@@ -260,12 +325,21 @@ public class LocationForegroundService extends Service implements LocationListen
             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
         
+        // ✅ Texto según tenga pedidos o no
+        String titulo = tienePedidosActivos ? 
+            "DomiPancho - Entrega Activa" : 
+            "DomiPancho - Rastreando Ubicación";
+        
+        String texto = tienePedidosActivos ?
+            "Realizando entrega" :
+            "Buscando pedidos cercanos";
+        
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("DomiPancho - Entrega Activa")
-            .setContentText("Rastreando tu ubicación")
+            .setContentTitle(titulo)
+            .setContentText(texto)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setContentIntent(pendingIntent)
-            .setOngoing(true) // ✅ No se puede deslizar para cerrar
+            .setOngoing(true)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -285,13 +359,24 @@ public class LocationForegroundService extends Service implements LocationListen
             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
         
-        String contentText = String.format("Última ubicación: %.5f, %.5f (%.0fm)",
-            location.getLatitude(), 
-            location.getLongitude(),
-            location.getAccuracy());
+        // ✅ CAMBIAR TEXTO SEGÚN TENGA PEDIDOS ACTIVOS O NO
+        String titulo;
+        String contentText;
+        
+        if (tienePedidosActivos) {
+            titulo = "DomiPancho - Entrega Activa";
+            contentText = String.format("Última ubicación: %.5f, %.5f (%.0fm)",
+                location.getLatitude(), 
+                location.getLongitude(),
+                location.getAccuracy());
+        } else {
+            titulo = "DomiPancho - Rastreando Ubicación";
+            contentText = String.format("Buscando pedidos cercanos (%.0fm precisión)",
+                location.getAccuracy());
+        }
         
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("DomiPancho - Entrega Activa")
+            .setContentTitle(titulo)
             .setContentText(contentText)
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setContentIntent(pendingIntent)
@@ -349,10 +434,8 @@ public class LocationForegroundService extends Service implements LocationListen
         
         super.onDestroy();
         
-        // ✅ REINICIAR SERVICIO SI FUE MATADO
-        Log.w(TAG, "🔄 Programando reinicio del servicio...");
-        Intent broadcastIntent = new Intent(this, ServiceRestarter.class);
-        sendBroadcast(broadcastIntent);
+        // ✅ NO REINICIAR si el usuario marcó "no disponible"
+        // El servicio solo se reiniciará automáticamente si fue matado por el sistema
     }
     
     @Override
@@ -360,7 +443,6 @@ public class LocationForegroundService extends Service implements LocationListen
         return null;
     }
     
-    // ✅ Métodos requeridos por LocationListener
     @Override
     public void onStatusChanged(String provider, int status, Bundle extras) {
         Log.d(TAG, "📡 Status cambiado: " + provider + " - " + status);
@@ -369,7 +451,6 @@ public class LocationForegroundService extends Service implements LocationListen
     @Override
     public void onProviderEnabled(String provider) {
         Log.d(TAG, "✅ Provider habilitado: " + provider);
-        // Reintentar obtener ubicación cuando el provider se habilita
         try {
             locationManager.requestLocationUpdates(
                 provider,
@@ -392,7 +473,7 @@ public class LocationForegroundService extends Service implements LocationListen
     public void onTaskRemoved(Intent rootIntent) {
         Log.w(TAG, "⚠️ onTaskRemoved - App removida de recientes");
         
-        // ✅ CRÍTICO: Reiniciar el servicio cuando se cierra desde recientes
+        // ✅ REINICIAR SERVICIO SI ESTÁ DISPONIBLE
         Intent restartServiceIntent = new Intent(getApplicationContext(), this.getClass());
         restartServiceIntent.setPackage(getPackageName());
         

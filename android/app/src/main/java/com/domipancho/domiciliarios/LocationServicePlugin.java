@@ -47,12 +47,17 @@ public class LocationServicePlugin extends Plugin {
             Intent serviceIntent = new Intent(getContext(), LocationForegroundService.class);
             getContext().stopService(serviceIntent);
             
+            // ✅ QUITAR NOTIFICACIÓN EXPLÍCITAMENTE
+            android.app.NotificationManager notificationManager = 
+                (android.app.NotificationManager) getContext().getSystemService(android.content.Context.NOTIFICATION_SERVICE);
+            notificationManager.cancel(12345); // ID de la notificación
+            
             JSObject ret = new JSObject();
             ret.put("success", true);
-            ret.put("message", "Location service stopped");
+            ret.put("message", "Location service stopped and notification removed");
             call.resolve(ret);
             
-            Log.d(TAG, "✅ Servicio de ubicación detenido correctamente");
+            Log.d(TAG, "✅ Servicio detenido y notificación removida");
         } catch (Exception e) {
             Log.e(TAG, "❌ Error deteniendo servicio: " + e.getMessage());
             call.reject("Error stopping location service: " + e.getMessage());

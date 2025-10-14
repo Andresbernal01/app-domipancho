@@ -303,7 +303,14 @@
   function generarBotonesAccion(pedido, esMiPedido, cantidadActivos) {
     if (pedido.estado === 'esperando repartidor') {
       const deshabilitado = cantidadActivos >= 2;
-      return `<button class="btn-tomar" onclick="tomarPedido(${pedido.id})" ${deshabilitado ? 'disabled' : ''}>${deshabilitado ? '🚫 Límite' : '📦 Tomar'}</button>`;
+      
+      // ✅ AGREGAR ATRIBUTO DATA PARA VERIFICACIÓN
+      return `<button class="btn-tomar" 
+                      onclick="tomarPedido(${pedido.id})" 
+                      data-requiere-disponible="true"
+                      ${deshabilitado ? 'disabled' : ''}>
+                ${deshabilitado ? '🚫 Límite' : '📦 Tomar'}
+              </button>`;
     }
     
     if (esMiPedido) {
@@ -448,12 +455,29 @@
 
   // ========== ACCIONES DE PEDIDOS ==========
   async function tomarPedido(pedidoId) {
+    // ✅ VERIFICAR DISPONIBILIDAD PRIMERO
+    try {
+      const dispResponse = await window.apiRequest('/api/domiciliario/estado-disponibilidad');
+      if (dispResponse.ok) {
+        const dispData = await dispResponse.json();
+        
+        if (!dispData.disponible) {
+          mostrarMensaje('⚠️ Debes activar "Disponible" en el inicio para tomar pedidos', 'error');
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error verificando disponibilidad:', error);
+    }
+    
     if (pedidosActivosGlobal >= 2) {
       mostrarMensaje('❌ No puedes tomar más pedidos. Máximo 2 pedidos activos permitidos.', 'error');
       return;
     }
   
     if (!confirm('¿Quieres tomar este pedido?')) return;
+  
+    
   
     const tarjeta = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
     const btnTomar = tarjeta?.querySelector('.btn-tomar');

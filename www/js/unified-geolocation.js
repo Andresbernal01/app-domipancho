@@ -216,21 +216,17 @@ class UnifiedGeolocationService {
   }
 
   async stopTracking() {
-    // ⚠️ VALIDAR: Solo detener si NO hay pedidos activos
-    const tienePedidoActivo = localStorage.getItem('domiciliario_pedido_activo');
-    
-    if (tienePedidoActivo === 'true') {
-      console.warn('⚠️ No se puede detener tracking: hay pedido activo');
+    // ✅ REMOVER VALIDACIÓN DE PEDIDO ACTIVO CUANDO SE LLAMA EXPLÍCITAMENTE
+    if (!this.isTracking) {
+      console.log('⚠️ Tracking ya estaba detenido');
       return;
     }
-
-    if (!this.isTracking) return;
-
+  
     this.isTracking = false;
     
     // ✅ LIMPIAR ESTADO
     localStorage.removeItem('tracking_activo');
-
+  
     // ✅ DETENER SERVICIO NATIVO
     if (this.isNative) {
       await this.stopNativeService();
@@ -239,7 +235,7 @@ class UnifiedGeolocationService {
       this.watcherId = null;
     }
     
-    console.log('🛑 Tracking detenido');
+    console.log('🛑 Tracking detenido completamente');
   }
 
   async stopNativeService() {
