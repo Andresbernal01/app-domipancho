@@ -107,49 +107,96 @@
   // ========== GESTIÓN DE PEDIDOS ==========
   async function cargarPedidos() {
     try {
-      const res = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
-      let pedidos = await res.json();
-      
-      if (!res.ok && pedidos?.error === 'bloqueado') {
-        document.getElementById('listaPedidos').innerHTML = `
-          <div class="bloqueado">
-            <h3>⛔ Cuenta Bloqueada</h3>
-            <p>${pedidos.mensaje}</p>
-          </div>
-        `;
-        return;
+      // ✅ 1. VERIFICAR ESTADO DE DISPONIBILIDAD
+      let disponible = true;
+      try {
+        const dispResponse = await window.apiRequest('/api/domiciliario/estado-disponibilidad');
+        if (dispResponse.ok) {
+          const dispData = await dispResponse.json();
+          disponible = dispData.disponible !== false;
+        }
+      } catch (error) {
+        console.warn('Error verificando disponibilidad:', error);
       }
-
+  
+      // ✅ 2. OBTENER PEDIDOS SEGÚN DISPONIBILIDAD
+      let pedidos;
+      let pedidosGeograficos = [];
+  
+      if (disponible) {
+        // 🟢 DISPONIBLE: Obtener pedidos con distancias (solo en radio)
+        const res = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
+        pedidos = await res.json();
+        
+        if (!res.ok && pedidos?.error === 'bloqueado') {
+          document.getElementById('listaPedidos').innerHTML = `
+            <div class="bloqueado">
+              <h3>⛔ Cuenta Bloqueada</h3>
+              <p>${pedidos.mensaje}</p>
+            </div>
+          `;
+          return;
+        }
+  
+        // Obtener asignaciones geográficas
+        const asignacionesRes = await window.apiRequest('/api/mis-asignaciones-geograficas');
+        if (asignacionesRes.ok) {
+          const asignaciones = await asignacionesRes.json();
+          pedidosGeograficos = asignaciones.map(a => a.pedido_id);
+        }
+  
+      } else {
+        // 🔴 NO DISPONIBLE: Obtener TODOS los pedidos de la ciudad
+        const res = await window.apiRequest('/api/pedidos-domiciliario');
+        pedidos = await res.json();
+        
+        if (!res.ok && pedidos?.error === 'bloqueado') {
+          document.getElementById('listaPedidos').innerHTML = `
+            <div class="bloqueado">
+              <h3>⛔ Cuenta Bloqueada</h3>
+              <p>${pedidos.mensaje}</p>
+            </div>
+          `;
+          return;
+        }
+      }
+  
       const usuario = await cargarUsuario();
       if (!usuario) return;
-
-      const asignacionesRes = await window.apiRequest('/api/mis-asignaciones-geograficas');
-      let pedidosGeograficos = [];
-      
-      if (asignacionesRes.ok) {
-        const asignaciones = await asignacionesRes.json();
-        pedidosGeograficos = asignaciones.map(a => a.pedido_id);
+  
+      // ✅ 3. FILTRAR PEDIDOS SEGÚN DISPONIBILIDAD
+      let pedidosFiltrados;
+  
+      if (disponible) {
+        // 🟢 DISPONIBLE: Solo pedidos en radio o asignados a mí
+        pedidosFiltrados = pedidos.filter(pedido => {
+          if (pedido.estado?.toLowerCase() === 'camino a tu casa' && pedido.domiciliario_id === usuario.id) {
+            return true;
+          }
+          if (pedido.estado?.toLowerCase() === 'esperando repartidor') {
+            return pedidosGeograficos.includes(pedido.id);
+          }
+          return false;
+        });
+      } else {
+        // 🔴 NO DISPONIBLE: Todos los "esperando repartidor" + mis activos
+        pedidosFiltrados = pedidos.filter(pedido => {
+          if (pedido.estado?.toLowerCase() === 'camino a tu casa' && pedido.domiciliario_id === usuario.id) {
+            return true;
+          }
+          return pedido.estado?.toLowerCase() === 'esperando repartidor';
+        });
       }
-
-      const pedidosFiltrados = pedidos.filter(pedido => {
-        if (pedido.estado?.toLowerCase() === 'camino a tu casa' && pedido.domiciliario_id === usuario.id) {
-          return true;
-        }
-        if (pedido.estado?.toLowerCase() === 'esperando repartidor') {
-          return pedidosGeograficos.includes(pedido.id);
-        }
-        return false;
-      });
-
+  
       const disponibles = pedidosFiltrados.filter(p => p.estado?.toLowerCase() === 'esperando repartidor');
       const misActivos = pedidosFiltrados.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
       
       actualizarContadorPedidos(misActivos.length);
-
+  
       const pedidosAMostrar = misActivos.length >= 2 ? misActivos : [...misActivos, ...disponibles];
-
-      renderizarPedidos(pedidosAMostrar, misActivos, pedidosGeograficos);
-
+  
+      renderizarPedidos(pedidosAMostrar, misActivos, pedidosGeograficos, disponible);
+  
     } catch (err) {
       console.error('Error al cargar pedidos:', err);
       document.getElementById('listaPedidos').innerHTML = `
@@ -162,43 +209,59 @@
     }
   }
 
-  function renderizarPedidos(pedidosAMostrar, misActivos, pedidosGeograficos) {
+  function renderizarPedidos(pedidosAMostrar, misActivos, pedidosGeograficos, disponible) {
+    // ✅ CORRECCIÓN: Usar 'listaPedidos' en lugar de 'pedidosContainer'
     const contenedor = document.getElementById('listaPedidos');
     
-    if (!Array.isArray(pedidosAMostrar) || pedidosAMostrar.length === 0) {
-      contenedor.innerHTML = misActivos.length >= 2 
-        ? '<div class="no-pedidos"><h3>🚛 Tienes el máximo de pedidos (2/2)</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>'
-        : '<div class="no-pedidos"><h3>🎯 No hay pedidos disponibles en tu área</h3><p>Actualmente no hay pedidos disponibles en tu radio de cobertura. ¡Mantente atento!</p></div>';
+    if (!contenedor) {
+      console.error('❌ Elemento listaPedidos no encontrado');
       return;
     }
-
-    // ✅ CORRECCIÓN: Ordenar correctamente - MIS PEDIDOS PRIMERO
-    const pedidosOrdenados = pedidosAMostrar.sort((a, b) => {
-      const aEsMio = a.estado?.toLowerCase() === 'camino a tu casa';
-      const bEsMio = b.estado?.toLowerCase() === 'camino a tu casa';
-      
-      // Si uno es mío y el otro no, el mío va primero
-      if (aEsMio && !bEsMio) return -1;
-      if (!aEsMio && bEsMio) return 1;
-      
-      // Si ambos son míos o ambos disponibles, ordenar por fecha
-      return new Date(a.fecha) - new Date(b.fecha);
-    });
-
+    
+    if (!Array.isArray(pedidosAMostrar) || pedidosAMostrar.length === 0) {
+      if (disponible) {
+        contenedor.innerHTML = misActivos.length >= 2 
+          ? '<div class="no-pedidos"><h3>🚛 Tienes el máximo de pedidos (2/2)</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>'
+          : '<div class="no-pedidos"><h3>🎯 No hay pedidos disponibles en tu área</h3><p>Actualmente no hay pedidos disponibles en tu radio de cobertura. ¡Mantente atento!</p></div>';
+      } else {
+        contenedor.innerHTML = '<div class="no-pedidos"><h3>🔴 No Disponible</h3><p>No hay pedidos esperando repartidor en tu ciudad actualmente.</p><p><strong>Activa "Disponible"</strong> para empezar a recibir pedidos cercanos.</p></div>';
+      }
+      return;
+    }
+  
     let htmlContent = '';
-
-    if (misActivos.length >= 2) {
+  
+    // ✅ BANNER DIFERENTE SEGÚN DISPONIBILIDAD
+    if (!disponible) {
+      htmlContent += `
+        <div class="alerta alerta-no-disponible">
+          <h3>🔴 Modo Vista Previa - No Disponible</h3>
+          <p>Estás viendo todos los pedidos de tu ciudad. <strong>Activa "Disponible"</strong> en el inicio para poder tomarlos.</p>
+        </div>
+      `;
+    } else if (misActivos.length >= 2) {
       htmlContent += '<div class="alerta limite-alcanzado"><h3>🚛 Máximo de pedidos alcanzado (2/2)</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>';
     } else if (misActivos.length === 1) {
       htmlContent += '<div class="alerta advertencia-limite"><h3>⚠️ Puedes tomar 1 pedido más (1/2)</h3><p>Tienes espacio para un pedido adicional.</p></div>';
     }
-
+  
+    // Separar y ordenar pedidos
+    const pedidosOrdenados = pedidosAMostrar.sort((a, b) => {
+      const aEsMio = a.estado?.toLowerCase() === 'camino a tu casa';
+      const bEsMio = b.estado?.toLowerCase() === 'camino a tu casa';
+      
+      if (aEsMio && !bEsMio) return -1;
+      if (!aEsMio && bEsMio) return 1;
+      
+      return new Date(a.fecha) - new Date(b.fecha);
+    });
+  
     const misPedidosHtml = [];
     const pedidosDisponiblesHtml = [];
-
+  
     pedidosOrdenados.forEach(p => {
       const esMiPedido = p.estado?.toLowerCase() === 'camino a tu casa';
-      const html = generarHtmlPedido(p, esMiPedido, pedidosGeograficos, misActivos.length);
+      const html = generarHtmlPedido(p, esMiPedido, pedidosGeograficos, misActivos.length, disponible);
       
       if (esMiPedido) {
         misPedidosHtml.push(html);
@@ -206,30 +269,33 @@
         pedidosDisponiblesHtml.push(html);
       }
     });
-
-    // ✅ MOSTRAR MIS PEDIDOS PRIMERO
+  
+    // Mostrar mis pedidos primero
     if (misPedidosHtml.length > 0) {
       htmlContent += '<div class="pedidos-grid">';
       htmlContent += misPedidosHtml.join('');
       htmlContent += '</div>';
     }
-
-    // ✅ SEPARADOR SOLO SI HAY AMBOS TIPOS
+  
+    // Separador si hay ambos tipos
     if (misPedidosHtml.length > 0 && pedidosDisponiblesHtml.length > 0) {
-      htmlContent += '<div class="separador-pedidos"><span>📋 Más Pedidos Disponibles en tu Área</span></div>';
+      const tituloSeccion = disponible ? 
+        '📋 Más Pedidos Disponibles en tu Área' : 
+        '📋 Pedidos Esperando Repartidor en tu Ciudad';
+      htmlContent += `<div class="separador-pedidos"><span>${tituloSeccion}</span></div>`;
     }
-
-    // ✅ MOSTRAR PEDIDOS DISPONIBLES DESPUÉS
+  
+    // Mostrar pedidos disponibles
     if (pedidosDisponiblesHtml.length > 0) {
       htmlContent += '<div class="pedidos-grid">';
       htmlContent += pedidosDisponiblesHtml.join('');
       htmlContent += '</div>';
     }
-
+  
     contenedor.innerHTML = htmlContent;
   }
 
-  function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos) {
+  function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, disponible) {
     const estadoClase = ESTADOS_CLASES[p.estado?.toLowerCase()] || 'pendiente';
     const subtotalProductos = Array.isArray(p.productos) 
       ? p.productos.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0) 
@@ -237,13 +303,14 @@
     const costoDomicilio = obtenerCostoDomicilio(p);
     const total = subtotalProductos + costoDomicilio;
     const esGeografico = pedidosGeograficos.includes(p.id);
-    const mostrarDistancia = !esMiPedido && p.distancia_al_restaurante !== null;
-
+    const mostrarDistancia = !esMiPedido && p.distancia_al_restaurante !== null && disponible;
+  
     const badges = [];
     if (esMiPedido) badges.push('<div class="badge-mi-pedido">🚛 Mi Pedido</div>');
     if (p.envio_manual_domiciliario) badges.push('<div class="badge-manual">📤 Envío Manual</div>');
-    if (esGeografico && !esMiPedido) badges.push('<div class="badge-geografico">📍 Pedido Cercano</div>');
-
+    if (esGeografico && !esMiPedido && disponible) badges.push('<div class="badge-geografico">📍 Pedido Cercano</div>');
+    if (!disponible && !esMiPedido) badges.push('<div class="badge-preview">👁️ Vista Previa</div>');
+  
     const productosHtml = Array.isArray(p.productos) 
       ? p.productos.map(pr => `
           <div class="producto-item">
@@ -252,9 +319,9 @@
           </div>
         `).join('')
       : '<p>No hay productos</p>';
-
+  
     return `
-      <div class="pedido-card ${esMiPedido ? 'mi-pedido color-mi-pedido' : 'color-disponible'}" data-pedido-id="${p.id}">
+      <div class="pedido-card ${esMiPedido ? 'mi-pedido color-mi-pedido' : 'color-disponible'} ${!disponible && !esMiPedido ? 'pedido-preview' : ''}" data-pedido-id="${p.id}">
         ${badges.join('')}
         
         <div class="pedido-header">
@@ -264,9 +331,9 @@
           </div>
           <div class="estado ${estadoClase}">${p.estado}</div>
         </div>
-
+  
         ${mostrarDistancia ? `<div class="distancia-info"><strong>📍 Dist restaurante: ${p.distancia_al_restaurante.toFixed(3)}km</strong></div>` : ''}
-
+  
         <div class="info-grid">
           <div class="info-section">
             <h4>🏬 Origen</h4>
@@ -274,25 +341,25 @@
             <p class="direccion-small">📍 ${p.restaurantes?.direccion || 'Sin dirección'}</p>
             <p class="telefono-small">📞 ${p.restaurantes?.telefono || 'Sin teléfono'}</p>
           </div>
-
+  
           <div class="info-section">
             <h4>🏠 Destino</h4>
             <p class="direccion-cliente">${p.direccion}${p.complemento ? ' ' + p.complemento : ''}</p>
             <p class="barrio"><em>${p.barrio}</em></p>
           </div>
         </div>
-
+  
         <div class="total-section">
           <div class="total-amount">$${total.toLocaleString('es-CO')}</div>
           <small>(Incluye domicilio: $${costoDomicilio.toLocaleString('es-CO')})</small>
           ${p.tipo_tarifa === 'por_km' && p.distancia_km ? `<small class="km-info">(${p.distancia_km} km)</small>` : ''}
         </div>
-
+  
         <div class="botones-pedido">
           <button class="btn-ver-detalles" onclick="abrirDetallesPedido(${p.id})">👁️ Detalles</button>
-          ${generarBotonesAccion(p, esMiPedido, cantidadActivos)}
+          ${generarBotonesAccion(p, esMiPedido, cantidadActivos, disponible)}
         </div>
-
+  
         <div class="pedido-footer">
           <small>📅 ${new Date(p.fecha).toLocaleDateString('es-CO')} - ${new Date(p.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</small>
         </div>
@@ -300,17 +367,20 @@
     `;
   }
 
-  function generarBotonesAccion(pedido, esMiPedido, cantidadActivos) {
+  function generarBotonesAccion(pedido, esMiPedido, cantidadActivos, disponible) {
     if (pedido.estado === 'esperando repartidor') {
-      const deshabilitado = cantidadActivos >= 2;
-      
-      // ✅ AGREGAR ATRIBUTO DATA PARA VERIFICACIÓN
-      return `<button class="btn-tomar" 
-                      onclick="tomarPedido(${pedido.id})" 
-                      data-requiere-disponible="true"
-                      ${deshabilitado ? 'disabled' : ''}>
-                ${deshabilitado ? '🚫 Límite' : '📦 Tomar'}
-              </button>`;
+      if (!disponible) {
+        // 🔴 NO DISPONIBLE: Botón bloqueado
+        return `
+          <button class="btn-tomar btn-no-disponible" disabled title="Activa 'Disponible' para tomar pedidos">
+            🔴 Activa "Disponible" primero
+          </button>
+        `;
+      } else {
+        // 🟢 DISPONIBLE: Botón normal
+        const deshabilitado = cantidadActivos >= 2;
+        return `<button class="btn-tomar" onclick="tomarPedido(${pedido.id})" ${deshabilitado ? 'disabled' : ''}>${deshabilitado ? '🚫 Límite' : '📦 Tomar'}</button>`;
+      }
     }
     
     if (esMiPedido) {
@@ -330,9 +400,13 @@
       const distanciaReportada = data.distancia;
       const esConexionInicial = data.conexion_inicial || false;
       
+      // ✅ CORRECCIÓN: Usar 'listaPedidos'
       const contenedor = document.getElementById('listaPedidos');
-      if (!contenedor) return;
-
+      if (!contenedor) {
+        console.error('❌ Elemento listaPedidos no encontrado');
+        return;
+      }
+  
       // ✅ Verificar si ya existe
       if (contenedor.querySelector(`[data-pedido-id="${pedido.id}"]`)) {
         console.log(`Pedido ${pedido.id} ya existe`);
@@ -441,7 +515,10 @@
       setTimeout(() => {
         pedidoCard.remove();
         
+        // ✅ CORRECCIÓN: Usar 'listaPedidos'
         const contenedor = document.getElementById('listaPedidos');
+        if (!contenedor) return;
+        
         const pedidosRestantes = contenedor.querySelectorAll('[data-pedido-id]');
         
         if (pedidosRestantes.length === 0) {
@@ -577,15 +654,16 @@
         const metodoPagoTexto = metodo.value === 'efectivo' ? 'efectivo' : 'pago por App';
         mostrarMensaje(`✅ Pedido entregado exitosamente con ${metodoPagoTexto}`);
         
-        // ✅ VERIFICAR SI HAY MÁS PEDIDOS ACTIVOS
-        const usuario = await window.apiRequest('/api/usuario-actual');
-        const usuarioData = await usuario.json();
-        
-        const { data: pedidosActivos } = await supabase
-          .from('pedidos_domipancho')
-          .select('id')
-          .eq('domiciliario_id', usuarioData.id)
-          .eq('estado', 'camino a tu casa');
+// ✅ VERIFICAR SI HAY MÁS PEDIDOS ACTIVOS
+const usuarioResponse = await window.apiRequest('/api/usuario-actual');
+const usuarioData = await usuarioResponse.json();
+
+// ✅ USAR API REQUEST EN LUGAR DE SUPABASE
+const pedidosActivosResponse = await window.apiRequest(
+  `/api/pedidos-activos-domiciliario/${usuarioData.id}`
+);
+const pedidosActivosData = await pedidosActivosResponse.json();
+const pedidosActivos = pedidosActivosData.pedidos || [];
         
         if (!pedidosActivos || pedidosActivos.length === 0) {
           // ✅ NO HAY MÁS PEDIDOS - DETENER TRACKING
@@ -700,14 +778,14 @@
         mostrarMensaje('✅ Pedido marcado como no entregado - Reporte enviado exitosamente');
         
         // ✅ VERIFICAR SI HAY MÁS PEDIDOS ACTIVOS
-        const usuario = await window.apiRequest('/api/usuario-actual');
-        const usuarioData = await usuario.json();
-        
-        const { data: pedidosActivos } = await supabase
-          .from('pedidos_domipancho')
-          .select('id')
-          .eq('domiciliario_id', usuarioData.id)
-          .eq('estado', 'camino a tu casa');
+        const usuarioResponse = await window.apiRequest('/api/usuario-actual');
+        const usuarioData = await usuarioResponse.json();
+
+        const pedidosActivosResponse = await window.apiRequest(
+          `/api/pedidos-activos-domiciliario/${usuarioData.id}`
+        );
+        const pedidosActivosData = await pedidosActivosResponse.json();
+        const pedidosActivos = pedidosActivosData.pedidos || [];
         
         if (!pedidosActivos || pedidosActivos.length === 0) {
           console.log('🛑 No hay más pedidos activos - deteniendo servicio');

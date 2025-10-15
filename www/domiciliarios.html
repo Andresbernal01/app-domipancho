@@ -151,71 +151,42 @@
 
   <script>
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🎯 Inicializando sistema de domiciliarios...');
+  console.log('🎯 Inicializando domiciliarios.html...');
   
-  // ✅ 1. VERIFICAR SI HAY PEDIDOS ACTIVOS PRIMERO
-  let tienePedidosActivos = false;
-  
+  // ✅ 1. VERIFICAR DISPONIBILIDAD ANTES DE TRACKING
+  let disponible = true;
   try {
-    const response = await window.apiRequest('/api/pedidos-domiciliario');
-    if (response.ok) {
-      const pedidos = await response.json();
-      
-      const pedidosActivos = pedidos.filter(p => 
-        p.estado?.toLowerCase() === 'camino a tu casa'
-      );
-      
-      tienePedidosActivos = pedidosActivos.length > 0;
-      
-      if (tienePedidosActivos) {
-        console.log(`✅ ${pedidosActivos.length} pedidos activos detectados - tracking obligatorio`);
-        localStorage.setItem('domiciliario_pedido_activo', 'true');
-        
-        // Guardar IDs de pedidos activos
-        const pedidosIds = pedidosActivos.map(p => p.id);
-        localStorage.setItem('domiciliario_pedidos_ids', JSON.stringify(pedidosIds));
-      } else {
-        console.log('ℹ️ No hay pedidos activos - tracking opcional');
-        localStorage.removeItem('domiciliario_pedido_activo');
-        localStorage.removeItem('domiciliario_pedidos_ids');
-      }
+    const dispResponse = await window.apiRequest('/api/domiciliario/estado-disponibilidad');
+    if (dispResponse.ok) {
+      const dispData = await dispResponse.json();
+      disponible = dispData.disponible !== false;
     }
   } catch (error) {
-    console.error('❌ Error verificando pedidos activos:', error);
+    console.warn('Error verificando disponibilidad:', error);
   }
-  
-  // ✅ 2. INICIALIZAR GEOLOCALIZACIÓN
-  if (window.unifiedGeoService) {
-    try {
-      await window.unifiedGeoService.initialize();
-      await window.unifiedGeoService.startTracking();
-      console.log('✅ Sistema de tracking de ubicación activo');
-      
-      // Si tiene pedidos activos, mostrar recordatorio
-      if (tienePedidosActivos) {
-        console.log('🔒 Tracking bloqueado hasta entregar pedidos activos');
+
+  // ✅ 2. SOLO INICIAR TRACKING SI ESTÁ DISPONIBLE
+  if (disponible) {
+    if (window.unifiedGeoService) {
+      try {
+        await window.unifiedGeoService.initialize();
+        await window.unifiedGeoService.startTracking();
+        console.log('✅ Tracking activo (disponible)');
+      } catch (error) {
+        console.error('❌ Error tracking:', error);
       }
-    } catch (error) {
-      console.error('❌ Error inicializando geolocalización:', error);
     }
+  } else {
+    console.log('🔴 No disponible - NO se inicia tracking');
   }
   
-  // ✅ 3. INICIALIZAR FCM (Firebase Cloud Messaging)
+  // ✅ 3. INICIALIZAR FCM
   if (window.fcmNotificationService) {
-    console.log('🔔 Inicializando Firebase Cloud Messaging...');
-    
     try {
-      const inicializado = await window.fcmNotificationService.inicializar();
-      
-      if (inicializado) {
-        const estadoActual = window.fcmNotificationService.notificacionesActivas;
-        console.log('✅ FCM inicializado correctamente');
-        console.log(`📊 Notificaciones: ${estadoActual ? 'CON sonido' : 'SILENCIOSAS'}`);
-      } else {
-        console.warn('⚠️ FCM no disponible (probablemente navegador web)');
-      }
+      await window.fcmNotificationService.inicializar();
+      console.log('✅ FCM inicializado');
     } catch (error) {
-      console.error('❌ Error inicializando FCM:', error);
+      console.error('❌ Error FCM:', error);
     }
   }
   
