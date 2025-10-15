@@ -696,3 +696,11 @@ main {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.5);
 }
+
+/* ========== ESTILOS PARA COMPLEMENTO ========== */
+.complemento-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 3px;
+}

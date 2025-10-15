@@ -142,7 +142,6 @@ function renderizarHistorial(pedidos) {
         <div class="pedido-header-compacto ${estadoClass}">
           <div class="cliente-info-compacto">
             <h3>${p.nombre} ${p.apellido}</h3>
-            <div class="telefono">📞 ${p.telefono}</div>
           </div>
           <div class="estado-compacto">${estadoTexto}</div>
         </div>
@@ -156,9 +155,8 @@ function renderizarHistorial(pedidos) {
 
           <div class="info-item">
             <h4>📍 Destino</h4>
-            <p><strong>${p.direccion}</strong></p>
-            ${p.complemento ? `<p>${p.complemento}</p>` : ''}
-            <p><em>${p.barrio}</em></p>
+            <p><strong>${p.barrio}</strong></p>
+            ${p.complemento ? `<p class="complemento-text">${p.complemento}</p>` : ''}
           </div>
         </div>
 
@@ -316,15 +314,13 @@ async function abrirDetallesPedido(pedidoId) {
         <div class="detalle-section">
           <h4>👤 Información del Cliente</h4>
           <p><strong>Nombre:</strong> ${pedido.nombre} ${pedido.apellido}</p>
-          <p><strong>Teléfono:</strong> ${pedido.telefono}</p>
           <p><strong>Estado:</strong> ${esEntregado ? 'Entregado' : 'No Entregado (Cancelado)'}</p>
         </div>
 
         <div class="detalle-section">
-          <h4>📍 Dirección Completa de Entrega</h4>
-          <p><strong>${pedido.direccion}</strong></p>
-          ${pedido.complemento ? `<p><strong>Complemento:</strong> ${pedido.complemento}</p>` : ''}
+          <h4>📍 Ubicación de Entrega</h4>
           <p><strong>Barrio:</strong> ${pedido.barrio}</p>
+          ${pedido.complemento ? `<p><strong>Complemento:</strong> ${pedido.complemento}</p>` : ''}
         </div>
 
         <div class="detalle-section">

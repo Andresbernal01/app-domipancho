@@ -295,85 +295,93 @@
     contenedor.innerHTML = htmlContent;
   }
 
-  function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, disponible) {
-    const estadoClase = ESTADOS_CLASES[p.estado?.toLowerCase()] || 'pendiente';
-    const subtotalProductos = Array.isArray(p.productos) 
-      ? p.productos.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0) 
-      : 0;
-    const costoDomicilio = obtenerCostoDomicilio(p);
-    const total = subtotalProductos + costoDomicilio;
-    const esGeografico = pedidosGeograficos.includes(p.id);
-    const mostrarDistancia = !esMiPedido && p.distancia_al_restaurante !== null && disponible;
-  
-    const badges = [];
-    if (esMiPedido) badges.push('<div class="badge-mi-pedido">🚛 Mi Pedido</div>');
-    if (p.envio_manual_domiciliario) badges.push('<div class="badge-manual">📤 Envío Manual</div>');
-    if (esGeografico && !esMiPedido && disponible) badges.push('<div class="badge-geografico">📍 Pedido Cercano</div>');
-    if (!disponible && !esMiPedido) badges.push('<div class="badge-preview">👁️ Vista Previa</div>');
-  
-    const productosHtml = Array.isArray(p.productos) 
-      ? p.productos.map(pr => `
-          <div class="producto-item">
-            <span>${pr.nombre}</span>
-            <span>${pr.cantidad} × $${pr.precio.toLocaleString('es-CO')}</span>
-          </div>
-        `).join('')
-      : '<p>No hay productos</p>';
-  
-    return `
-      <div class="pedido-card ${esMiPedido ? 'mi-pedido color-mi-pedido' : 'color-disponible'} ${!disponible && !esMiPedido ? 'pedido-preview' : ''}" data-pedido-id="${p.id}">
-        ${badges.join('')}
-        
-        <div class="pedido-header">
-          <div class="cliente-info">
-            <h3>${p.nombre} ${p.apellido}</h3>
-            <div class="telefono">📞 ${p.telefono}</div>
-          </div>
-          <div class="estado ${estadoClase}">${p.estado}</div>
+  // ========== UTILIDADES DE PROTECCIÓN DE DATOS ==========
+function ocultarTelefono(telefono) {
+  if (!telefono) return 'N/A';
+  const tel = telefono.toString();
+  if (tel.length < 7) return tel;
+  // Muestra los primeros 3 dígitos: 310*********
+  return tel.substring(0, 3) + '*'.repeat(9);
+}
+
+function ocultarDireccion(direccion) {
+  // Solo muestra un mensaje genérico
+  return 'Toma el pedido para ver';
+}
+
+function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, disponible) {
+  const estadoClase = ESTADOS_CLASES[p.estado?.toLowerCase()] || 'pendiente';
+  const subtotalProductos = Array.isArray(p.productos) 
+    ? p.productos.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0) 
+    : 0;
+  const costoDomicilio = obtenerCostoDomicilio(p);
+  const total = subtotalProductos + costoDomicilio;
+  const esGeografico = pedidosGeograficos.includes(p.id);
+  const mostrarDistancia = !esMiPedido && p.distancia_al_restaurante !== null && disponible;
+
+  // ✅ PROTECCIÓN: Ocultar datos si no es mi pedido
+  const telefonoMostrar = esMiPedido ? p.telefono : ocultarTelefono(p.telefono);
+  const direccionMostrar = esMiPedido ? p.direccion : ocultarDireccion(p.direccion);
+  const complementoMostrar = esMiPedido ? (p.complemento ? ' ' + p.complemento : '') : '';
+
+  const badges = [];
+  if (esMiPedido) badges.push('<div class="badge-mi-pedido">🚛 Mi Pedido</div>');
+  if (p.envio_manual_domiciliario) badges.push('<div class="badge-manual">📤 Envío Manual</div>');
+  if (esGeografico && !esMiPedido && disponible) badges.push('<div class="badge-geografico">📍 Pedido Cercano</div>');
+
+  return `
+    <div class="pedido-card ${esMiPedido ? 'mi-pedido color-mi-pedido' : 'color-disponible'} ${!disponible && !esMiPedido ? 'pedido-preview' : ''}" data-pedido-id="${p.id}">
+      ${badges.join('')}
+      
+      <div class="pedido-header">
+        <div class="cliente-info">
+          <h3>${p.nombre} ${p.apellido}</h3>
+          <div class="telefono">📞 ${telefonoMostrar}</div>
         </div>
-  
-        ${mostrarDistancia ? `<div class="distancia-info"><strong>📍 Dist restaurante: ${p.distancia_al_restaurante.toFixed(3)}km</strong></div>` : ''}
-  
-        <div class="info-grid">
-          <div class="info-section">
-            <h4>🏬 Origen</h4>
-            <p class="nombre-negocio">${p.restaurantes?.nombre || 'Restaurante'}</p>
-            <p class="direccion-small">📍 ${p.restaurantes?.direccion || 'Sin dirección'}</p>
-            <p class="telefono-small">📞 ${p.restaurantes?.telefono || 'Sin teléfono'}</p>
-          </div>
-  
-          <div class="info-section">
-            <h4>🏠 Destino</h4>
-            <p class="direccion-cliente">${p.direccion}${p.complemento ? ' ' + p.complemento : ''}</p>
-            <p class="barrio"><em>${p.barrio}</em></p>
-          </div>
+        <div class="estado ${estadoClase}">${p.estado}</div>
+      </div>
+
+      ${mostrarDistancia ? `<div class="distancia-info"><strong>📍 Dist restaurante: ${p.distancia_al_restaurante.toFixed(3)}km</strong></div>` : ''}
+
+      <div class="info-grid">
+        <div class="info-section">
+          <h4>🏬 Origen</h4>
+          <p class="nombre-negocio">${p.restaurantes?.nombre || 'Restaurante'}</p>
+          <p class="direccion-small">📍 ${p.restaurantes?.direccion || 'Sin dirección'}</p>
+          <p class="telefono-small">📞 ${p.restaurantes?.telefono || 'Sin teléfono'}</p>
         </div>
-  
-        <div class="total-section">
-          <div class="total-amount">$${total.toLocaleString('es-CO')}</div>
-          <small>(Incluye domicilio: $${costoDomicilio.toLocaleString('es-CO')})</small>
-          ${p.tipo_tarifa === 'por_km' && p.distancia_km ? `<small class="km-info">(${p.distancia_km} km)</small>` : ''}
-        </div>
-  
-        <div class="botones-pedido">
-          <button class="btn-ver-detalles" onclick="abrirDetallesPedido(${p.id})">👁️ Detalles</button>
-          ${generarBotonesAccion(p, esMiPedido, cantidadActivos, disponible)}
-        </div>
-  
-        <div class="pedido-footer">
-          <small>📅 ${new Date(p.fecha).toLocaleDateString('es-CO')} - ${new Date(p.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</small>
+
+        <div class="info-section">
+          <h4>🏠 Destino</h4>
+          <p class="direccion-cliente">${direccionMostrar}${complementoMostrar}</p>
+          <p class="barrio"><em>${p.barrio}</em></p>
         </div>
       </div>
-    `;
-  }
 
+      <div class="total-section">
+        <div class="total-amount">$${total.toLocaleString('es-CO')}</div>
+        <small>(Incluye domicilio: $${costoDomicilio.toLocaleString('es-CO')})</small>
+        ${p.tipo_tarifa === 'por_km' && p.distancia_km ? `<small class="km-info">(${p.distancia_km} km)</small>` : ''}
+      </div>
+
+      <div class="botones-pedido">
+        <button class="btn-ver-detalles" onclick="abrirDetallesPedido(${p.id}, ${esMiPedido})">👁️ Detalles</button>
+        ${generarBotonesAccion(p, esMiPedido, cantidadActivos, disponible)}
+      </div>
+
+      <div class="pedido-footer">
+        <small>📅 ${new Date(p.fecha).toLocaleDateString('es-CO')} - ${new Date(p.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</small>
+      </div>
+    </div>
+  `;
+}
   function generarBotonesAccion(pedido, esMiPedido, cantidadActivos, disponible) {
     if (pedido.estado === 'esperando repartidor') {
       if (!disponible) {
         // 🔴 NO DISPONIBLE: Botón bloqueado
         return `
           <button class="btn-tomar btn-no-disponible" disabled title="Activa 'Disponible' para tomar pedidos">
-            🔴 Activa "Disponible" primero
+            🔴 Activate
           </button>
         `;
       } else {
@@ -400,24 +408,20 @@
       const distanciaReportada = data.distancia;
       const esConexionInicial = data.conexion_inicial || false;
       
-      // ✅ CORRECCIÓN: Usar 'listaPedidos'
       const contenedor = document.getElementById('listaPedidos');
       if (!contenedor) {
         console.error('❌ Elemento listaPedidos no encontrado');
         return;
       }
   
-      // ✅ Verificar si ya existe
       if (contenedor.querySelector(`[data-pedido-id="${pedido.id}"]`)) {
         console.log(`Pedido ${pedido.id} ya existe`);
         return;
       }
-
-      // ✅ BUSCAR EL GRID CORRECTO (puede haber múltiples grids)
+  
       let grids = contenedor.querySelectorAll('.pedidos-grid');
       let gridDisponibles = grids.length > 1 ? grids[1] : grids[0];
       
-      // Si no hay grids, crear estructura
       if (contenedor.querySelector('.no-pedidos')) {
         contenedor.innerHTML = '<div class="pedidos-grid"></div>';
         gridDisponibles = contenedor.querySelector('.pedidos-grid');
@@ -432,16 +436,20 @@
         contenedor.innerHTML = htmlInicio + '<div class="pedidos-grid"></div>';
         gridDisponibles = contenedor.querySelector('.pedidos-grid');
       }
-
+  
       const subtotalProductos = Array.isArray(pedido.productos) 
         ? pedido.productos.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0) 
         : 0;
       const costoDomicilio = obtenerCostoDomicilio(pedido);
       const total = subtotalProductos + costoDomicilio;
-
+  
+      // ✅ PROTECCIÓN: Ocultar datos en pedidos geográficos
+      const telefonoOculto = ocultarTelefono(pedido.telefono);
+      const direccionOculta = ocultarDireccion(pedido.direccion);
+  
       const badgeClass = esConexionInicial ? 'badge-conexion' : 'badge-nuevo';
       const badgeTexto = esConexionInicial ? '🔔 Pedido Encontrado' : '📍 Nuevo Pedido Cercano';
-
+  
       const pedidoHtml = `
         <div class="pedido-card color-disponible nuevo-geografico ${esConexionInicial ? 'conexion-inicial' : ''}" data-pedido-id="${pedido.id}">
           <div class="${badgeClass}">${badgeTexto}</div>
@@ -449,13 +457,13 @@
           <div class="pedido-header">
             <div class="cliente-info">
               <h3>${pedido.nombre} ${pedido.apellido}</h3>
-              <div class="telefono">📞 ${pedido.telefono}</div>
+              <div class="telefono">📞 ${telefonoOculto}</div>
             </div>
             <div class="estado esperando-repartidor">esperando repartidor</div>
           </div>
-
+  
           <div class="distancia-info"><strong>📍 Dist restaurante: ${distanciaReportada.toFixed(3)}km</strong></div>
-
+  
           <div class="info-grid">
             <div class="info-section">
               <h4>🏬 Origen</h4>
@@ -464,28 +472,27 @@
             </div>
             <div class="info-section">
               <h4>🏠 Destino</h4>
-              <p class="direccion-cliente">${pedido.direccion}${pedido.complemento ? ' ' + pedido.complemento : ''}</p>
+              <p class="direccion-cliente">${direccionOculta}</p>
               <p class="barrio"><em>${pedido.barrio}</em></p>
             </div>
           </div>
-
+  
           <div class="total-section">
             <div class="total-amount">$${total.toLocaleString('es-CO')}</div>
             <small>(Incluye domicilio: $${costoDomicilio.toLocaleString('es-CO')})</small>
           </div>
-
+  
           <div class="botones-pedido">
-            <button class="btn-ver-detalles" onclick="abrirDetallesPedido(${pedido.id})">👁️ Detalles</button>
+            <button class="btn-ver-detalles" onclick="abrirDetallesPedido(${pedido.id}, false)">👁️ Detalles</button>
             <button class="btn-tomar btn-destacado" onclick="tomarPedido(${pedido.id})">📦 Tomar</button>
           </div>
-
+  
           <div class="pedido-footer">
             <small>📅 ${new Date(pedido.fecha).toLocaleDateString('es-CO')} - ${new Date(pedido.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</small>
           </div>
         </div>
       `;
-
-      // ✅ INSERTAR AL FINAL DEL GRID DE DISPONIBLES
+  
       gridDisponibles.insertAdjacentHTML('beforeend', pedidoHtml);
       
       const nuevaTarjeta = gridDisponibles.querySelector(`[data-pedido-id="${pedido.id}"]`);
@@ -870,7 +877,7 @@ const pedidosActivos = pedidosActivosData.pedidos || [];
     }
   }
 
-  async function abrirDetallesPedido(pedidoId) {
+  async function abrirDetallesPedido(pedidoId, esMiPedido = false) {
     try {
       const response = await window.apiRequest('/api/pedidos-domiciliario');
       const pedidos = await response.json();
@@ -880,7 +887,17 @@ const pedidosActivos = pedidosActivosData.pedidos || [];
         mostrarMensaje('No se pudo encontrar el pedido', 'error');
         return;
       }
-
+  
+      // ✅ VERIFICAR si es mi pedido activo
+      const usuario = await cargarUsuario();
+      const esPedidoActivo = pedido.domiciliario_id === usuario?.id && pedido.estado?.toLowerCase() === 'camino a tu casa';
+  
+      // ✅ PROTECCIÓN: Ocultar datos si no es mi pedido
+      const telefonoMostrar = esPedidoActivo ? pedido.telefono : ocultarTelefono(pedido.telefono);
+      const direccionMostrar = esPedidoActivo ? pedido.direccion : 'Toma el pedido para ver la dirección completa';
+      const complementoMostrar = esPedidoActivo && pedido.complemento ? `<p><strong>Complemento:</strong> ${pedido.complemento}</p>` : '';
+      const mensajeProteccion = !esPedidoActivo ? '<div class="alerta-proteccion">🔒 Toma el pedido para ver los datos completos del cliente</div>' : '';
+  
       const productosHtml = Array.isArray(pedido.productos) 
         ? pedido.productos.map(pr => {
             const subtotal = pr.precio * pr.cantidad;
@@ -894,45 +911,47 @@ const pedidosActivos = pedidosActivosData.pedidos || [];
             `;
           }).join('') 
         : '<p>No hay productos disponibles</p>';
-
+  
       const subtotalProductos = Array.isArray(pedido.productos) 
         ? pedido.productos.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0) 
         : 0;
       const costoDomicilio = obtenerCostoDomicilio(pedido);
       const total = subtotalProductos + costoDomicilio;
-
+  
       const modalHTML = `
         <div class="modal-detalles-contenido">
           <h2>📋 Detalles del Pedido #${pedido.id}</h2>
           
+          ${mensajeProteccion}
+          
           <div class="detalle-section">
             <h4>👤 Información del Cliente</h4>
             <p><strong>Nombre:</strong> ${pedido.nombre} ${pedido.apellido}</p>
-            <p><strong>Teléfono:</strong> ${pedido.telefono}</p>
+            <p><strong>Teléfono:</strong> ${telefonoMostrar}</p>
             <p><strong>Estado:</strong> ${pedido.estado}</p>
           </div>
-
+  
           <div class="detalle-section">
-            <h4>📍 Dirección Completa de Entrega</h4>
-            <p><strong>${pedido.direccion}</strong></p>
-            ${pedido.complemento ? `<p><strong>Complemento:</strong> ${pedido.complemento}</p>` : ''}
+            <h4>📍 Dirección de Entrega</h4>
+            <p><strong>${direccionMostrar}</strong></p>
+            ${complementoMostrar}
             <p><strong>Barrio:</strong> ${pedido.barrio}</p>
           </div>
-
+  
           <div class="detalle-section">
             <h4>🏬 Información del Negocio</h4>
             <p><strong>Nombre:</strong> ${pedido.restaurantes?.nombre || 'Desconocido'}</p>
             <p><strong>Dirección:</strong> ${pedido.restaurantes?.direccion || 'No disponible'}</p>
             <p><strong>Teléfono:</strong> ${pedido.restaurantes?.telefono || 'No disponible'}</p>
           </div>
-
+  
           <div class="detalle-section">
             <h4>🛒 Productos del Pedido</h4>
             <div class="productos-detalle">
               ${productosHtml}
             </div>
           </div>
-
+  
           <div class="detalle-section">
             <h4>💰 Resumen de Pago</h4>
             <p><strong>Subtotal productos:</strong> ${subtotalProductos.toLocaleString('es-CO')}</p>
@@ -941,7 +960,7 @@ const pedidosActivos = pedidosActivosData.pedidos || [];
               `<p class="info-km"><em>(Tarifa por km: ${pedido.distancia_km} km recorridos)</em></p>` : ''}
             <p class="total-destacado"><strong>Total a cobrar: ${total.toLocaleString('es-CO')}</strong></p>
           </div>
-
+  
           <div class="detalle-section">
             <h4>📅 Información del Pedido</h4>
             <p><strong>Fecha:</strong> ${new Date(pedido.fecha).toLocaleString('es-CO', {
@@ -955,22 +974,22 @@ const pedidosActivos = pedidosActivosData.pedidos || [];
             })}</p>
             <p><strong>ID del pedido:</strong> #${pedido.id}</p>
           </div>
-
+  
           <button class="btn-cerrar-modal" onclick="cerrarDetallesPedido()">❌ Cerrar Detalles</button>
         </div>
       `;
-
+  
       const modal = document.createElement('div');
       modal.id = 'modalDetalles';
       modal.className = 'modal-overlay';
       modal.innerHTML = modalHTML;
       
       document.body.appendChild(modal);
-
+  
       modal.addEventListener('click', (e) => {
         if (e.target === modal) cerrarDetallesPedido();
       });
-
+  
     } catch (err) {
       console.error('Error al cargar detalles:', err);
       mostrarMensaje('Error al cargar los detalles del pedido', 'error');
