@@ -295,17 +295,35 @@ input:checked + .slider:before {
   }
 
   function logout() {
-    if (confirm('¿Cerrar sesión?')) {
-      fetch('/api/logout', { method: 'POST' })
-        .then(() => {
-          window.location.href = '/index.html';
-        })
-        .catch(err => {
-          console.error('Error en logout:', err);
-          window.location.href = '/index.html';
-        });
-    }
+  if (confirm('¿Cerrar sesión?')) {
+    // ✅ MARCAR COMO NO DISPONIBLE ANTES DE CERRAR SESIÓN
+    console.log('🔴 Marcando como NO DISPONIBLE antes de logout...');
+    
+    Promise.all([
+      // Marcar no disponible
+      window.apiRequest('/api/domiciliario/cambiar-disponibilidad', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ disponible: false })
+      }),
+      // Detener tracking
+      window.unifiedGeoService ? window.unifiedGeoService.stopTracking() : Promise.resolve()
+    ]).then(() => {
+      console.log('✅ Marcado como no disponible');
+      
+      // Limpiar sesión local
+      window.limpiarSesion();
+      
+      // Cerrar sesión en servidor
+      return fetch('/api/logout', { method: 'POST' });
+    }).then(() => {
+      window.location.href = '/index.html';
+    }).catch(err => {
+      console.error('Error en logout:', err);
+      window.location.href = '/index.html';
+    });
   }
+}
 
   function handleKeyPress(event, callback) {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -438,14 +456,14 @@ switchDisponibilidad.addEventListener('change', async (e) => {
         
         console.log('✅ MARCADO COMO DISPONIBLE - Iniciando tracking...');
         
-        // ✅ PASO 3: INICIAR TRACKING (esto enviará ubicación inmediatamente)
+        // ✅ PASO 3: INICIAR TRACKING
         if (window.unifiedGeoService) {
           try {
             await window.unifiedGeoService.initialize();
             await window.unifiedGeoService.startTracking();
-            console.log('✅ Tracking iniciado - Ubicación enviada');
+            console.log('✅ Tracking iniciado');
             
-            // ✅ PASO 4: Esperar 2 segundos y recargar pedidos
+            // ✅ PASO 4: Esperar y recargar pedidos
             setTimeout(async () => {
               console.log('🔄 Actualizando lista de pedidos...');
               await actualizarContadores();

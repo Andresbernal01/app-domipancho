@@ -9,6 +9,50 @@ window.APP_CONFIG = {
   IS_MOBILE_APP: true
 };
 
+// config.js - AGREGAR al inicio después de APP_CONFIG
+const SESSION_KEY = 'domipancho_session';
+
+// Función para guardar sesión localmente
+window.guardarSesion = function(usuario) {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      usuario: usuario,
+      timestamp: Date.now()
+    }));
+    console.log('✅ Sesión guardada localmente');
+  } catch (error) {
+    console.error('❌ Error guardando sesión:', error);
+  }
+};
+
+// Función para recuperar sesión
+window.recuperarSesion = function() {
+  try {
+    const sesionGuardada = localStorage.getItem(SESSION_KEY);
+    if (!sesionGuardada) return null;
+    
+    const { usuario, timestamp } = JSON.parse(sesionGuardada);
+    
+    // Verificar que no sea muy antigua (7 días)
+    const DURACION_SESION = 7 * 24 * 60 * 60 * 1000;
+    if (Date.now() - timestamp > DURACION_SESION) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    
+    return usuario;
+  } catch (error) {
+    console.error('❌ Error recuperando sesión:', error);
+    return null;
+  }
+};
+
+// Función para limpiar sesión
+window.limpiarSesion = function() {
+  localStorage.removeItem(SESSION_KEY);
+  console.log('🗑️ Sesión limpiada');
+};
+
 console.log('🔧 APP_CONFIG definido:', window.APP_CONFIG);
 
 // Detectar si estamos en Capacitor

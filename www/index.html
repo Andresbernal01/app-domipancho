@@ -37,7 +37,49 @@
 
   <script>
     // ✅ Cargar credenciales guardadas al iniciar
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 1. Intentar auto-login si hay sesión guardada
+      const sesionGuardada = window.recuperarSesion();
+      
+      if (sesionGuardada) {
+        console.log('🔄 Sesión encontrada, intentando auto-login...');
+        
+        // Mostrar mensaje de carga
+        const loginBtn = document.getElementById('loginBtn');
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Restaurando sesión...';
+        
+        try {
+          // Verificar que la sesión sigue válida en el servidor
+          const response = await window.apiRequest('/api/usuario-actual');
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Sesión válida, redirigiendo...');
+            
+            // Redirigir según tipo de usuario
+            if (data.tipo === 'domiciliario') {
+              window.location.href = 'inicio_domi.html';
+            } else if (data.tipo === 'restaurante') {
+              window.location.href = 'inicio.html';
+            } else if (data.tipo === 'admin') {
+              window.location.href = 'inicio_admin.html';
+            }
+            return; // No continuar con el resto del código
+          } else {
+            console.log('⚠️ Sesión expirada en servidor');
+            window.limpiarSesion();
+          }
+        } catch (error) {
+          console.error('❌ Error verificando sesión:', error);
+          window.limpiarSesion();
+        }
+        
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Ingresar';
+      }
+      
+      // 2. Cargar credenciales guardadas si el usuario las tiene
       const usuarioGuardado = localStorage.getItem('usuario_guardado');
       const contraseñaGuardada = localStorage.getItem('contraseña_guardada');
       const recordar = localStorage.getItem('recordar_credenciales') === 'true';
@@ -48,7 +90,7 @@
         document.getElementById('recordarCredenciales').checked = true;
       }
     });
-
+  
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       
@@ -86,12 +128,32 @@
             localStorage.setItem('recordar_credenciales', 'false');
           }
           
-          if (data.token) {
-            localStorage.setItem('auth-token', data.token);
-          }
+          // ✅ Guardar sesión persistente
+          window.guardarSesion({
+            tipo: data.tipo,
+            id: data.id,
+            usuario: usuario,
+            restaurante: data.restaurante
+          });
           
           successMessage.textContent = `¡Bienvenido ${data.restaurante}!`;
           successMessage.style.display = 'block';
+          
+          // ✅ Si es domiciliario, marcarlo como DISPONIBLE por defecto
+          if (data.tipo === 'domiciliario') {
+            console.log('👤 Domiciliario, marcando como DISPONIBLE al iniciar sesión...');
+            
+            try {
+              await window.apiRequest('/api/domiciliario/cambiar-disponibilidad', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ disponible: true })
+              });
+              console.log('✅ Marcado como disponible');
+            } catch (error) {
+              console.error('⚠️ Error marcando disponibilidad:', error);
+            }
+          }
           
           setTimeout(() => {
             window.location.href = data.redirect;
