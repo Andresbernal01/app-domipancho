@@ -150,6 +150,37 @@
   <script src="js/fcm-notifications.js"></script>
 
   <script>
+
+async function validarAntesDeSalir() {
+  try {
+    const response = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
+    if (response.ok) {
+      const pedidos = await response.json();
+      const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
+      
+      if (pedidosActivos.length > 0) {
+        alert(`⚠️ Tienes ${pedidosActivos.length} pedido(s) activo(s).\n\nRecuerda que mientras tengas pedidos activos, debes mantener la app abierta para que se rastree tu ubicación.`);
+      }
+    }
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+// Al cargar la página
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('🎯 Inicializando domiciliarios.html...');
+  
+  // ... código existente ...
+});
+
+// ✅ VALIDAR AL HACER CLIC EN VOLVER
+document.querySelector('.btn-volver')?.addEventListener('click', async (e) => {
+  e.preventDefault();
+  await validarAntesDeSalir();
+  window.location.href = 'inicio_domi.html';
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🎯 Inicializando domiciliarios.html...');
   

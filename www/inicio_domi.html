@@ -52,6 +52,25 @@
   </p>
 </div>
 
+<!-- En inicio_domi.html, después del .disponibilidad-control -->
+<div id="alertaPedidosActivos" class="alerta-pedidos-activos" style="display: none;">
+  ⚠️ <strong>Pedidos en curso:</strong> No puedes cambiar a "No disponible" ni cerrar sesión
+</div>
+
+<style>
+.alerta-pedidos-activos {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  padding: 12px 20px;
+  margin: 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+  animation: pulse-warning 2s ease-in-out infinite;
+}
+</style>
+
 <style>
 /* ✅ ESTILOS PARA DISPONIBILIDAD */
 .disponibilidad-control {
@@ -273,6 +292,33 @@ input:checked + .slider:before {
   <script src="js/unified-geolocation.js"></script>
   
   <script>
+
+
+// ✅ MOSTRAR/OCULTAR ALERTA DE PEDIDOS ACTIVOS
+async function actualizarAlertaPedidosActivos() {
+  try {
+    const response = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
+    if (response.ok) {
+      const pedidos = await response.json();
+      const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
+      
+      const alerta = document.getElementById('alertaPedidosActivos');
+      if (pedidosActivos.length > 0) {
+        alerta.style.display = 'block';
+      } else {
+        alerta.style.display = 'none';
+      }
+    }
+  } catch (error) {
+    console.error('Error:', error);
+  }
+}
+
+// Llamar al actualizar contadores
+async function actualizarContadores() {
+  // ... código existente ...
+  await actualizarAlertaPedidosActivos(); // ✅ AGREGAR ESTA LÍNEA
+}
   // ========== FUNCIONES DE NAVEGACIÓN ==========
   function verPedidosAsignados() {
     window.location.href = 'domiciliarios.html';
@@ -294,35 +340,53 @@ input:checked + .slider:before {
     window.location.href = 'cambiar_password.html';
   }
 
-  function logout() {
-  if (confirm('¿Cerrar sesión?')) {
-    // ✅ MARCAR COMO NO DISPONIBLE ANTES DE CERRAR SESIÓN
-    console.log('🔴 Marcando como NO DISPONIBLE antes de logout...');
-    
-    Promise.all([
-      // Marcar no disponible
-      window.apiRequest('/api/domiciliario/cambiar-disponibilidad', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ disponible: false })
-      }),
-      // Detener tracking
-      window.unifiedGeoService ? window.unifiedGeoService.stopTracking() : Promise.resolve()
-    ]).then(() => {
-      console.log('✅ Marcado como no disponible');
+  async function logout() {
+  try {
+    // ✅ VERIFICAR PEDIDOS ACTIVOS ANTES DE CERRAR SESIÓN
+    const response = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
+    if (response.ok) {
+      const pedidos = await response.json();
+      const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
       
-      // Limpiar sesión local
-      window.limpiarSesion();
-      
-      // Cerrar sesión en servidor
-      return fetch('/api/logout', { method: 'POST' });
-    }).then(() => {
-      window.location.href = '/index.html';
-    }).catch(err => {
-      console.error('Error en logout:', err);
-      window.location.href = '/index.html';
-    });
+      if (pedidosActivos.length > 0) {
+        alert(`❌ No puedes cerrar sesión mientras tienes ${pedidosActivos.length} pedido(s) activo(s).\n\nPrimero debes completar o liberar todos tus pedidos antes de cerrar sesión.`);
+        return;
+      }
+    }
+  } catch (error) {
+    console.error('Error verificando pedidos:', error);
+    alert('Error al verificar pedidos activos. Intenta nuevamente.');
+    return;
   }
+  
+  // ✅ SI NO HAY PEDIDOS ACTIVOS, PROCEDER CON LOGOUT
+  if (!confirm('¿Cerrar sesión?')) return;
+  
+  console.log('🔴 Marcando como NO DISPONIBLE antes de logout...');
+  
+  Promise.all([
+    // Marcar no disponible
+    window.apiRequest('/api/domiciliario/cambiar-disponibilidad', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ disponible: false })
+    }),
+    // Detener tracking
+    window.unifiedGeoService ? window.unifiedGeoService.stopTracking() : Promise.resolve()
+  ]).then(() => {
+    console.log('✅ Marcado como no disponible');
+    
+    // Limpiar sesión local
+    window.limpiarSesion();
+    
+    // Cerrar sesión en servidor
+    return fetch('/api/logout', { method: 'POST' });
+  }).then(() => {
+    window.location.href = '/index.html';
+  }).catch(err => {
+    console.error('Error en logout:', err);
+    window.location.href = '/index.html';
+  });
 }
 
   function handleKeyPress(event, callback) {
@@ -438,6 +502,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 switchDisponibilidad.addEventListener('change', async (e) => {
   const disponible = e.target.checked;
   
+  // ✅ VALIDAR SI TIENE PEDIDOS ACTIVOS ANTES DE DESACTIVAR
+  if (!disponible) {
+    try {
+      const response = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
+      if (response.ok) {
+        const pedidos = await response.json();
+        const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
+        
+        if (pedidosActivos.length > 0) {
+          e.preventDefault();
+          e.target.checked = true; // Revertir el switch
+          
+          alert(`❌ No puedes marcar como "No disponible" mientras tienes ${pedidosActivos.length} pedido(s) activo(s).\n\nPrimero debes completar o liberar todos tus pedidos activos.`);
+          return;
+        }
+      }
+    } catch (error) {
+      console.error('Error verificando pedidos:', error);
+      e.target.checked = true;
+      alert('Error al verificar pedidos activos. Intenta nuevamente.');
+      return;
+    }
+  }
+  
   try {
     console.log(`🔄 Cambiando disponibilidad a: ${disponible}`);
     
@@ -479,7 +567,7 @@ switchDisponibilidad.addEventListener('change', async (e) => {
         }
         
       } else {
-        // ❌ NO DISPONIBLE
+        // ⏸️ NO DISPONIBLE
         disponibilidadControl.classList.add('no-disponible');
         document.querySelector('.switch-label').textContent = '🔴 No disponible';
         

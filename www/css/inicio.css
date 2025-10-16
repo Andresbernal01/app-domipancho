@@ -406,3 +406,13 @@ main {
     min-height: 100dvh;
   }
 }
+
+/* ✅ Switch deshabilitado cuando hay pedidos activos */
+.switch input:disabled + .slider {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.switch input:disabled + .slider:before {
+  background-color: #cbd5e0;
+}
