@@ -157,24 +157,70 @@ class UnifiedGeolocationService {
       console.log('⚠️ Ya hay tracking activo');
       return;
     }
-
+  
     if (this.permissionStatus !== 'granted') {
       console.warn('❌ No hay permisos para tracking');
       return;
     }
-
+  
+    console.log('🚀 Iniciando tracking...');
+  
+    // ✅ PASO 1: OBTENER UBICACIÓN INMEDIATAMENTE
+    try {
+      console.log('📍 Obteniendo ubicación inicial...');
+      
+      if (this.isNative && window.Capacitor?.Plugins?.BackgroundGeolocation) {
+        const { BackgroundGeolocation } = window.Capacitor.Plugins;
+        const location = await BackgroundGeolocation.getCurrentPosition({
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0
+        });
+        
+        this.lastPosition = {
+          latitude: location.latitude,
+          longitude: location.longitude
+        };
+        
+        console.log('✅ Ubicación nativa obtenida:', this.lastPosition);
+      } else {
+        const position = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            resolve,
+            reject,
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+          );
+        });
+        
+        this.lastPosition = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        };
+        
+        console.log('✅ Ubicación web obtenida:', this.lastPosition);
+      }
+  
+      // ✅ PASO 2: ENVIAR AL SERVIDOR INMEDIATAMENTE
+      console.log('📤 Enviando ubicación inicial al servidor...');
+      await this.updateServer(this.lastPosition);
+      console.log('✅ Ubicación inicial enviada - Sistema buscará pedidos cercanos');
+  
+    } catch (error) {
+      console.error('❌ Error obteniendo ubicación inicial:', error);
+      // Continuar de todos modos, el tracking periódico lo intentará
+    }
+  
+    // ✅ PASO 3: MARCAR COMO ACTIVO
     this.isTracking = true;
-    
-    // ✅ GUARDAR ESTADO DE TRACKING
     localStorage.setItem('tracking_activo', 'true');
-
-    // ✅ INICIAR SERVICIO FOREGROUND NATIVO
+  
+    // ✅ PASO 4: INICIAR SERVICIO FOREGROUND NATIVO
     if (this.isNative) {
       await this.startNativeService();
     } else {
       await this.startWebTracking();
     }
-
+  
     console.log('✅ Tracking iniciado correctamente');
   }
 

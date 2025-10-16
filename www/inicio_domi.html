@@ -415,52 +415,76 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   
   // ✅ 3. CONFIGURAR LISTENER DEL SWITCH
-  switchDisponibilidad.addEventListener('change', async (e) => {
-    const disponible = e.target.checked;
+// inicio_domi.html - LISTENER DEL SWITCH DE DISPONIBILIDAD MEJORADO
+
+switchDisponibilidad.addEventListener('change', async (e) => {
+  const disponible = e.target.checked;
+  
+  try {
+    console.log(`🔄 Cambiando disponibilidad a: ${disponible}`);
     
-    try {
-      // Actualizar estado en servidor
-      const response = await window.apiRequest('/api/domiciliario/cambiar-disponibilidad', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ disponible: disponible })
-      });
-      
-      if (response.ok) {
-        // Actualizar UI
-        if (disponible) {
-          disponibilidadControl.classList.remove('no-disponible');
-          document.querySelector('.switch-label').textContent = '🟢 Disponible para pedidos';
-          
-          // ✅ INICIAR TRACKING
-          if (window.unifiedGeoService) {
+    // ✅ PASO 1: Actualizar estado en servidor
+    const response = await window.apiRequest('/api/domiciliario/cambiar-disponibilidad', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ disponible: disponible })
+    });
+    
+    if (response.ok) {
+      // ✅ PASO 2: Actualizar UI
+      if (disponible) {
+        disponibilidadControl.classList.remove('no-disponible');
+        document.querySelector('.switch-label').textContent = '🟢 Disponible para pedidos';
+        
+        console.log('✅ MARCADO COMO DISPONIBLE - Iniciando tracking...');
+        
+        // ✅ PASO 3: INICIAR TRACKING (esto enviará ubicación inmediatamente)
+        if (window.unifiedGeoService) {
+          try {
             await window.unifiedGeoService.initialize();
             await window.unifiedGeoService.startTracking();
+            console.log('✅ Tracking iniciado - Ubicación enviada');
+            
+            // ✅ PASO 4: Esperar 2 segundos y recargar pedidos
+            setTimeout(async () => {
+              console.log('🔄 Actualizando lista de pedidos...');
+              await actualizarContadores();
+            }, 2000);
+            
+          } catch (error) {
+            console.error('❌ Error iniciando tracking:', error);
+            // Revertir switch si falla
+            e.target.checked = false;
+            disponibilidadControl.classList.add('no-disponible');
+            alert('Error al iniciar el servicio de ubicación');
           }
-          
-          console.log('✅ DISPONIBLE - Tracking iniciado');
-        } else {
-          disponibilidadControl.classList.add('no-disponible');
-          document.querySelector('.switch-label').textContent = '🔴 No disponible';
-          
-          // ❌ DETENER TRACKING
-          if (window.unifiedGeoService) {
-            await window.unifiedGeoService.stopTracking();
-          }
-          
-          console.log('⏸️ NO DISPONIBLE - Tracking detenido');
         }
+        
       } else {
-        // Revertir cambio si falla
-        e.target.checked = !disponible;
-        alert('Error al cambiar disponibilidad');
+        // ❌ NO DISPONIBLE
+        disponibilidadControl.classList.add('no-disponible');
+        document.querySelector('.switch-label').textContent = '🔴 No disponible';
+        
+        console.log('⏸️ MARCADO COMO NO DISPONIBLE - Deteniendo tracking...');
+        
+        // ✅ DETENER TRACKING
+        if (window.unifiedGeoService) {
+          await window.unifiedGeoService.stopTracking();
+        }
+        
+        console.log('⏸️ Tracking detenido');
       }
-    } catch (error) {
-      console.error('❌ Error:', error);
+    } else {
+      // Revertir cambio si falla
       e.target.checked = !disponible;
-      alert('Error de conexión');
+      alert('Error al cambiar disponibilidad');
     }
-  });
+  } catch (error) {
+    console.error('❌ Error:', error);
+    e.target.checked = !disponible;
+    alert('Error de conexión');
+  }
+});
   
   // ✅ 4. INICIALIZAR FCM (siempre activo)
   if (window.fcmNotificationService) {
