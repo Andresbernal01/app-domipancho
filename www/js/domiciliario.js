@@ -72,6 +72,36 @@
     }, 4000);
   }
 
+  // ✅ NUEVA FUNCIÓN: Calcular totales con información de cupón
+  function calcularTotalesPedido(pedido) {
+    const productosArray = Array.isArray(pedido.productos) ? pedido.productos : [];
+    const subtotalProductos = productosArray.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0);
+    const costoDomicilio = obtenerCostoDomicilio(pedido);
+    
+    // Si el pedido tiene información de cupón en la base de datos
+    if (pedido.descuento_cupon && pedido.total_con_descuento) {
+      return {
+        subtotalProductos,
+        costoDomicilio,
+        descuentoCupon: pedido.descuento_cupon,
+        totalSinDescuento: pedido.total_sin_descuento || (subtotalProductos + costoDomicilio),
+        totalConDescuento: pedido.total_con_descuento,
+        tieneCupon: true
+      };
+    }
+    
+    // Si no hay cupón
+    const total = subtotalProductos + costoDomicilio;
+    return {
+      subtotalProductos,
+      costoDomicilio,
+      descuentoCupon: 0,
+      totalSinDescuento: total,
+      totalConDescuento: total,
+      tieneCupon: false
+    };
+  }
+
   // ========== AUTENTICACIÓN ==========
   async function logout() {
     try {
@@ -311,11 +341,7 @@ function ocultarDireccion(direccion) {
 
 function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, disponible) {
   const estadoClase = ESTADOS_CLASES[p.estado?.toLowerCase()] || 'pendiente';
-  const subtotalProductos = Array.isArray(p.productos) 
-    ? p.productos.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0) 
-    : 0;
-  const costoDomicilio = obtenerCostoDomicilio(p);
-  const total = subtotalProductos + costoDomicilio;
+  const totales = calcularTotalesPedido(p);
   const esGeografico = pedidosGeograficos.includes(p.id);
   const mostrarDistancia = !esMiPedido && p.distancia_al_restaurante !== null && disponible;
 
@@ -359,10 +385,20 @@ function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, d
       </div>
 
       <div class="total-section">
-        <div class="total-amount">$${total.toLocaleString('es-CO')}</div>
-        <small>(Incluye domicilio: $${costoDomicilio.toLocaleString('es-CO')})</small>
-        ${p.tipo_tarifa === 'por_km' && p.distancia_km ? `<small class="km-info">(${p.distancia_km} km)</small>` : ''}
+      ${totales.tieneCupon ? `
+        <div class="total-original" style="text-decoration: line-through; color: #9ca3af; font-size: 0.9em;">
+          $${totales.totalSinDescuento.toLocaleString('es-CO')}
+        </div>
+        <div class="descuento-badge" style="background: #dcfce7; color: #16a34a; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; margin: 4px 0;">
+          🎟️ -$${totales.descuentoCupon.toLocaleString('es-CO')}
+        </div>
+      ` : ''}
+      <div class="total-amount" style="${totales.tieneCupon ? 'color: #16a34a;' : ''}">
+        $${totales.totalConDescuento.toLocaleString('es-CO')}
       </div>
+      <small>(Incluye domicilio: $${totales.costoDomicilio.toLocaleString('es-CO')})</small>
+      ${p.tipo_tarifa === 'por_km' && p.distancia_km ? `<small class="km-info">(${p.distancia_km} km)</small>` : ''}
+    </div>
 
       <div class="botones-pedido">
         <button class="btn-ver-detalles" onclick="abrirDetallesPedido(${p.id}, ${esMiPedido})">👁️ Detalles</button>
@@ -437,11 +473,8 @@ function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, d
         gridDisponibles = contenedor.querySelector('.pedidos-grid');
       }
   
-      const subtotalProductos = Array.isArray(pedido.productos) 
-        ? pedido.productos.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0) 
-        : 0;
-      const costoDomicilio = obtenerCostoDomicilio(pedido);
-      const total = subtotalProductos + costoDomicilio;
+// ✅ USAR LA FUNCIÓN PARA CALCULAR TOTALES CON CUPÓN
+const totales = calcularTotalesPedido(pedido);
   
       // ✅ PROTECCIÓN: Ocultar datos en pedidos geográficos
       const telefonoOculto = ocultarTelefono(pedido.telefono);
@@ -478,8 +511,8 @@ function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, d
           </div>
   
           <div class="total-section">
-            <div class="total-amount">$${total.toLocaleString('es-CO')}</div>
-            <small>(Incluye domicilio: $${costoDomicilio.toLocaleString('es-CO')})</small>
+            <div class="total-amount">$${totales.totalConDescuento.toLocaleString('es-CO')}</div>
+            <small>(Incluye domicilio: $${totales.costoDomicilio.toLocaleString('es-CO')})</small>
           </div>
   
           <div class="botones-pedido">
@@ -879,7 +912,7 @@ const pedidosActivos = pedidosActivosData.pedidos || [];
 
   async function abrirDetallesPedido(pedidoId, esMiPedido = false) {
     try {
-      const response = await window.apiRequest('/api/pedidos-domiciliario');
+      const response = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
       const pedidos = await response.json();
       const pedido = pedidos.find(p => p.id === pedidoId);
       
@@ -912,11 +945,8 @@ const pedidosActivos = pedidosActivosData.pedidos || [];
           }).join('') 
         : '<p>No hay productos disponibles</p>';
   
-      const subtotalProductos = Array.isArray(pedido.productos) 
-        ? pedido.productos.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0) 
-        : 0;
-      const costoDomicilio = obtenerCostoDomicilio(pedido);
-      const total = subtotalProductos + costoDomicilio;
+// ✅ USAR LA FUNCIÓN PARA CALCULAR TOTALES CON CUPÓN
+const totales = calcularTotalesPedido(pedido);
   
       const modalHTML = `
         <div class="modal-detalles-contenido">
@@ -953,13 +983,17 @@ const pedidosActivos = pedidosActivosData.pedidos || [];
           </div>
   
           <div class="detalle-section">
-            <h4>💰 Resumen de Pago</h4>
-            <p><strong>Subtotal productos:</strong> ${subtotalProductos.toLocaleString('es-CO')}</p>
-            <p><strong>Domicilio:</strong> ${costoDomicilio.toLocaleString('es-CO')}</p>
-            ${pedido.tipo_tarifa === 'por_km' && pedido.distancia_km ? 
-              `<p class="info-km"><em>(Tarifa por km: ${pedido.distancia_km} km recorridos)</em></p>` : ''}
-            <p class="total-destacado"><strong>Total a cobrar: ${total.toLocaleString('es-CO')}</strong></p>
-          </div>
+          <h4>💰 Resumen de Pago</h4>
+          <p><strong>Subtotal productos:</strong> $${totales.subtotalProductos.toLocaleString('es-CO')}</p>
+          <p><strong>Domicilio:</strong> $${totales.costoDomicilio.toLocaleString('es-CO')}</p>
+          ${pedido.tipo_tarifa === 'por_km' && pedido.distancia_km ? 
+            `<p class="info-km"><em>(Tarifa por km: ${pedido.distancia_km} km recorridos)</em></p>` : ''}
+          ${totales.tieneCupon ? `
+            <p style="color: #6b7280; margin-top: 8px;"><strong>Subtotal:</strong> <span style="text-decoration: line-through;">$${totales.totalSinDescuento.toLocaleString('es-CO')}</span></p>
+            <p style="color: #10b981; font-size: 1.05em; margin: 8px 0;"><strong>🎟️ Descuento cupón:</strong> -$${totales.descuentoCupon.toLocaleString('es-CO')}</p>
+          ` : ''}
+          <p class="total-destacado" style="${totales.tieneCupon ? 'color: #10b981;' : ''}"><strong>Total a cobrar: $${totales.totalConDescuento.toLocaleString('es-CO')}</strong></p>
+        </div>
   
           <div class="detalle-section">
             <h4>📅 Información del Pedido</h4>

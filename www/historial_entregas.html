@@ -129,10 +129,7 @@ function renderizarHistorial(pedidos) {
   }
 
   const html = pedidos.map(p => {
-    const subtotalProductos = Array.isArray(p.productos) ? 
-      p.productos.reduce((sum, pr) => sum + pr.precio * pr.cantidad, 0) : 0;
-    const costoDomicilio = obtenerCostoDomicilio(p);
-    const total = subtotalProductos + costoDomicilio;
+    const totales = calcularTotalesPedido(p);
     const esEntregado = p.estado === 'entregado';
     const estadoClass = esEntregado ? 'entregado' : 'cancelado';
     const estadoTexto = esEntregado ? 'Entregado' : 'No Entregado';
@@ -162,7 +159,19 @@ function renderizarHistorial(pedidos) {
 
         <div class="pago-info">
           <div class="total-compacto">
-            💰 $${total.toLocaleString('es-CO')}
+            ${totales.tieneCupon ? `
+              <div style="text-decoration: line-through; color: #9ca3af; font-size: 0.85em;">
+                $${totales.totalSinDescuento.toLocaleString('es-CO')}
+              </div>
+              <div style="color: #10b981; font-size: 0.9em; margin: 2px 0;">
+                🎟️ -$${totales.descuentoCupon.toLocaleString('es-CO')}
+              </div>
+              <div style="color: #10b981; font-weight: bold;">
+                💰 $${totales.totalConDescuento.toLocaleString('es-CO')}
+              </div>
+            ` : `
+              💰 $${totales.totalConDescuento.toLocaleString('es-CO')}
+            `}
           </div>
           <div class="metodo-pago">
             💳 <strong>${p.metodo_pago ? p.metodo_pago.toUpperCase() : 'NO REGISTRADO'}</strong>
@@ -249,10 +258,8 @@ function mostrarResumen(pedidos) {
   const cancelados = pedidos.filter(p => p.estado === 'cancelado');
 
   const totalCobrado = entregados.reduce((sum, p) => {
-    const subtotal = Array.isArray(p.productos) ? 
-      p.productos.reduce((s, pr) => s + pr.precio * pr.cantidad, 0) : 0;
-    const costoDomicilio = obtenerCostoDomicilio(p);
-    return sum + subtotal + costoDomicilio;
+    const totales = calcularTotalesPedido(p);
+    return sum + totales.totalConDescuento;
   }, 0);
 
   const totalProductos = entregados.reduce((sum, p) => {
@@ -301,10 +308,7 @@ async function abrirDetallesPedido(pedidoId) {
         `;
       }).join('') : '<p>No hay productos disponibles</p>';
 
-    const subtotalProductos = Array.isArray(pedido.productos) ? 
-      pedido.productos.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0) : 0;
-    const costoDomicilio = obtenerCostoDomicilio(pedido);
-    const total = subtotalProductos + costoDomicilio;
+      const totales = calcularTotalesPedido(pedido);
     const esEntregado = pedido.estado === 'entregado';
 
     const modalHTML = `
@@ -339,12 +343,16 @@ async function abrirDetallesPedido(pedidoId) {
 
         <div class="detalle-section">
           <h4>💰 Resumen de Pago</h4>
-          <p><strong>Subtotal productos:</strong> $${subtotalProductos.toLocaleString('es-CO')}</p>
-          <p><strong>Domicilio:</strong> $${costoDomicilio.toLocaleString('es-CO')}</p>
+          <p><strong>Subtotal productos:</strong> $${totales.subtotalProductos.toLocaleString('es-CO')}</p>
+          <p><strong>Domicilio:</strong> $${totales.costoDomicilio.toLocaleString('es-CO')}</p>
           ${pedido.tipo_tarifa === 'por_km' && pedido.distancia_km ? 
             `<p class="tarifa-km"><em>(Tarifa por km: ${pedido.distancia_km} km)</em></p>` : 
             ''}
-          <p class="total-final"><strong>Total cobrado: $${total.toLocaleString('es-CO')}</strong></p>
+          ${totales.tieneCupon ? `
+            <p style="color: #6b7280; margin-top: 8px;"><strong>Subtotal:</strong> <span style="text-decoration: line-through;">$${totales.totalSinDescuento.toLocaleString('es-CO')}</span></p>
+            <p style="color: #10b981; font-size: 1.05em; margin: 8px 0;"><strong>🎟️ Descuento cupón:</strong> -$${totales.descuentoCupon.toLocaleString('es-CO')}</p>
+          ` : ''}
+          <p class="total-final" style="${totales.tieneCupon ? 'color: #10b981;' : ''}"><strong>Total cobrado: $${totales.totalConDescuento.toLocaleString('es-CO')}</strong></p>
           <p><strong>Método de pago:</strong> ${pedido.metodo_pago ? pedido.metodo_pago.toUpperCase() : 'No registrado'}</p>
         </div>
 
@@ -428,6 +436,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     NotificationSystem.prototype.mostrarNotificacion.call(this, data);
   };
 });
+
+
+// ✅ NUEVA FUNCIÓN: Calcular totales con información de cupón
+function calcularTotalesPedido(pedido) {
+  const productosArray = Array.isArray(pedido.productos) ? pedido.productos : [];
+  const subtotalProductos = productosArray.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0);
+  const costoDomicilio = obtenerCostoDomicilio(pedido);
+  
+  // Si el pedido tiene información de cupón en la base de datos
+  if (pedido.descuento_cupon && pedido.total_con_descuento) {
+    return {
+      subtotalProductos,
+      costoDomicilio,
+      descuentoCupon: pedido.descuento_cupon,
+      totalSinDescuento: pedido.total_sin_descuento || (subtotalProductos + costoDomicilio),
+      totalConDescuento: pedido.total_con_descuento,
+      tieneCupon: true
+    };
+  }
+  
+  // Si no hay cupón
+  const total = subtotalProductos + costoDomicilio;
+  return {
+    subtotalProductos,
+    costoDomicilio,
+    descuentoCupon: 0,
+    totalSinDescuento: total,
+    totalConDescuento: total,
+    tieneCupon: false
+  };
+}
   </script>
 
 

@@ -169,17 +169,17 @@ class UnifiedGeolocationService {
     try {
       console.log('📍 Obteniendo ubicación inicial...');
       
-      if (this.isNative && window.Capacitor?.Plugins?.BackgroundGeolocation) {
-        const { BackgroundGeolocation } = window.Capacitor.Plugins;
-        const location = await BackgroundGeolocation.getCurrentPosition({
+      if (this.isNative && window.Capacitor?.Plugins?.Geolocation) {
+        const { Geolocation } = window.Capacitor.Plugins;
+        const location = await Geolocation.getCurrentPosition({
           enableHighAccuracy: true,
           timeout: 15000,
           maximumAge: 0
         });
         
         this.lastPosition = {
-          latitude: location.latitude,
-          longitude: location.longitude
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude
         };
         
         console.log('✅ Ubicación nativa obtenida:', this.lastPosition);
