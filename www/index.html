@@ -5,52 +5,575 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Login | DomiPancho</title>
   <link rel="icon" href="img/logo.png">
-  <link rel="stylesheet" href="css/login.css"/>
   <script src="js/config.js"></script>
   <script src="js/socket-mock.js"></script>
+  <script src="js/domipancho-icons.js"></script>
+  <style>
+    /* ====================================
+       DOMIPANCHO - LOGIN PROFESIONAL
+       ==================================== */
+    
+    :root {
+      /* Colores principales - DomiPancho */
+      --primary: #e74c3c;
+      --primary-dark: #c0392b;
+      --secondary: #3498db;
+      --secondary-dark: #2980b9;
+      --success: #22c55e;
+      --success-dark: #16a34a;
+      --warning: #f39c12;
+      --danger: #ef4444;
+      
+      /* Fondos y superficies */
+      --bg-dark: #2c3e50;
+      --bg-card: #34495e;
+      --bg-glass: rgba(255, 255, 255, 0.95);
+      --bg-light: #f8fafc;
+      
+      /* Textos */
+      --text-primary: #2c3e50;
+      --text-secondary: #7f8c8d;
+      --text-light: #ecf0f1;
+      --text-white: #fff;
+      
+      /* Bordes y sombras */
+      --border: #ecf0f1;
+      --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+      --shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.15);
+      
+      /* Espaciado */
+      --space-xs: 0.5rem;
+      --space-sm: 0.75rem;
+      --space-md: 1rem;
+      --space-lg: 1.5rem;
+      --space-xl: 2rem;
+      
+      /* Bordes redondeados */
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 15px;
+      --radius-full: 50%;
+      
+      /* Transiciones */
+      --transition-fast: 0.2s ease;
+      --transition-base: 0.3s ease;
+      --transition-slow: 0.5s ease;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-card) 50%, var(--bg-dark) 100%);
+      background-size: 200% 200%;
+      animation: gradientShift 15s ease infinite;
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: var(--space-lg);
+    }
+
+    @keyframes gradientShift {
+      0%, 100% {
+        background-position: 0% 50%;
+      }
+      50% {
+        background-position: 100% 50%;
+      }
+    }
+
+    /* Container principal */
+    .login-container {
+      width: 100%;
+      max-width: 450px;
+      animation: fadeInUp 0.5s ease;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Card de login */
+    .login-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl);
+      box-shadow: var(--shadow-lg);
+      transition: all var(--transition-base);
+    }
+
+    .login-card:hover {
+      box-shadow: 0 12px 35px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Header del login */
+    .login-header {
+      text-align: center;
+      margin-bottom: var(--space-xl);
+    }
+
+    .logo-container {
+      width: 100px;
+      height: 100px;
+      margin: 0 auto var(--space-lg);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--shadow-md);
+      transition: all var(--transition-base);
+    }
+
+    .logo-container:hover {
+      transform: scale(1.05) rotate(2deg);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .logo {
+  width: 70px;
+  height: 70px;
+  object-fit: contain;
+  /* filter: brightness(0) invert(1); */
+}
+
+
+    .login-header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: var(--space-xs);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .login-header p {
+      color: var(--text-secondary);
+      font-size: 1rem;
+      font-weight: 500;
+    }
+
+    /* Formulario */
+    .login-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-lg);
+    }
+
+    .form-group {
+      position: relative;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: var(--space-sm);
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-icon {
+      position: absolute;
+      left: var(--space-md);
+      width: 20px;
+      height: 20px;
+      color: var(--text-secondary);
+      transition: color var(--transition-base);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: var(--space-md) var(--space-md) var(--space-md) 3rem;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-md);
+      font-size: 1rem;
+      font-family: inherit;
+      transition: all var(--transition-base);
+      background: white;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(231, 76, 60, 0.1);
+    }
+
+    .form-input:focus ~ .input-icon {
+      color: var(--primary);
+    }
+
+    /* Checkbox personalizado */
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .checkbox-group input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all var(--transition-base);
+      accent-color: var(--primary);
+    }
+
+    .checkbox-group label {
+      font-size: 0.95rem;
+      color: var(--text-primary);
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    /* Botón principal */
+    .btn-login {
+      width: 100%;
+      padding: var(--space-md);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all var(--transition-base);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-sm);
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-login::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .btn-login:hover::before {
+      left: 100%;
+    }
+
+    .btn-login:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .btn-login:active {
+      transform: translateY(0);
+    }
+
+    .btn-login:disabled {
+      background: var(--text-secondary);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-login svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Spinner de loading */
+    .spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Mensajes */
+    .message {
+      padding: var(--space-md);
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      display: none;
+      align-items: center;
+      gap: var(--space-sm);
+      animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message.show {
+      display: flex;
+    }
+
+    .message svg {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .message.error {
+      background: #fee;
+      color: var(--danger);
+      border: 2px solid var(--danger);
+    }
+
+    .message.success {
+      background: #efe;
+      color: var(--success-dark);
+      border: 2px solid var(--success);
+    }
+
+    /* Link de recuperación */
+    .forgot-link {
+      text-align: center;
+      margin-top: var(--space-lg);
+    }
+
+    .forgot-link a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      transition: all var(--transition-base);
+    }
+
+    .forgot-link a:hover {
+      color: var(--primary-dark);
+      gap: var(--space-sm);
+    }
+
+    .forgot-link svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Footer */
+    .login-footer {
+      margin-top: var(--space-xl);
+      padding-top: var(--space-lg);
+      border-top: 2px solid var(--border);
+      text-align: center;
+    }
+
+    .login-footer p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      body {
+        padding: var(--space-md);
+      }
+
+      .login-card {
+        padding: var(--space-lg);
+      }
+
+      .login-header h1 {
+        font-size: 1.75rem;
+      }
+
+      .logo-container {
+        width: 80px;
+        height: 80px;
+      }
+
+      .logo {
+        width: 55px;
+        height: 55px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .login-header h1 {
+        font-size: 1.5rem;
+      }
+
+      .login-card {
+        padding: var(--space-md);
+      }
+
+      .form-input {
+        font-size: 0.95rem;
+      }
+
+      .btn-login {
+        font-size: 1rem;
+        padding: 0.875rem var(--space-md);
+      }
+      
+      .logo-container {
+        width: 70px;
+        height: 70px;
+      }
+
+      .logo {
+        width: 48px;
+        height: 48px;
+      }
+    }
+  </style>
 </head>
 <body>
-  
   <div class="login-container">
-    <div class="login-box">
-      <img src="img/logo.png" alt="Logo DomiPancho" class="logo" />
-      <h1>DomiPancho</h1>      
-      <form id="loginForm">
-        <input type="text" id="usuario" placeholder="Usuario" required />
-        <input type="password" id="contraseña" placeholder="Contraseña" required />
-        
-        <!-- ✅ Checkbox para recordar credenciales -->
-        <label>
+    <div class="login-card">
+      <!-- Header -->
+      <div class="login-header">
+        <div class="logo-container">
+          <img src="img/logo.png" alt="Logo DomiPancho" class="logo" />
+        </div>
+        <h1>DomiPancho</h1>
+        <p>Ingresa a tu cuenta</p>
+      </div>
+
+      <!-- Formulario -->
+      <form id="loginForm" class="login-form">
+        <!-- Usuario -->
+        <div class="form-group">
+          <label for="usuario" class="form-label">Usuario</label>
+          <div class="input-wrapper">
+            <input 
+              type="text" 
+              id="usuario" 
+              class="form-input" 
+              placeholder="Ingresa tu usuario" 
+              required 
+              autocomplete="username"
+            />
+            <span class="input-icon" id="userIcon"></span>
+          </div>
+        </div>
+
+        <!-- Contraseña -->
+        <div class="form-group">
+          <label for="contraseña" class="form-label">Contraseña</label>
+          <div class="input-wrapper">
+            <input 
+              type="password" 
+              id="contraseña" 
+              class="form-input" 
+              placeholder="Ingresa tu contraseña" 
+              required 
+              autocomplete="current-password"
+            />
+            <span class="input-icon" id="lockIcon"></span>
+          </div>
+        </div>
+
+        <!-- Recordar credenciales -->
+        <div class="checkbox-group">
           <input type="checkbox" id="recordarCredenciales" checked>
-          <span>Recordar usuario y contraseña</span>
-        </label>
-        
-        <button type="submit" id="loginBtn">Ingresar</button>
-        <div id="errorMessage" class="error-message"></div>
-        <div id="successMessage" class="success-message"></div>
-        <a href="https://wa.me/573134371103?text=Hola%2C%20he%20olvidado%20mi%20usuario%20y%20contrase%C3%B1a%2C%20%C2%BFme%20puedes%20ayudar%3F" class="olvide-link" target="_blank">
-          ¿Olvidaste usuario o contraseña?
-        </a>
+          <label for="recordarCredenciales">Recordar usuario y contraseña</label>
+        </div>
+
+        <!-- Mensajes -->
+        <div id="errorMessage" class="message error"></div>
+        <div id="successMessage" class="message success"></div>
+
+        <!-- Botón -->
+        <button type="submit" id="loginBtn" class="btn-login">
+          <span id="loginBtnText">Ingresar</span>
+        </button>
       </form>
+
+      <!-- Link de recuperación -->
+      <div class="forgot-link">
+        <a 
+          href="https://wa.me/573134371103?text=Hola%2C%20he%20olvidado%20mi%20usuario%20y%20contrase%C3%B1a%2C%20%C2%BFme%20puedes%20ayudar%3F" 
+          target="_blank"
+          id="forgotLink"
+        >
+          ¿Olvidaste usuario o contraseña?
+          <span id="whatsappIcon"></span>
+        </a>
+      </div>
+
+      <!-- Footer -->
+      <div class="login-footer">
+        <p>© 2024 DomiPancho - Sistema de Gestión</p>
+      </div>
     </div>
   </div>
 
   <script>
-    // ✅ Cargar credenciales guardadas al iniciar
+    // Insertar iconos SVG
     document.addEventListener('DOMContentLoaded', async () => {
+      // Iconos
+      document.getElementById('userIcon').innerHTML = ICONS.user;
+      document.getElementById('lockIcon').innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+      `;
+      document.getElementById('whatsappIcon').innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+        </svg>
+      `;
+
       // 1. Intentar auto-login si hay sesión guardada
       const sesionGuardada = window.recuperarSesion();
       
       if (sesionGuardada) {
         console.log('🔄 Sesión encontrada, intentando auto-login...');
         
-        // Mostrar mensaje de carga
         const loginBtn = document.getElementById('loginBtn');
+        const btnText = document.getElementById('loginBtnText');
         loginBtn.disabled = true;
-        loginBtn.textContent = 'Restaurando sesión...';
+        btnText.innerHTML = '<span class="spinner"></span><span style="margin-left: 8px;">Restaurando sesión...</span>';
         
         try {
-          // Verificar que la sesión sigue válida en el servidor
           const response = await window.apiRequest('/api/usuario-actual');
           
           if (response.ok) {
@@ -65,7 +588,7 @@
             } else if (data.tipo === 'admin') {
               window.location.href = 'inicio_admin.html';
             }
-            return; // No continuar con el resto del código
+            return;
           } else {
             console.log('⚠️ Sesión expirada en servidor');
             window.limpiarSesion();
@@ -76,7 +599,7 @@
         }
         
         loginBtn.disabled = false;
-        loginBtn.textContent = 'Ingresar';
+        btnText.textContent = 'Ingresar';
       }
       
       // 2. Cargar credenciales guardadas si el usuario las tiene
@@ -91,6 +614,7 @@
       }
     });
   
+    // Manejo del formulario
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       
@@ -98,14 +622,17 @@
       const contraseña = document.getElementById('contraseña').value;
       const recordar = document.getElementById('recordarCredenciales').checked;
       const loginBtn = document.getElementById('loginBtn');
+      const btnText = document.getElementById('loginBtnText');
       const errorMessage = document.getElementById('errorMessage');
       const successMessage = document.getElementById('successMessage');
       
-      errorMessage.style.display = 'none';
-      successMessage.style.display = 'none';
+      // Limpiar mensajes
+      errorMessage.classList.remove('show');
+      successMessage.classList.remove('show');
       
+      // Deshabilitar botón
       loginBtn.disabled = true;
-      loginBtn.textContent = 'Ingresando...';
+      btnText.innerHTML = '<span class="spinner"></span><span style="margin-left: 8px;">Ingresando...</span>';
       
       try {
         const response = await window.apiRequest('/api/login', {
@@ -117,7 +644,7 @@
         const data = await response.json();
         
         if (response.ok && data.success) {
-          // ✅ Guardar o limpiar credenciales según checkbox
+          // Guardar o limpiar credenciales según checkbox
           if (recordar) {
             localStorage.setItem('usuario_guardado', usuario);
             localStorage.setItem('contraseña_guardada', contraseña);
@@ -128,7 +655,7 @@
             localStorage.setItem('recordar_credenciales', 'false');
           }
           
-          // ✅ Guardar sesión persistente
+          // Guardar sesión persistente
           window.guardarSesion({
             tipo: data.tipo,
             id: data.id,
@@ -136,15 +663,16 @@
             restaurante: data.restaurante
           });
           
-          successMessage.textContent = `¡Bienvenido ${data.restaurante}!`;
-          successMessage.style.display = 'block';
+          // Mostrar mensaje de éxito
+          successMessage.innerHTML = `${ICONS.checkCircle} <span>¡Bienvenido ${data.restaurante}!</span>`;
+          successMessage.classList.add('show');
           
-          // ✅ Si es domiciliario, marcarlo como DISPONIBLE por defecto
+          // Si es domiciliario, marcarlo como DISPONIBLE por defecto
           if (data.tipo === 'domiciliario') {
             console.log('👤 Domiciliario, marcando como DISPONIBLE al iniciar sesión...');
             
             try {
-              await window.apiRequest('/api/domiciliario/cambiar-disponibilidad', {
+              await window.apiRequest('/api/domiciliarios/domiciliario/cambiar-disponibilidad', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ disponible: true })
@@ -155,20 +683,21 @@
             }
           }
           
+          // Redirigir
           setTimeout(() => {
             window.location.href = data.redirect;
           }, 1000);
         } else {
-          errorMessage.textContent = data.error || 'Error al iniciar sesión';
-          errorMessage.style.display = 'block';
+          errorMessage.innerHTML = `${ICONS.error} <span>${data.error || 'Error al iniciar sesión'}</span>`;
+          errorMessage.classList.add('show');
         }
       } catch (error) {
         console.error('Error:', error);
-        errorMessage.textContent = 'Error de conexión. Inténtalo de nuevo.';
-        errorMessage.style.display = 'block';
+        errorMessage.innerHTML = `${ICONS.error} <span>Error de conexión. Inténtalo de nuevo.</span>`;
+        errorMessage.classList.add('show');
       } finally {
         loginBtn.disabled = false;
-        loginBtn.textContent = 'Ingresar';
+        btnText.textContent = 'Ingresar';
       }
     });
   </script>

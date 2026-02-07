@@ -297,7 +297,7 @@ input:checked + .slider:before {
 // ✅ MOSTRAR/OCULTAR ALERTA DE PEDIDOS ACTIVOS
 async function actualizarAlertaPedidosActivos() {
   try {
-    const response = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
+    const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
     if (response.ok) {
       const pedidos = await response.json();
       const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
@@ -343,7 +343,7 @@ async function actualizarContadores() {
   async function logout() {
   try {
     // ✅ VERIFICAR PEDIDOS ACTIVOS ANTES DE CERRAR SESIÓN
-    const response = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
+    const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
     if (response.ok) {
       const pedidos = await response.json();
       const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
@@ -366,7 +366,7 @@ async function actualizarContadores() {
   
   Promise.all([
     // Marcar no disponible
-    window.apiRequest('/api/domiciliario/cambiar-disponibilidad', {
+    window.apiRequest('/api/domiciliarios/domiciliario/cambiar-disponibilidad', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ disponible: false })
@@ -399,7 +399,7 @@ async function actualizarContadores() {
   // ========== ACTUALIZAR CONTADORES ==========
   async function actualizarContadores() {
     try {
-      const res = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
+      const res = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
       
       if (!res.ok) {
         console.error('Error al obtener pedidos:', res.status);
@@ -460,7 +460,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const disponibilidadControl = document.querySelector('.disponibilidad-control');
   
   try {
-    const response = await window.apiRequest('/api/domiciliario/estado-disponibilidad');
+    const response = await window.apiRequest('/api/domiciliarios/domiciliario/estado-disponibilidad');
     if (response.ok) {
       const data = await response.json();
       const disponible = data.disponible !== false;
@@ -505,7 +505,7 @@ switchDisponibilidad.addEventListener('change', async (e) => {
   // ✅ VALIDAR SI TIENE PEDIDOS ACTIVOS ANTES DE DESACTIVAR
   if (!disponible) {
     try {
-      const response = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
+      const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
       if (response.ok) {
         const pedidos = await response.json();
         const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
@@ -530,7 +530,7 @@ switchDisponibilidad.addEventListener('change', async (e) => {
     console.log(`🔄 Cambiando disponibilidad a: ${disponible}`);
     
     // ✅ PASO 1: Actualizar estado en servidor
-    const response = await window.apiRequest('/api/domiciliario/cambiar-disponibilidad', {
+    const response = await window.apiRequest('/api/domiciliarios/domiciliario/cambiar-disponibilidad', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ disponible: disponible })

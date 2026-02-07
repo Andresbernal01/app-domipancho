@@ -73,7 +73,7 @@
         if (!userResponse.ok) return;
         const usuario = await userResponse.json();
         
-        const response = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
+        const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
         
         if (!response.ok) {
           console.error('❌ Error en polling:', response.status);
@@ -121,11 +121,10 @@
       disponiblesNuevos.forEach(pedido => {
         console.log(`📦 Nuevo pedido disponible detectado: ${pedido.id}`);
         
-        // Simular evento geográfico
-        this.triggerEvent('nuevo-pedido-geografico', {
-          pedido: pedido,
-          distancia: pedido.distancia_al_restaurante || 0,
-          conexion_inicial: false
+        this.triggerEvent('nuevo-pedido', {
+          pedidoId: pedido.id,
+          mensaje: 'Nuevo pedido disponible',
+          timestamp: new Date().toISOString()
         });
       });
 

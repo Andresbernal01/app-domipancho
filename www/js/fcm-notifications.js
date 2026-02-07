@@ -212,7 +212,7 @@ class FCMNotificationService {
     this.notificacionesActivas = true;
     
     try {
-      const response = await window.apiRequest('/api/domiciliario/configuracion-notificaciones', {
+      const response = await window.apiRequest('/api/domiciliarios/domiciliario/configuracion-notificaciones', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificaciones_sonido: true })
@@ -230,7 +230,7 @@ class FCMNotificationService {
     this.notificacionesActivas = false;
     
     try {
-      const response = await window.apiRequest('/api/domiciliario/configuracion-notificaciones', {
+      const response = await window.apiRequest('/api/domiciliarios/domiciliario/configuracion-notificaciones', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notificaciones_sonido: false })
@@ -246,7 +246,7 @@ class FCMNotificationService {
 
   async cargarEstadoNotificacionesServidor() {
     try {
-      const response = await window.apiRequest('/api/domiciliario/configuracion-notificaciones');
+      const response = await window.apiRequest('/api/domiciliarios/domiciliario/configuracion-notificaciones');
       
       if (response.ok) {
         const data = await response.json();

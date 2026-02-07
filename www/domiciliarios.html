@@ -153,7 +153,7 @@
 
 async function validarAntesDeSalir() {
   try {
-    const response = await window.apiRequest('/api/pedidos-domiciliario-con-distancias');
+    const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
     if (response.ok) {
       const pedidos = await response.json();
       const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
@@ -187,7 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ✅ 1. VERIFICAR DISPONIBILIDAD ANTES DE TRACKING
   let disponible = true;
   try {
-    const dispResponse = await window.apiRequest('/api/domiciliario/estado-disponibilidad');
+    const dispResponse = await window.apiRequest('/api/domiciliarios/domiciliario/estado-disponibilidad');
     if (dispResponse.ok) {
       const dispData = await dispResponse.json();
       disponible = dispData.disponible !== false;
