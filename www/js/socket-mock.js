@@ -1,4 +1,5 @@
-// socket-mock.js - Socket.IO mock mejorado para app móvil
+// socket-mock.js - Socket.IO mock optimizado para Capacitor
+// FCM es el canal principal, este polling es el respaldo
 (function() {
   'use strict';
   
@@ -9,6 +10,7 @@
       this.pollingInterval = null;
       this.lastPedidosState = null;
       this.usuarioId = null;
+      this.isPolling = false; // Evitar polls simultáneos
     }
 
     on(event, callback) {
@@ -22,7 +24,6 @@
     emit(event, data) {
       console.log(`📱 Socket emit: '${event}':`, data);
       
-      // Guardar ID de usuario cuando se une
       if (event === 'join-domiciliario' && data) {
         this.usuarioId = data;
         console.log(`👤 Usuario domiciliario guardado: ${this.usuarioId}`);
@@ -46,17 +47,19 @@
     startPolling() {
       if (this.pollingInterval) return;
       
-      console.log('🔄 Iniciando polling cada 10 segundos...');
+      // ✅ Polling cada 5 segundos (antes era 10)
+      const POLLING_MS = 5000;
+      console.log(`🔄 Iniciando polling cada ${POLLING_MS / 1000} segundos...`);
       
       // Poll inmediato
       this.checkForUpdates();
       
       // Polling regular
       this.pollingInterval = setInterval(() => {
-        if (this.connected) {
+        if (this.connected && !document.hidden) {
           this.checkForUpdates();
         }
-      }, 10000); // 10 segundos
+      }, POLLING_MS);
     }
 
     stopPolling() {
@@ -67,27 +70,42 @@
     }
 
     async checkForUpdates() {
+      // ✅ Evitar polls simultáneos
+      if (this.isPolling) return;
+      this.isPolling = true;
+
       try {
-        // Obtener usuario actual primero
-        const userResponse = await window.apiRequest('/api/usuario-actual');
-        if (!userResponse.ok) return;
-        const usuario = await userResponse.json();
+        const [userResponse, response] = await Promise.all([
+          window.apiRequest('/api/usuario-actual'),
+          window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias')
+        ]);
         
-        const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
-        
-        if (!response.ok) {
+        if (!userResponse.ok || !response.ok) {
           console.error('❌ Error en polling:', response.status);
           return;
         }
 
-        const pedidos = await response.json();
+        const [usuario, pedidos] = await Promise.all([
+          userResponse.json(),
+          response.json()
+        ]);
         
-        // Detectar cambios con el ID del usuario
         this.detectarCambios(pedidos, usuario.id);
         
       } catch (error) {
         console.error('❌ Error en checkForUpdates:', error);
+      } finally {
+        this.isPolling = false;
       }
+    }
+
+    /**
+     * ✅ Forzar una verificación inmediata (llamado por FCM)
+     */
+    forceCheck() {
+      console.log('⚡ Verificación forzada por FCM');
+      this.isPolling = false; // Reset para permitir verificación inmediata
+      this.checkForUpdates();
     }
 
     detectarCambios(pedidosNuevos, usuarioId) {
@@ -132,23 +150,17 @@
       const pedidosRemovidos = this.lastPedidosState.filter(viejo => {
         const pedidoNuevo = pedidosNuevos.find(nuevo => nuevo.id === viejo.id);
         
-        // Caso 1: El pedido ya no existe
         if (!pedidoNuevo) return true;
         
-        // Caso 2: Era "esperando repartidor" y ahora está en otro estado
-        // PERO: Solo remover si NO es mi pedido
         if (viejo.estado === 'esperando repartidor' && pedidoNuevo.estado !== 'esperando repartidor') {
-          // Si es mi pedido (asignado a mí), NO remover
           if (pedidoNuevo.domiciliario_id === usuarioId) {
             console.log(`✋ Pedido ${pedidoNuevo.id} es mío, NO remover`);
             return false;
           }
-          // Si lo tomó otro domiciliario, SÍ remover
           console.log(`🚫 Pedido ${pedidoNuevo.id} tomado por otro, remover`);
           return true;
         }
         
-        // Caso 3: Estados finales
         if (pedidoNuevo.estado === 'entregado' || pedidoNuevo.estado === 'cancelado') {
           return true;
         }
@@ -185,15 +197,15 @@
       console.log('📱 Creando nueva instancia de Socket Mock');
       window.socketMockInstance = new SocketMock();
       
-      // Auto-conectar después de 500ms
+      // ✅ Auto-conectar inmediatamente (antes era 500ms)
       setTimeout(() => {
         if (window.socketMockInstance) {
           window.socketMockInstance.connect();
         }
-      }, 500);
+      }, 100);
     }
     return window.socketMockInstance;
   };
 
-  console.log('✅ Socket.IO mock v2 cargado');
+  console.log('✅ Socket.IO mock v3 cargado (optimizado)');
 })();

@@ -1,4 +1,4 @@
-// domiciliario.js - Versión Optimizada para Producción (CORREGIDA)
+// domiciliario.js - Versión Optimizada: Sin delays, recarga instantánea
 (function() {
   'use strict';
 
@@ -72,13 +72,12 @@
     }, 4000);
   }
 
-  // ✅ NUEVA FUNCIÓN: Calcular totales con información de cupón
+  // ✅ Calcular totales con información de cupón
   function calcularTotalesPedido(pedido) {
     const productosArray = Array.isArray(pedido.productos) ? pedido.productos : [];
     const subtotalProductos = productosArray.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0);
     const costoDomicilio = obtenerCostoDomicilio(pedido);
     
-    // Si el pedido tiene información de cupón en la base de datos
     if (pedido.descuento_cupon && pedido.total_con_descuento) {
       return {
         subtotalProductos,
@@ -90,7 +89,6 @@
       };
     }
     
-    // Si no hay cupón
     const total = subtotalProductos + costoDomicilio;
     return {
       subtotalProductos,
@@ -135,9 +133,20 @@
   }
 
   // ========== GESTIÓN DE PEDIDOS ==========
+  // ✅ Debounce para evitar múltiples cargas simultáneas
+  let cargandoPedidos = false;
+  let pendienteRecarga = false;
+
   async function cargarPedidos() {
+    // ✅ Si ya estamos cargando, marcar como pendiente y salir
+    if (cargandoPedidos) {
+      pendienteRecarga = true;
+      return;
+    }
+    cargandoPedidos = true;
+
     try {
-      // ✅ 1. VERIFICAR ESTADO DE DISPONIBILIDAD
+      // 1. VERIFICAR ESTADO DE DISPONIBILIDAD
       let disponible = true;
       try {
         const dispResponse = await window.apiRequest('/api/domiciliarios/domiciliario/estado-disponibilidad');
@@ -149,7 +158,7 @@
         console.warn('Error verificando disponibilidad:', error);
       }
   
-      // ✅ 2. OBTENER PEDIDOS (todos los de la ciudad)
+      // 2. OBTENER PEDIDOS
       const res = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
       let pedidos = await res.json();
       
@@ -157,7 +166,7 @@
         document.getElementById('listaPedidos').innerHTML = `
           <div class="bloqueado">
             <h3>⛔ Cuenta Bloqueada</h3>
-            <p>\${pedidos.mensaje}</p>
+            <p>${pedidos.mensaje}</p>
           </div>
         `;
         return;
@@ -166,7 +175,7 @@
       const usuario = await cargarUsuario();
       if (!usuario) return;
   
-      // ✅ 3. FILTRAR PEDIDOS: "esperando repartidor" + mis activos
+      // 3. FILTRAR PEDIDOS
       let pedidosFiltrados = pedidos.filter(pedido => {
         if (pedido.estado?.toLowerCase() === 'camino a tu casa' && pedido.domiciliario_id === usuario.id) {
           return true;
@@ -182,7 +191,7 @@
       const pedidosAMostrar = misActivos.length >= 2 ? misActivos : [...misActivos, ...disponiblesArr];
   
       renderizarPedidos(pedidosAMostrar, misActivos, [], disponible);
-  
+
     } catch (err) {
       console.error('Error al cargar pedidos:', err);
       document.getElementById('listaPedidos').innerHTML = `
@@ -192,11 +201,18 @@
           <button onclick="window.location.href='index.html'" class="btn-reload">Ir a Login</button>
         </div>
       `;
+    } finally {
+      cargandoPedidos = false;
+      
+      // ✅ Si hubo solicitud pendiente mientras cargaba, recargar
+      if (pendienteRecarga) {
+        pendienteRecarga = false;
+        cargarPedidos();
+      }
     }
   }
 
   function renderizarPedidos(pedidosAMostrar, misActivos, pedidosGeograficos, disponible) {
-    // ✅ CORRECCIÓN: Usar 'listaPedidos' en lugar de 'pedidosContainer'
     const contenedor = document.getElementById('listaPedidos');
     
     if (!contenedor) {
@@ -217,7 +233,6 @@
   
     let htmlContent = '';
   
-    // ✅ BANNER DIFERENTE SEGÚN DISPONIBILIDAD
     if (!disponible) {
       htmlContent += `
         <div class="alerta alerta-no-disponible">
@@ -231,7 +246,6 @@
       htmlContent += '<div class="alerta advertencia-limite"><h3>⚠️ Puedes tomar 1 pedido más (1/2)</h3><p>Tienes espacio para un pedido adicional.</p></div>';
     }
   
-    // Separar y ordenar pedidos
     const pedidosOrdenados = pedidosAMostrar.sort((a, b) => {
       const aEsMio = a.estado?.toLowerCase() === 'camino a tu casa';
       const bEsMio = b.estado?.toLowerCase() === 'camino a tu casa';
@@ -256,14 +270,12 @@
       }
     });
   
-    // Mostrar mis pedidos primero
     if (misPedidosHtml.length > 0) {
       htmlContent += '<div class="pedidos-grid">';
       htmlContent += misPedidosHtml.join('');
       htmlContent += '</div>';
     }
   
-    // Separador si hay ambos tipos
     if (misPedidosHtml.length > 0 && pedidosDisponiblesHtml.length > 0) {
       const tituloSeccion = disponible ? 
         '📋 Más Pedidos Disponibles en tu Área' : 
@@ -271,7 +283,6 @@
       htmlContent += `<div class="separador-pedidos"><span>${tituloSeccion}</span></div>`;
     }
   
-    // Mostrar pedidos disponibles
     if (pedidosDisponiblesHtml.length > 0) {
       htmlContent += '<div class="pedidos-grid">';
       htmlContent += pedidosDisponiblesHtml.join('');
@@ -282,100 +293,96 @@
   }
 
   // ========== UTILIDADES DE PROTECCIÓN DE DATOS ==========
-function ocultarTelefono(telefono) {
-  if (!telefono) return 'N/A';
-  const tel = telefono.toString();
-  if (tel.length < 7) return tel;
-  // Muestra los primeros 3 dígitos: 310*********
-  return tel.substring(0, 3) + '*'.repeat(9);
-}
+  function ocultarTelefono(telefono) {
+    if (!telefono) return 'N/A';
+    const tel = telefono.toString();
+    if (tel.length < 7) return tel;
+    return tel.substring(0, 3) + '*'.repeat(9);
+  }
 
-function ocultarDireccion(direccion) {
-  // Solo muestra un mensaje genérico
-  return 'Toma el pedido para ver';
-}
+  function ocultarDireccion(direccion) {
+    return 'Toma el pedido para ver';
+  }
 
-function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, disponible) {
-  const estadoClase = ESTADOS_CLASES[p.estado?.toLowerCase()] || 'pendiente';
-  const totales = calcularTotalesPedido(p);
-  const mostrarDistancia = !esMiPedido && p.distancia_al_restaurante !== null && disponible;
+  function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, disponible) {
+    const estadoClase = ESTADOS_CLASES[p.estado?.toLowerCase()] || 'pendiente';
+    const totales = calcularTotalesPedido(p);
+    const mostrarDistancia = !esMiPedido && p.distancia_al_restaurante !== null && disponible;
 
-  // ✅ PROTECCIÓN: Ocultar datos si no es mi pedido
-  const telefonoMostrar = esMiPedido ? p.telefono : ocultarTelefono(p.telefono);
-  const direccionMostrar = esMiPedido ? p.direccion : ocultarDireccion(p.direccion);
-  const complementoMostrar = esMiPedido ? (p.complemento ? ' ' + p.complemento : '') : '';
+    const telefonoMostrar = esMiPedido ? p.telefono : ocultarTelefono(p.telefono);
+    const direccionMostrar = esMiPedido ? p.direccion : ocultarDireccion(p.direccion);
+    const complementoMostrar = esMiPedido ? (p.complemento ? ' ' + p.complemento : '') : '';
 
-  const badges = [];
-  if (esMiPedido) badges.push('<div class="badge-mi-pedido">🚛 Mi Pedido</div>');
-  if (p.envio_manual_domiciliario) badges.push('<div class="badge-manual">📤 Envío Manual</div>');
+    const badges = [];
+    if (esMiPedido) badges.push('<div class="badge-mi-pedido">🚛 Mi Pedido</div>');
+    if (p.envio_manual_domiciliario) badges.push('<div class="badge-manual">📤 Envío Manual</div>');
 
-  return `
-    <div class="pedido-card ${esMiPedido ? 'mi-pedido color-mi-pedido' : 'color-disponible'} ${!disponible && !esMiPedido ? 'pedido-preview' : ''}" data-pedido-id="${p.id}">
-      ${badges.join('')}
-      
-      <div class="pedido-header">
-        <div class="cliente-info">
-          <h3>${p.nombre} ${p.apellido}</h3>
-          <div class="telefono">📞 ${telefonoMostrar}</div>
-        </div>
-        <div class="estado ${estadoClase}">${p.estado}</div>
-      </div>
-
-      ${mostrarDistancia ? `<div class="distancia-info"><strong>📍 Dist restaurante: ${p.distancia_al_restaurante.toFixed(3)}km</strong></div>` : ''}
-
-      <div class="info-grid">
-        <div class="info-section">
-          <h4>🏬 Origen</h4>
-          <p class="nombre-negocio">${p.restaurantes?.nombre || 'Restaurante'}</p>
-          <p class="direccion-small">📍 ${p.restaurantes?.direccion || 'Sin dirección'}</p>
-          <p class="telefono-small">📞 ${p.restaurantes?.telefono || 'Sin teléfono'}</p>
+    return `
+      <div class="pedido-card ${esMiPedido ? 'mi-pedido color-mi-pedido' : 'color-disponible'} ${!disponible && !esMiPedido ? 'pedido-preview' : ''}" data-pedido-id="${p.id}">
+        ${badges.join('')}
+        
+        <div class="pedido-header">
+          <div class="cliente-info">
+            <h3>${p.nombre} ${p.apellido}</h3>
+            <div class="telefono">📞 ${telefonoMostrar}</div>
+          </div>
+          <div class="estado ${estadoClase}">${p.estado}</div>
         </div>
 
-        <div class="info-section">
-          <h4>🏠 Destino</h4>
-          <p class="direccion-cliente">${direccionMostrar}${complementoMostrar}</p>
-          <p class="barrio"><em>${p.barrio}</em></p>
+        ${mostrarDistancia ? `<div class="distancia-info"><strong>📍 Dist restaurante: ${p.distancia_al_restaurante.toFixed(3)}km</strong></div>` : ''}
+
+        <div class="info-grid">
+          <div class="info-section">
+            <h4>🏬 Origen</h4>
+            <p class="nombre-negocio">${p.restaurantes?.nombre || 'Restaurante'}</p>
+            <p class="direccion-small">📍 ${p.restaurantes?.direccion || 'Sin dirección'}</p>
+            <p class="telefono-small">📞 ${p.restaurantes?.telefono || 'Sin teléfono'}</p>
+          </div>
+
+          <div class="info-section">
+            <h4>🏠 Destino</h4>
+            <p class="direccion-cliente">${direccionMostrar}${complementoMostrar}</p>
+            <p class="barrio"><em>${p.barrio}</em></p>
+          </div>
         </div>
+
+        <div class="total-section">
+        ${totales.tieneCupon ? `
+          <div class="total-original" style="text-decoration: line-through; color: #9ca3af; font-size: 0.9em;">
+            $${totales.totalSinDescuento.toLocaleString('es-CO')}
+          </div>
+          <div class="descuento-badge" style="background: #dcfce7; color: #16a34a; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; margin: 4px 0;">
+            🎟️ -$${totales.descuentoCupon.toLocaleString('es-CO')}
+          </div>
+        ` : ''}
+        <div class="total-amount" style="${totales.tieneCupon ? 'color: #16a34a;' : ''}">
+          $${totales.totalConDescuento.toLocaleString('es-CO')}
+        </div>
+        <small>(Incluye domicilio: $${totales.costoDomicilio.toLocaleString('es-CO')})</small>
+        ${p.tipo_tarifa === 'por_km' && p.distancia_km ? `<small class="km-info">(${p.distancia_km} km)</small>` : ''}
       </div>
 
-      <div class="total-section">
-      ${totales.tieneCupon ? `
-        <div class="total-original" style="text-decoration: line-through; color: #9ca3af; font-size: 0.9em;">
-          $${totales.totalSinDescuento.toLocaleString('es-CO')}
+        <div class="botones-pedido">
+          <button class="btn-ver-detalles" onclick="abrirDetallesPedido(${p.id}, ${esMiPedido})">👁️ Detalles</button>
+          ${generarBotonesAccion(p, esMiPedido, cantidadActivos, disponible)}
         </div>
-        <div class="descuento-badge" style="background: #dcfce7; color: #16a34a; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; margin: 4px 0;">
-          🎟️ -$${totales.descuentoCupon.toLocaleString('es-CO')}
+
+        <div class="pedido-footer">
+          <small>📅 ${new Date(p.fecha).toLocaleDateString('es-CO')} - ${new Date(p.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</small>
         </div>
-      ` : ''}
-      <div class="total-amount" style="${totales.tieneCupon ? 'color: #16a34a;' : ''}">
-        $${totales.totalConDescuento.toLocaleString('es-CO')}
       </div>
-      <small>(Incluye domicilio: $${totales.costoDomicilio.toLocaleString('es-CO')})</small>
-      ${p.tipo_tarifa === 'por_km' && p.distancia_km ? `<small class="km-info">(${p.distancia_km} km)</small>` : ''}
-    </div>
+    `;
+  }
 
-      <div class="botones-pedido">
-        <button class="btn-ver-detalles" onclick="abrirDetallesPedido(${p.id}, ${esMiPedido})">👁️ Detalles</button>
-        ${generarBotonesAccion(p, esMiPedido, cantidadActivos, disponible)}
-      </div>
-
-      <div class="pedido-footer">
-        <small>📅 ${new Date(p.fecha).toLocaleDateString('es-CO')} - ${new Date(p.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</small>
-      </div>
-    </div>
-  `;
-}
   function generarBotonesAccion(pedido, esMiPedido, cantidadActivos, disponible) {
     if (pedido.estado === 'esperando repartidor') {
       if (!disponible) {
-        // 🔴 NO DISPONIBLE: Botón bloqueado
         return `
           <button class="btn-tomar btn-no-disponible" disabled title="Activa 'Disponible' para tomar pedidos">
             🔴 Activate
           </button>
         `;
       } else {
-        // 🟢 DISPONIBLE: Botón normal
         const deshabilitado = cantidadActivos >= 2;
         return `<button class="btn-tomar" onclick="tomarPedido(${pedido.id})" ${deshabilitado ? 'disabled' : ''}>${deshabilitado ? '🚫 Límite' : '📦 Tomar'}</button>`;
       }
@@ -392,16 +399,12 @@ function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, d
     return '';
   }
 
-
-
   // ========== ACCIONES DE PEDIDOS ==========
   async function tomarPedido(pedidoId) {
-    // ✅ VERIFICAR DISPONIBILIDAD PRIMERO
     try {
       const dispResponse = await window.apiRequest('/api/domiciliarios/domiciliario/estado-disponibilidad');
       if (dispResponse.ok) {
         const dispData = await dispResponse.json();
-        
         if (!dispData.disponible) {
           mostrarMensaje('⚠️ Debes activar "Disponible" en el inicio para tomar pedidos', 'error');
           return;
@@ -418,8 +421,6 @@ function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, d
   
     if (!confirm('¿Quieres tomar este pedido?')) return;
   
-    
-  
     const tarjeta = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
     const btnTomar = tarjeta?.querySelector('.btn-tomar');
     
@@ -433,17 +434,16 @@ function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, d
       const result = await res.json();
   
       if (res.ok) {
-        // ✅ MARCAR PEDIDO COMO ACTIVO
         localStorage.setItem('domiciliario_pedido_activo', 'true');
         localStorage.setItem('domiciliario_pedido_id', pedidoId);
         
-        // ✅ INICIAR SERVICIO DE TRACKING
         if (window.unifiedGeoService) {
           await window.unifiedGeoService.startTracking();
         }
         
         mostrarMensaje(`✅ Pedido asignado (${result.pedidosActivos || 1}/2 activos)`);
         actualizarContadorPedidos(result.pedidosActivos || 1);
+        // ✅ Recargar inmediatamente sin delay
         await cargarPedidos();
       } else {
         if (btnTomar) {
@@ -518,19 +518,17 @@ function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, d
         const metodoPagoTexto = metodo.value === 'efectivo' ? 'efectivo' : 'pago por App';
         mostrarMensaje(`✅ Pedido entregado exitosamente con ${metodoPagoTexto}`);
         
-// ✅ VERIFICAR SI HAY MÁS PEDIDOS ACTIVOS
-const usuarioResponse = await window.apiRequest('/api/usuario-actual');
-const usuarioData = await usuarioResponse.json();
+        // ✅ VERIFICAR SI HAY MÁS PEDIDOS ACTIVOS
+        const usuarioResponse = await window.apiRequest('/api/usuario-actual');
+        const usuarioData = await usuarioResponse.json();
 
-// ✅ USAR API REQUEST EN LUGAR DE SUPABASE
-const pedidosActivosResponse = await window.apiRequest(
-  `/api/pedidos-activos-domiciliario/${usuarioData.id}`
-);
-const pedidosActivosData = await pedidosActivosResponse.json();
-const pedidosActivos = pedidosActivosData.pedidos || [];
+        const pedidosActivosResponse = await window.apiRequest(
+          `/api/pedidos-activos-domiciliario/${usuarioData.id}`
+        );
+        const pedidosActivosData = await pedidosActivosResponse.json();
+        const pedidosActivos = pedidosActivosData.pedidos || [];
         
         if (!pedidosActivos || pedidosActivos.length === 0) {
-          // ✅ NO HAY MÁS PEDIDOS - DETENER TRACKING
           console.log('🛑 No hay más pedidos activos - deteniendo servicio');
           localStorage.removeItem('domiciliario_pedido_activo');
           localStorage.removeItem('domiciliario_pedido_id');
@@ -543,7 +541,8 @@ const pedidosActivos = pedidosActivosData.pedidos || [];
         }
         
         cerrarModalPago();
-        setTimeout(() => location.reload(), 1500);
+        // ✅ Recargar sin delay
+        await cargarPedidos();
       } else {
         mostrarMensaje('❌ Error al marcar como entregado', 'error');
         btnConfirmar.disabled = false;
@@ -641,7 +640,6 @@ const pedidosActivos = pedidosActivosData.pedidos || [];
       if (res.ok) {
         mostrarMensaje('✅ Pedido marcado como no entregado - Reporte enviado exitosamente');
         
-        // ✅ VERIFICAR SI HAY MÁS PEDIDOS ACTIVOS
         const usuarioResponse = await window.apiRequest('/api/usuario-actual');
         const usuarioData = await usuarioResponse.json();
 
@@ -662,7 +660,8 @@ const pedidosActivos = pedidosActivosData.pedidos || [];
         }
         
         cerrarModalProblema();
-        setTimeout(() => cargarPedidos(), 1000);
+        // ✅ Recargar sin delay
+        await cargarPedidos();
       } else {
         mostrarMensaje(`❌ Error: ${result.error || 'No se pudo actualizar el estado del pedido'}`, 'error');
         btnConfirmar.disabled = false;
@@ -724,7 +723,8 @@ const pedidosActivos = pedidosActivosData.pedidos || [];
       if (res.ok) {
         mostrarMensaje('✅ Pedido liberado exitosamente');
         cerrarModalLiberar();
-        setTimeout(() => cargarPedidos(), 1000);
+        // ✅ Recargar sin delay
+        await cargarPedidos();
       } else {
         mostrarMensaje(`❌ ${result.error || 'Error al liberar pedido'}`, 'error');
       }
@@ -745,11 +745,9 @@ const pedidosActivos = pedidosActivosData.pedidos || [];
         return;
       }
   
-      // ✅ VERIFICAR si es mi pedido activo
       const usuario = await cargarUsuario();
       const esPedidoActivo = pedido.domiciliario_id === usuario?.id && pedido.estado?.toLowerCase() === 'camino a tu casa';
   
-      // ✅ PROTECCIÓN: Ocultar datos si no es mi pedido
       const telefonoMostrar = esPedidoActivo ? pedido.telefono : ocultarTelefono(pedido.telefono);
       const direccionMostrar = esPedidoActivo ? pedido.direccion : 'Toma el pedido para ver la dirección completa';
       const complementoMostrar = esPedidoActivo && pedido.complemento ? `<p><strong>Complemento:</strong> ${pedido.complemento}</p>` : '';
@@ -769,8 +767,7 @@ const pedidosActivos = pedidosActivosData.pedidos || [];
           }).join('') 
         : '<p>No hay productos disponibles</p>';
   
-// ✅ USAR LA FUNCIÓN PARA CALCULAR TOTALES CON CUPÓN
-const totales = calcularTotalesPedido(pedido);
+      const totales = calcularTotalesPedido(pedido);
   
       const modalHTML = `
         <div class="modal-detalles-contenido">
@@ -871,13 +868,13 @@ const totales = calcularTotalesPedido(pedido);
     socketInstance.on('connect', () => {
       console.log('Socket conectado');
       socketInstance.emit('join-domiciliario', usuario.id);
-      setTimeout(() => cargarPedidos(), 2000);
+      // ✅ Sin delay - cargarPedidos ya se llamó en inicializar()
     });
     
     socketInstance.on('nuevo-pedido', async (data) => {
-      console.log('Nuevo pedido disponible:', data.pedidoId);
-      // Recargar lista de pedidos para mostrar el nuevo
-      setTimeout(() => cargarPedidos(), 1000);
+      console.log('⚡ Nuevo pedido disponible:', data.pedidoId);
+      // ✅ Recargar INMEDIATAMENTE sin delay
+      cargarPedidos();
     });
     
     socketInstance.on('pedido-removido', (data) => {
@@ -899,10 +896,9 @@ const totales = calcularTotalesPedido(pedido);
       }
     });
 
-
-
     socketInstance.on('pedido-liberado', () => {
-      setTimeout(() => cargarPedidos(), 1000);
+      // ✅ Sin delay
+      cargarPedidos();
     });
   }
 
@@ -917,7 +913,7 @@ const totales = calcularTotalesPedido(pedido);
     
     configurarSocket(usuario);
     
-    console.log('✅ Sistema de notificaciones FCM activo');
+    console.log('✅ Sistema de notificaciones activo');
   }
 
   // ========== EVENT LISTENERS ==========

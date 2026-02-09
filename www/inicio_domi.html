@@ -2,23 +2,675 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Panel de Administración | DomiPancho</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Panel Domiciliario | DomiPancho</title>
   <link rel="icon" href="img/logo.png">
-  <script src="js/config.js"></script>
-  <script src="js/socket-mock.js"></script>
-  <link rel="stylesheet" href="css/inicio.css">
-
+  
   <!-- Meta tags para PWA -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#2c3e50">
+  <meta name="theme-color" content="#10b981">
+  
+  <!-- Scripts -->
+  <script src="js/config.js"></script>
+  <script src="js/socket-mock.js"></script>
+  <script src="js/unified-geolocation.js"></script>
+  <script src="js/fcm-notifications.js"></script>
+  <script src="js/domipancho-icons.js"></script>
+  <script src="js/inactividad.js"></script>
+  
+  <style>
+    /* ====================================
+       VARIABLES CSS
+       ==================================== */
+    :root {
+      /* Colores principales */
+      --primary: #10b981;
+      --primary-dark: #059669;
+      --secondary: #3b82f6;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #22c55e;
+      
+      /* Fondos */
+      --bg-dark: #1f2937;
+      --bg-card: #374151;
+      --bg-glass: rgba(255, 255, 255, 0.95);
+      --bg-light: #f9fafb;
+      
+      /* Textos */
+      --text-primary: #1f2937;
+      --text-secondary: #6b7280;
+      --text-light: #9ca3af;
+      --text-white: #ffffff;
+      
+      /* Sombras */
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.15);
+      
+      /* Espaciado */
+      --space-xs: 0.5rem;
+      --space-sm: 0.75rem;
+      --space-md: 1rem;
+      --space-lg: 1.5rem;
+      --space-xl: 2rem;
+      
+      /* Bordes */
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 15px;
+      --radius-full: 50%;
+      
+      /* Transiciones */
+      --transition-fast: 0.2s ease;
+      --transition-base: 0.3s ease;
+    }
+
+    /* ====================================
+       RESET Y BASE
+       ==================================== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-card) 100%);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      padding-bottom: 20px;
+      overflow-x: hidden;
+    }
+
+    /* ====================================
+       HEADER PROFESIONAL
+       ==================================== */
+    .header {
+      background: var(--bg-glass);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow-md);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      border-bottom: 3px solid var(--primary);
+    }
+
+    .header-container {
+      padding: var(--space-sm) var(--space-md);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .logout-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-xs);
+      padding: var(--space-xs) var(--space-sm);
+      background: var(--danger);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: all var(--transition-base);
+      white-space: nowrap;
+      min-width: 36px;
+      height: 36px;
+    }
+
+    .logout-btn svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .logout-btn:hover,
+    .logout-btn:active {
+      background: #dc2626;
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+
+    .header-center {
+      flex: 1;
+      min-width: 0;
+      text-align: center;
+    }
+
+    .restaurant-info h1 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: var(--space-xs);
+      padding: var(--space-xs) var(--space-sm);
+      background: var(--bg-light);
+      border-radius: var(--radius-md);
+      font-size: 0.8rem;
+    }
+
+    .user-info svg {
+      flex-shrink: 0;
+      color: var(--primary);
+    }
+
+    .user-label {
+      display: none;
+    }
+
+    #userName {
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    /* ====================================
+       MAIN CONTAINER
+       ==================================== */
+    .main-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: var(--space-md);
+    }
+
+    /* ====================================
+       CONTROL DE DISPONIBILIDAD
+       ==================================== */
+    .disponibilidad-control {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      padding: var(--space-lg);
+      margin-bottom: var(--space-md);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      transition: all var(--transition-base);
+    }
+
+    .disponibilidad-control.no-disponible {
+      background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
+    }
+
+    .switch-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--space-md);
+    }
+
+    .switch-label {
+      color: white;
+      font-weight: 600;
+      font-size: 1rem;
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: var(--space-sm);
+    }
+
+    .switch-label svg {
+      flex-shrink: 0;
+    }
+
+    .help-btn {
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      flex-shrink: 0;
+      padding: 0;
+    }
+
+    .help-btn svg {
+      display: block;
+    }
+
+    .help-btn:hover,
+    .help-btn:active {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.1);
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 56px;
+      height: 32px;
+      flex-shrink: 0;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.3);
+      transition: .4s;
+      border-radius: 32px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 24px;
+      width: 24px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    input:checked + .slider {
+      background-color: rgba(255, 255, 255, 0.5);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(24px);
+    }
+
+    .switch-descripcion {
+      color: rgba(255, 255, 255, 0.95);
+      font-size: 0.85rem;
+      margin: var(--space-md) 0 0 0;
+      line-height: 1.5;
+      padding-top: var(--space-md);
+      border-top: 1px solid rgba(255, 255, 255, 0.2);
+      animation: fadeIn 0.3s ease;
+    }
+
+    /* ====================================
+       ALERTA PEDIDOS ACTIVOS
+       ==================================== */
+    .alerta-pedidos-activos {
+      background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
+      color: white;
+      padding: var(--space-md);
+      margin-bottom: var(--space-md);
+      border-radius: var(--radius-lg);
+      font-size: 0.9rem;
+      text-align: left;
+      box-shadow: var(--shadow-md);
+      animation: pulse-warning 2s ease-in-out infinite;
+      display: flex;
+      align-items: center;
+      gap: var(--space-md);
+    }
+
+    .alerta-pedidos-activos svg {
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse-warning {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.85; }
+    }
+
+    /* ====================================
+       CONTADOR PEDIDOS ACTIVOS
+       ==================================== */
+    .pedidos-activos-contador {
+      background: white;
+      padding: var(--space-lg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      text-align: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all var(--transition-base);
+      margin-bottom: var(--space-md);
+      border: 3px solid var(--primary);
+    }
+
+    .pedidos-activos-contador:active {
+      transform: scale(0.98);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .pedidos-activos-contador.limite-cerca {
+      border-color: var(--warning);
+      background: linear-gradient(135deg, #fff 0%, #fef3c7 100%);
+    }
+
+    .pedidos-activos-contador.limite-alcanzado {
+      border-color: var(--danger);
+      background: linear-gradient(135deg, #fff 0%, #fee2e2 100%);
+    }
+
+    #numPedidosActivos {
+      font-size: 1.5rem;
+      color: var(--primary);
+    }
+
+    .limite-cerca #numPedidosActivos {
+      color: var(--warning);
+    }
+
+    .limite-alcanzado #numPedidosActivos {
+      color: var(--danger);
+    }
+
+    /* ====================================
+       LOADING Y ERROR
+       ==================================== */
+    .loading,
+    .error {
+      background: white;
+      padding: var(--space-xl);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+      text-align: center;
+      margin-bottom: var(--space-md);
+    }
+
+    .loading p,
+    .error p {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      margin-bottom: var(--space-md);
+    }
+
+    .error button {
+      padding: var(--space-sm) var(--space-lg);
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition-base);
+    }
+
+    .error button:active {
+      transform: scale(0.98);
+    }
+
+    /* ====================================
+       GRID DE OPCIONES
+       ==================================== */
+    .cajon-opcion {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: var(--space-md);
+    }
+
+    .option-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: var(--space-xl);
+      box-shadow: var(--shadow-md);
+      cursor: pointer;
+      transition: all var(--transition-base);
+      position: relative;
+      overflow: hidden;
+      border: 2px solid transparent;
+    }
+
+    .option-card:active {
+      transform: translateY(-5px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--primary);
+    }
+
+    .option-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      transform: scaleX(0);
+      transition: transform var(--transition-base);
+    }
+
+    .option-card:active::before {
+      transform: scaleX(1);
+    }
+
+    .option-card .icono {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: var(--space-md);
+    }
+
+    .option-card .icono svg {
+      width: 64px;
+      height: 64px;
+      color: var(--primary);
+      stroke-width: 1.5;
+    }
+
+    .option-card h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: var(--space-sm);
+      text-align: center;
+    }
+
+    .option-card p {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    /* Badge contador en card de pedidos */
+    .pedidos-disponibles-counter {
+      position: absolute;
+      top: var(--space-md);
+      right: var(--space-md);
+      background: var(--danger);
+      color: white;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      box-shadow: var(--shadow-md);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .pedidos-disponibles-counter.show {
+      display: flex;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* ====================================
+       ANIMACIONES
+       ==================================== */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-5px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* ====================================
+       RESPONSIVE MOBILE
+       ==================================== */
+    @media (max-width: 768px) {
+      .restaurant-info h1 {
+        font-size: 0.9rem;
+      }
+
+      .user-info {
+        padding: var(--space-xs);
+        font-size: 0.75rem;
+      }
+
+      .logout-btn {
+        font-size: 0.7rem;
+        padding: var(--space-xs);
+      }
+
+      .disponibilidad-control {
+        padding: var(--space-md);
+      }
+
+      .switch-label {
+        font-size: 0.9rem;
+      }
+
+      .switch {
+        width: 50px;
+        height: 28px;
+      }
+
+      .slider:before {
+        height: 20px;
+        width: 20px;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(22px);
+      }
+
+      .cajon-opcion {
+        grid-template-columns: 1fr;
+        gap: var(--space-sm);
+      }
+
+      .option-card {
+        padding: var(--space-lg);
+      }
+
+      .option-card .icono svg {
+        width: 56px;
+        height: 56px;
+      }
+
+      .option-card h2 {
+        font-size: 1.1rem;
+      }
+
+      .main-container {
+        padding: var(--space-sm);
+      }
+    }
+
+    @media (max-width: 480px) {
+      .restaurant-info h1 {
+        font-size: 0.85rem;
+      }
+
+      .logout-btn span:last-child {
+        display: none;
+      }
+
+      #userName {
+        font-size: 0.7rem;
+      }
+
+      .user-icon {
+        font-size: 0.9rem;
+      }
+    }
+
+    /* ====================================
+       UTILIDADES
+       ==================================== */
+    .hidden {
+      display: none !important;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease;
+    }
+
+    .slide-up {
+      animation: slideUp 0.4s ease;
+    }
+  </style>
 </head>
 <body>
+  <!-- Header -->
   <header class="header">
     <div class="header-container">
-      <button class="logout-btn" onclick="logout()">Cerrar Sesión</button>
+      <div class="header-left">
+        <button class="logout-btn" onclick="logout()">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+          </svg>
+          <span>Cerrar Sesión</span>
+        </button>
+      </div>
 
       <div class="header-center">
         <div class="restaurant-info">
@@ -28,7 +680,9 @@
 
       <div class="header-right">
         <div class="user-info">
-          <div class="user-icon">👤</div>
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 18px; height: 18px;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
           <span class="user-label">Usuario:</span>
           <span id="userName">-</span>
         </div>
@@ -36,191 +690,45 @@
     </div>
   </header>
 
-<!-- ✅ CONTROL DE DISPONIBILIDAD -->
-<div class="disponibilidad-control">
-  <div class="switch-container">
-    <span class="switch-label">🟢 Disponible para pedidos</span>
-    <button class="help-btn" id="helpBtn" aria-label="Mostrar información">ℹ</button>
-    <label class="switch">
-      <input type="checkbox" id="switchDisponibilidad" checked>
-      <span class="slider"></span>
-    </label>
-  </div>
-  <p class="switch-descripcion" id="switchDescripcion" style="display: none;">
-    Cuando estés disponible, recibirás pedidos cercanos y se rastreará tu ubicación. 
-    Al marcar no disponible, dejarás de recibir pedidos y se detendrá el rastreo.
-  </p>
-</div>
-
-<!-- En inicio_domi.html, después del .disponibilidad-control -->
-<div id="alertaPedidosActivos" class="alerta-pedidos-activos" style="display: none;">
-  ⚠️ <strong>Pedidos en curso:</strong> No puedes cambiar a "No disponible" ni cerrar sesión
-</div>
-
-<style>
-.alerta-pedidos-activos {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: white;
-  padding: 12px 20px;
-  margin: 10px;
-  border-radius: 8px;
-  font-size: 13px;
-  text-align: center;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
-  animation: pulse-warning 2s ease-in-out infinite;
-}
-</style>
-
-<style>
-/* ✅ ESTILOS PARA DISPONIBILIDAD */
-.disponibilidad-control {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  padding: 15px 20px;
-  margin: 10px;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-  transition: all var(--transition-normal);
-}
-
-.disponibilidad-control.no-disponible {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-}
-
-.switch-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0;
-}
-
-.help-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  color: white;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: bold;
-  margin: 0 10px;
-  transition: all var(--transition-fast);
-  flex-shrink: 0;
-}
-
-.help-btn:hover, .help-btn:active {
-  background: rgba(255, 255, 255, 0.3);
-  transform: scale(1.1);
-}
-
-.switch-label {
-  color: white;
-  font-weight: 600;
-  font-size: 16px;
-  flex: 1;
-}
-
-/* Switch styles */
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 60px;
-  height: 34px;
-  flex-shrink: 0;
-}
-
-.switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(255,255,255,0.3);
-  transition: .4s;
-  border-radius: 34px;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 26px;
-  width: 26px;
-  left: 4px;
-  bottom: 4px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
-}
-
-input:checked + .slider {
-  background-color: rgba(255,255,255,0.5);
-}
-
-input:checked + .slider:before {
-  transform: translateX(26px);
-}
-
-.switch-descripcion {
-  color: rgba(255,255,255,0.9);
-  font-size: 13px;
-  margin: 10px 0 0 0;
-  line-height: 1.4;
-  animation: fadeIn 0.3s ease;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-@keyframes fadeIn {
-  from { 
-    opacity: 0; 
-    transform: translateY(-5px); 
-  }
-  to { 
-    opacity: 1; 
-    transform: translateY(0); 
-  }
-}
-
-/* Responsive */
-@media (max-width: 480px) {
-  .disponibilidad-control {
-    padding: 12px 16px;
-    margin: 8px;
-  }
-  
-  .switch-label {
-    font-size: 15px;
-  }
-  
-  .switch {
-    width: 50px;
-    height: 28px;
-  }
-  
-  .slider:before {
-    height: 20px;
-    width: 20px;
-  }
-  
-  input:checked + .slider:before {
-    transform: translateX(22px);
-  }
-}
-</style>
-  
   <div class="main-container">
-    <!-- Contador de pedidos activos -->
-    <div id="contadorPedidos" class="pedidos-activos-contador" 
+    <!-- Control de Disponibilidad -->
+    <div class="disponibilidad-control">
+      <div class="switch-container">
+        <span class="switch-label">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px; flex-shrink: 0;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          Disponible para pedidos
+        </span>
+        <button class="help-btn" id="helpBtn" aria-label="Mostrar información">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 16px; height: 16px;">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </button>
+        <label class="switch">
+          <input type="checkbox" id="switchDisponibilidad" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <p class="switch-descripcion" id="switchDescripcion" style="display: none;">
+        Cuando estés disponible, recibirás pedidos cercanos y se rastreará tu ubicación. 
+        Al marcar no disponible, dejarás de recibir pedidos y se detendrá el rastreo.
+      </p>
+    </div>
+
+    <!-- Alerta Pedidos Activos -->
+    <div id="alertaPedidosActivos" class="alerta-pedidos-activos" style="display: none;">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 24px; height: 24px; flex-shrink: 0;">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+      </svg>
+      <div>
+        <strong>Pedidos en curso:</strong> No puedes cambiar a "No disponible" ni cerrar sesión
+      </div>
+    </div>
+
+    <!-- Contador de Pedidos Activos -->
+    <div id="contadorPedidos" 
+         class="pedidos-activos-contador" 
          onclick="window.location.href='domiciliarios.html'"
          role="button" 
          tabindex="0" 
@@ -229,29 +737,39 @@ input:checked + .slider:before {
     </div>
 
     <main>
+      <!-- Loading -->
       <div id="loading" class="loading">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 48px; height: 48px; margin: 0 auto var(--space-md) auto; color: var(--primary); animation: spin 1s linear infinite;">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
         <p>Cargando información del restaurante...</p>
       </div>
 
+      <!-- Error -->
       <div id="error" class="error" style="display: none;">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 48px; height: 48px; margin: 0 auto var(--space-md) auto; color: var(--danger);">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
         <p>Error al cargar la información. Por favor, inicia sesión nuevamente.</p>
-        <button onclick="window.location.href='/index.html'" 
-                style="margin-top: 10px; padding: 8px 15px; background-color: #facc15; 
-                color: #121212; border: none; border-radius: 5px; cursor: pointer;">
+        <button onclick="window.location.href='/index.html'">
           Ir a Login
         </button>
       </div>
 
+      <!-- Opciones -->
       <div id="opciones" class="cajon-opcion" style="display: none;">
         <div class="option-card pedidos" 
              onclick="verPedidosAsignados()" 
              role="button" 
              tabindex="0" 
-             onkeypress="handleKeyPress(event, verPedidosAsignados)" 
              aria-label="Ver pedidos disponibles para tomar">
-          <span class="icono" aria-hidden="true">📦</span>
-          <h2>Pedidos</h2>
-          <p>Consulta los pedidos que puedes realizar.</p>
+          <span class="icono" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+            </svg>
+          </span>
+          <h2>Pedidos Disponibles</h2>
+          <p>Consulta y acepta pedidos cercanos a tu ubicación</p>
           <div class="pedidos-disponibles-counter" 
                id="pedidosDisponiblesCounter" 
                aria-live="polite" 
@@ -259,416 +777,413 @@ input:checked + .slider:before {
         </div>
       
         <div class="option-card" onclick="verHistorialEntregas()">
-          <span class="icono">🔄</span>
+          <span class="icono">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+            </svg>
+          </span>
           <h2>Historial de Entregas</h2>
-          <p>Revisa los pedidos que ya has entregado anteriormente.</p>
+          <p>Revisa todas tus entregas completadas</p>
         </div>
 
-        <div class="option-card" onclick="verContabilidad()">
-          <span class="icono">💰</span>
-          <h2>Contabilidad</h2>
-          <p>Consulta tu sueldo y los totales por día.</p>
-        </div>
-        
-        <div class="option-card" onclick="verPerfil()">
-          <span class="icono">👤</span>
-          <h2>Mi Perfil</h2>
-          <p>Consulta tu información personal y estado actual.</p>
+        <div class="option-card" onclick="verEstadisticas()">
+          <span class="icono">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+          </span>
+          <h2>Mis Estadísticas</h2>
+          <p>Consulta tu desempeño y ganancias</p>
         </div>
 
-        <div class="option-card" onclick="cambiarPassword()">
-          <span class="icono">🔒</span>
-          <h2>Cambiar Contraseña</h2>
-          <p>Actualiza tu contraseña de acceso de forma segura.</p>
+        <div class="option-card" onclick="verConfiguracion()">
+          <span class="icono">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            </svg>
+          </span>
+          <h2>Configuración</h2>
+          <p>Personaliza tus preferencias y ajustes</p>
         </div>
       </div>
     </main>
   </div>
 
-  <!-- ✅ SCRIPTS OPTIMIZADOS - SOLO FCM -->
-  <script src="js/fcm-notifications.js"></script>
-  <script src="js/inactividad.js"></script>
-  <script src="js/info_header.js"></script>
-  <script src="js/unified-geolocation.js"></script>
-  
   <script>
-
-
-// ✅ MOSTRAR/OCULTAR ALERTA DE PEDIDOS ACTIVOS
-async function actualizarAlertaPedidosActivos() {
-  try {
-    const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
-    if (response.ok) {
-      const pedidos = await response.json();
-      const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
-      
-      const alerta = document.getElementById('alertaPedidosActivos');
-      if (pedidosActivos.length > 0) {
-        alerta.style.display = 'block';
-      } else {
-        alerta.style.display = 'none';
-      }
+    // ========== FUNCIONES DE NAVEGACIÓN ==========
+    function verPedidosAsignados() {
+      window.location.href = 'domiciliarios.html';
     }
-  } catch (error) {
-    console.error('Error:', error);
-  }
-}
 
-// Llamar al actualizar contadores
-async function actualizarContadores() {
-  // ... código existente ...
-  await actualizarAlertaPedidosActivos(); // ✅ AGREGAR ESTA LÍNEA
-}
-  // ========== FUNCIONES DE NAVEGACIÓN ==========
-  function verPedidosAsignados() {
-    window.location.href = 'domiciliarios.html';
-  }
-
-  function verHistorialEntregas() {
-    window.location.href = 'historial_entregas.html';
-  }
-
-  function verContabilidad() {
-    window.location.href = 'contabilidad.html';
-  }
-
-  function verPerfil() {
-    window.location.href = 'perfil_domiciliario.html';
-  }
-
-  function cambiarPassword() {
-    window.location.href = 'cambiar_password.html';
-  }
-
-  async function logout() {
-  try {
-    // ✅ VERIFICAR PEDIDOS ACTIVOS ANTES DE CERRAR SESIÓN
-    const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
-    if (response.ok) {
-      const pedidos = await response.json();
-      const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
-      
-      if (pedidosActivos.length > 0) {
-        alert(`❌ No puedes cerrar sesión mientras tienes ${pedidosActivos.length} pedido(s) activo(s).\n\nPrimero debes completar o liberar todos tus pedidos antes de cerrar sesión.`);
-        return;
-      }
+    function verHistorialEntregas() {
+      window.location.href = 'historial_entregas.html';
     }
-  } catch (error) {
-    console.error('Error verificando pedidos:', error);
-    alert('Error al verificar pedidos activos. Intenta nuevamente.');
-    return;
-  }
-  
-  // ✅ SI NO HAY PEDIDOS ACTIVOS, PROCEDER CON LOGOUT
-  if (!confirm('¿Cerrar sesión?')) return;
-  
-  console.log('🔴 Marcando como NO DISPONIBLE antes de logout...');
-  
-  Promise.all([
-    // Marcar no disponible
-    window.apiRequest('/api/domiciliarios/domiciliario/cambiar-disponibilidad', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ disponible: false })
-    }),
-    // Detener tracking
-    window.unifiedGeoService ? window.unifiedGeoService.stopTracking() : Promise.resolve()
-  ]).then(() => {
-    console.log('✅ Marcado como no disponible');
-    
-    // Limpiar sesión local
-    window.limpiarSesion();
-    
-    // Cerrar sesión en servidor
-    return fetch('/api/logout', { method: 'POST' });
-  }).then(() => {
-    window.location.href = '/index.html';
-  }).catch(err => {
-    console.error('Error en logout:', err);
-    window.location.href = '/index.html';
-  });
-}
 
-  function handleKeyPress(event, callback) {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      callback();
+    function verEstadisticas() {
+      window.location.href = 'contabilidad.html';
     }
-  }
 
-  // ========== ACTUALIZAR CONTADORES ==========
-  async function actualizarContadores() {
-    try {
-      const res = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
-      
-      if (!res.ok) {
-        console.error('Error al obtener pedidos:', res.status);
-        return;
-      }
-      
-      const pedidos = await res.json();
-      
-      // Contar pedidos activos (asignados a mí)
-      const pedidosActivos = pedidos.filter(p => 
-        p.estado?.toLowerCase() === 'camino a tu casa'
-      );
-      
-      // Contar pedidos disponibles (esperando repartidor)
-      const pedidosDisponibles = pedidos.filter(p => 
-        p.estado?.toLowerCase() === 'esperando repartidor'
-      );
-      
-      // Actualizar contador de pedidos activos
-      const numActivos = pedidosActivos.length;
-      document.getElementById('numPedidosActivos').textContent = numActivos;
-      
-      const contadorPedidos = document.getElementById('contadorPedidos');
-      contadorPedidos.className = 'pedidos-activos-contador';
-      
-      if (numActivos >= 2) {
-        contadorPedidos.classList.add('limite-alcanzado');
-      } else if (numActivos === 1) {
-        contadorPedidos.classList.add('limite-cerca');
-      }
-      
-      // Actualizar contador de pedidos disponibles
-      const numDisponibles = pedidosDisponibles.length;
-      const counterElement = document.getElementById('pedidosDisponiblesCounter');
-      
-      if (numDisponibles > 0) {
-        counterElement.textContent = numDisponibles;
-        counterElement.classList.add('show');
-      } else {
-        counterElement.classList.remove('show');
-      }
-      
-      console.log(`✅ Contadores actualizados: ${numActivos} activos, ${numDisponibles} disponibles`);
-      
-    } catch (error) {
-      console.error('❌ Error actualizando contadores:', error);
+    function verConfiguracion() {
+      window.location.href = 'cambiar_password.html';
     }
-  }
 
-  // ========== INICIALIZACIÓN PRINCIPAL ==========
-// inicio_domi.html - REEMPLAZAR SECCION DE INICIALIZACION
-
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🎯 Inicializando página de inicio domiciliario...');
-  
-  // ✅ 1. CARGAR ESTADO DE DISPONIBILIDAD DESDE SERVIDOR
-  const switchDisponibilidad = document.getElementById('switchDisponibilidad');
-  const disponibilidadControl = document.querySelector('.disponibilidad-control');
-  
-  try {
-    const response = await window.apiRequest('/api/domiciliarios/domiciliario/estado-disponibilidad');
-    if (response.ok) {
-      const data = await response.json();
-      const disponible = data.disponible !== false;
-      
-      switchDisponibilidad.checked = disponible;
-      
-      // Actualizar estilo visual
-      if (!disponible) {
-        disponibilidadControl.classList.add('no-disponible');
-        document.querySelector('.switch-label').textContent = '🔴 No disponible';
-      }
-      
-      console.log(`📊 Estado inicial: ${disponible ? 'DISPONIBLE' : 'NO DISPONIBLE'}`);
-    }
-  } catch (error) {
-    console.error('❌ Error cargando disponibilidad:', error);
-  }
-  
-  // ✅ 2. INICIALIZAR SEGÚN DISPONIBILIDAD
-  if (switchDisponibilidad.checked) {
-    // ✅ DISPONIBLE: Iniciar geolocalización
-    if (window.unifiedGeoService) {
+    // ========== FUNCIÓN LOGOUT ==========
+    async function logout() {
       try {
-        await window.unifiedGeoService.initialize();
-        await window.unifiedGeoService.startTracking();
-        console.log('✅ Sistema de tracking activo (disponible)');
-      } catch (error) {
-        console.error('❌ Error en geolocalización:', error);
-      }
-    }
-  } else {
-    // ❌ NO DISPONIBLE: NO iniciar tracking
-    console.log('⏸️ No disponible - tracking NO iniciado');
-  }
-  
-  // ✅ 3. CONFIGURAR LISTENER DEL SWITCH
-// inicio_domi.html - LISTENER DEL SWITCH DE DISPONIBILIDAD MEJORADO
-
-switchDisponibilidad.addEventListener('change', async (e) => {
-  const disponible = e.target.checked;
-  
-  // ✅ VALIDAR SI TIENE PEDIDOS ACTIVOS ANTES DE DESACTIVAR
-  if (!disponible) {
-    try {
-      const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
-      if (response.ok) {
-        const pedidos = await response.json();
-        const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
-        
-        if (pedidosActivos.length > 0) {
-          e.preventDefault();
-          e.target.checked = true; // Revertir el switch
+        // Verificar pedidos activos antes de cerrar sesión
+        const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
+        if (response.ok) {
+          const pedidos = await response.json();
+          const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
           
-          alert(`❌ No puedes marcar como "No disponible" mientras tienes ${pedidosActivos.length} pedido(s) activo(s).\n\nPrimero debes completar o liberar todos tus pedidos activos.`);
-          return;
+          if (pedidosActivos.length > 0) {
+            alert(`No puedes cerrar sesión mientras tienes ${pedidosActivos.length} pedido(s) activo(s).\n\nPrimero debes completar o liberar todos tus pedidos activos.`);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error verificando pedidos:', error);
+      }
+
+      if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+        try {
+          // Detener tracking
+          if (window.unifiedGeoService) {
+            await window.unifiedGeoService.stopTracking();
+          }
+          
+          // Limpiar sesión local
+          if (window.limpiarSesion) {
+            window.limpiarSesion();
+          }
+          
+          // Cerrar sesión en servidor
+          await window.apiRequest('/api/logout', { method: 'POST' });
+          
+          // Redirigir
+          window.location.href = '/index.html';
+        } catch (error) {
+          console.error('Error en logout:', error);
+          window.location.href = '/index.html';
         }
       }
-    } catch (error) {
-      console.error('Error verificando pedidos:', error);
-      e.target.checked = true;
-      alert('Error al verificar pedidos activos. Intenta nuevamente.');
-      return;
     }
-  }
-  
-  try {
-    console.log(`🔄 Cambiando disponibilidad a: ${disponible}`);
-    
-    // ✅ PASO 1: Actualizar estado en servidor
-    const response = await window.apiRequest('/api/domiciliarios/domiciliario/cambiar-disponibilidad', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ disponible: disponible })
-    });
-    
-    if (response.ok) {
-      // ✅ PASO 2: Actualizar UI
-      if (disponible) {
-        disponibilidadControl.classList.remove('no-disponible');
-        document.querySelector('.switch-label').textContent = '🟢 Disponible para pedidos';
+
+    function handleKeyPress(event, callback) {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        callback();
+      }
+    }
+
+    // ========== ACTUALIZAR CONTADORES ==========
+    async function actualizarContadores() {
+      try {
+        const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
+        if (!response.ok) return;
         
-        console.log('✅ MARCADO COMO DISPONIBLE - Iniciando tracking...');
+        const pedidos = await response.json();
         
-        // ✅ PASO 3: INICIAR TRACKING
+        // Contar pedidos activos (camino a tu casa)
+        const pedidosActivos = pedidos.filter(p => 
+          p.estado?.toLowerCase() === 'camino a tu casa'
+        );
+        
+        // Contar pedidos disponibles (esperando repartidor)
+        const pedidosDisponibles = pedidos.filter(p => 
+          p.estado?.toLowerCase() === 'esperando repartidor'
+        );
+        
+        // Actualizar contador de pedidos activos
+        const numActivos = pedidosActivos.length;
+        document.getElementById('numPedidosActivos').textContent = numActivos;
+        
+        const contadorPedidos = document.getElementById('contadorPedidos');
+        contadorPedidos.className = 'pedidos-activos-contador';
+        
+        if (numActivos >= 2) {
+          contadorPedidos.classList.add('limite-alcanzado');
+        } else if (numActivos === 1) {
+          contadorPedidos.classList.add('limite-cerca');
+        }
+        
+        // Actualizar contador de pedidos disponibles
+        const numDisponibles = pedidosDisponibles.length;
+        const counterElement = document.getElementById('pedidosDisponiblesCounter');
+        
+        if (numDisponibles > 0) {
+          counterElement.textContent = numDisponibles;
+          counterElement.classList.add('show');
+        } else {
+          counterElement.classList.remove('show');
+        }
+        
+        console.log(`✅ Contadores actualizados: ${numActivos} activos, ${numDisponibles} disponibles`);
+        
+      } catch (error) {
+        console.error('❌ Error actualizando contadores:', error);
+      }
+    }
+
+    // ========== INICIALIZACIÓN PRINCIPAL ==========
+    document.addEventListener('DOMContentLoaded', async () => {
+      console.log('🎯 Inicializando página de inicio domiciliario...');
+      
+      // ✅ 1. CARGAR INFO DEL USUARIO
+      try {
+        const response = await window.apiRequest('/api/usuario-actual');
+        if (!response.ok) throw new Error('No autenticado');
+        const usuario = await response.json();
+        
+        document.getElementById('restaurantName').textContent = usuario.restaurante_nombre;
+        
+        // Censurar usuario
+        const nombreUsuario = usuario.usuario || '-';
+        const censurado = nombreUsuario.length > 4 
+          ? nombreUsuario.slice(0, -4) + '****' 
+          : nombreUsuario;
+        document.getElementById('userName').textContent = censurado;
+
+        const loading = document.getElementById('loading');
+        const opciones = document.getElementById('opciones');
+        const errorDiv = document.getElementById('error');
+
+        if (loading) loading.style.display = 'none';
+        if (opciones) {
+          opciones.style.display = 'grid';
+          opciones.classList.add('slide-up');
+        }
+        if (errorDiv) errorDiv.style.display = 'none';
+
+      } catch (error) {
+        console.error('Error al cargar usuario:', error);
+        const loading = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+
+        if (loading) loading.style.display = 'none';
+        if (errorDiv) errorDiv.style.display = 'block';
+        return;
+      }
+      
+      // ✅ 2. CARGAR ESTADO DE DISPONIBILIDAD
+      const switchDisponibilidad = document.getElementById('switchDisponibilidad');
+      const disponibilidadControl = document.querySelector('.disponibilidad-control');
+      
+      try {
+        const response = await window.apiRequest('/api/domiciliarios/domiciliario/estado-disponibilidad');
+        if (response.ok) {
+          const data = await response.json();
+          const disponible = data.disponible !== false;
+          
+          switchDisponibilidad.checked = disponible;
+          
+          if (!disponible) {
+            disponibilidadControl.classList.add('no-disponible');
+            const switchLabel = document.querySelector('.switch-label');
+            switchLabel.innerHTML = `
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px; flex-shrink: 0;">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              No disponible
+            `;
+          }
+          
+          console.log(`📊 Estado inicial: ${disponible ? 'DISPONIBLE' : 'NO DISPONIBLE'}`);
+        }
+      } catch (error) {
+        console.error('❌ Error cargando disponibilidad:', error);
+      }
+      
+      // ✅ 3. INICIALIZAR SEGÚN DISPONIBILIDAD
+      if (switchDisponibilidad.checked) {
         if (window.unifiedGeoService) {
           try {
             await window.unifiedGeoService.initialize();
             await window.unifiedGeoService.startTracking();
-            console.log('✅ Tracking iniciado');
-            
-            // ✅ PASO 4: Esperar y recargar pedidos
-            setTimeout(async () => {
-              console.log('🔄 Actualizando lista de pedidos...');
-              await actualizarContadores();
-            }, 2000);
-            
+            console.log('✅ Sistema de tracking activo (disponible)');
           } catch (error) {
-            console.error('❌ Error iniciando tracking:', error);
-            // Revertir switch si falla
-            e.target.checked = false;
-            disponibilidadControl.classList.add('no-disponible');
-            alert('Error al iniciar el servicio de ubicación');
+            console.error('❌ Error en geolocalización:', error);
+          }
+        }
+      } else {
+        console.log('⏸️ No disponible - tracking NO iniciado');
+      }
+      
+      // ✅ 4. CONFIGURAR LISTENER DEL SWITCH
+      switchDisponibilidad.addEventListener('change', async (e) => {
+        const disponible = e.target.checked;
+        
+        // Validar pedidos activos antes de desactivar
+        if (!disponible) {
+          try {
+            const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
+            if (response.ok) {
+              const pedidos = await response.json();
+              const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
+              
+              if (pedidosActivos.length > 0) {
+                e.preventDefault();
+                e.target.checked = true;
+                alert(`No puedes marcar como "No disponible" mientras tienes ${pedidosActivos.length} pedido(s) activo(s).\n\nPrimero debes completar o liberar todos tus pedidos activos.`);
+                return;
+              }
+            }
+          } catch (error) {
+            console.error('Error verificando pedidos:', error);
+            e.target.checked = true;
+            alert('Error al verificar pedidos activos. Intenta nuevamente.');
+            return;
           }
         }
         
-      } else {
-        // ⏸️ NO DISPONIBLE
-        disponibilidadControl.classList.add('no-disponible');
-        document.querySelector('.switch-label').textContent = '🔴 No disponible';
-        
-        console.log('⏸️ MARCADO COMO NO DISPONIBLE - Deteniendo tracking...');
-        
-        // ✅ DETENER TRACKING
-        if (window.unifiedGeoService) {
-          await window.unifiedGeoService.stopTracking();
+        try {
+          console.log(`🔄 Cambiando disponibilidad a: ${disponible}`);
+          
+          const response = await window.apiRequest('/api/domiciliarios/domiciliario/cambiar-disponibilidad', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ disponible: disponible })
+          });
+          
+          if (response.ok) {
+            if (disponible) {
+              disponibilidadControl.classList.remove('no-disponible');
+              const switchLabel = document.querySelector('.switch-label');
+              switchLabel.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px; flex-shrink: 0;">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                Disponible para pedidos
+              `;
+              
+              console.log('✅ MARCADO COMO DISPONIBLE - Iniciando tracking...');
+              
+              if (window.unifiedGeoService) {
+                try {
+                  await window.unifiedGeoService.initialize();
+                  await window.unifiedGeoService.startTracking();
+                  console.log('✅ Tracking iniciado');
+                  
+                  setTimeout(async () => {
+                    console.log('🔄 Actualizando lista de pedidos...');
+                    await actualizarContadores();
+                  }, 2000);
+                  
+                } catch (error) {
+                  console.error('❌ Error iniciando tracking:', error);
+                  e.target.checked = false;
+                  disponibilidadControl.classList.add('no-disponible');
+                  alert('Error al iniciar el servicio de ubicación');
+                }
+              }
+              
+            } else {
+              disponibilidadControl.classList.add('no-disponible');
+              const switchLabel = document.querySelector('.switch-label');
+              switchLabel.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px; flex-shrink: 0;">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                No disponible
+              `;
+              
+              console.log('⏸️ MARCADO COMO NO DISPONIBLE - Deteniendo tracking...');
+              
+              if (window.unifiedGeoService) {
+                await window.unifiedGeoService.stopTracking();
+              }
+              
+              console.log('⏸️ Tracking detenido');
+            }
+          } else {
+            e.target.checked = !disponible;
+            alert('Error al cambiar disponibilidad');
+          }
+        } catch (error) {
+          console.error('❌ Error:', error);
+          e.target.checked = !disponible;
+          alert('Error de conexión');
         }
-        
-        console.log('⏸️ Tracking detenido');
-      }
-    } else {
-      // Revertir cambio si falla
-      e.target.checked = !disponible;
-      alert('Error al cambiar disponibilidad');
-    }
-  } catch (error) {
-    console.error('❌ Error:', error);
-    e.target.checked = !disponible;
-    alert('Error de conexión');
-  }
-});
-  
-  // ✅ 4. INICIALIZAR FCM (siempre activo)
-  if (window.fcmNotificationService) {
-    try {
-      await window.fcmNotificationService.inicializar();
-      console.log('✅ FCM inicializado');
-    } catch (error) {
-      console.error('❌ Error FCM:', error);
-    }
-  }
-  
-  // ✅ 5. ACTUALIZAR CONTADORES
-  await actualizarContadores();
-  setInterval(actualizarContadores, 10000);
-  
-  // ✅ 6. CONFIGURAR SOCKET.IO
-  if (typeof io !== 'undefined') {
-    const socket = io();
-    
-    socket.on('connect', async () => {
-      console.log('🔌 Socket conectado');
+      });
       
-      try {
-        const response = await window.apiRequest('/api/usuario-actual');
-        if (response.ok) {
-          const usuario = await response.json();
-          socket.emit('join-domiciliario', usuario.id);
+      // ✅ 5. INICIALIZAR FCM
+      if (window.fcmNotificationService) {
+        try {
+          await window.fcmNotificationService.inicializar();
+          console.log('✅ FCM inicializado');
+        } catch (error) {
+          console.error('❌ Error FCM:', error);
         }
-      } catch (error) {
-        console.error('❌ Error usuario:', error);
+      }
+      
+      // ✅ 6. ACTUALIZAR CONTADORES
+      await actualizarContadores();
+      setInterval(actualizarContadores, 10000);
+      
+      // ✅ 7. CONFIGURAR SOCKET.IO
+      if (typeof io !== 'undefined') {
+        const socket = io();
+        
+        socket.on('connect', async () => {
+          console.log('🔌 Socket conectado');
+          
+          try {
+            const response = await window.apiRequest('/api/usuario-actual');
+            if (response.ok) {
+              const usuario = await response.json();
+              socket.emit('join-domiciliario', usuario.id);
+            }
+          } catch (error) {
+            console.error('❌ Error usuario:', error);
+          }
+        });
+        
+        socket.on('nuevo-pedido-geografico', async () => {
+          await actualizarContadores();
+        });
+        
+        socket.on('estado-pedido-actualizado', async () => {
+          await actualizarContadores();
+        });
+        
+        socket.on('pedido-removido', async () => {
+          await actualizarContadores();
+        });
+        
+        socket.on('pedido-tomado', async () => {
+          await actualizarContadores();
+        });
+        
+        socket.on('pedido-liberado', async () => {
+          await actualizarContadores();
+        });
+      }
+      
+      console.log('✅ Sistema completamente inicializado');
+    });
+
+    // ✅ ACTUALIZAR AL VOLVER A LA PÁGINA
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        console.log('👀 Página visible - actualizando...');
+        actualizarContadores();
       }
     });
-    
-    socket.on('nuevo-pedido-geografico', async () => {
-      await actualizarContadores();
-    });
-    
-    socket.on('estado-pedido-actualizado', async () => {
-      await actualizarContadores();
-    });
-    
-    socket.on('pedido-removido', async () => {
-      await actualizarContadores();
-    });
-    
-    socket.on('pedido-tomado', async () => {
-      await actualizarContadores();
-    });
-    
-    socket.on('pedido-liberado', async () => {
-      await actualizarContadores();
-    });
-  }
-  
-  console.log('✅ Sistema completamente inicializado');
-});
 
-// ✅ ACTUALIZAR AL VOLVER A LA PÁGINA
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) {
-    console.log('👀 Página visible - actualizando...');
-    actualizarContadores();
-  }
-});
-
-// Helper para descripción
-document.addEventListener('DOMContentLoaded', function() {
-  const helpBtn = document.getElementById('helpBtn');
-  const descripcion = document.getElementById('switchDescripcion');
-  
-  if (helpBtn && descripcion) {
-    helpBtn.addEventListener('click', function() {
-      const isVisible = descripcion.style.display === 'block';
-      descripcion.style.display = isVisible ? 'none' : 'block';
-      helpBtn.textContent = isVisible ? 'ℹ' : '✕';
+    // ✅ HELPER PARA DESCRIPCIÓN
+    document.addEventListener('DOMContentLoaded', function() {
+      const helpBtn = document.getElementById('helpBtn');
+      const descripcion = document.getElementById('switchDescripcion');
+      
+      if (helpBtn && descripcion) {
+        helpBtn.addEventListener('click', function() {
+          const isVisible = descripcion.style.display === 'block';
+          descripcion.style.display = isVisible ? 'none' : 'block';
+          helpBtn.textContent = isVisible ? 'ℹ' : '✕';
+        });
+      }
     });
-  }
-});
   </script>
 </body>
 </html>

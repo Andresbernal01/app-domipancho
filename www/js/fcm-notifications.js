@@ -1,4 +1,4 @@
-// fcm-notifications.js - CON SOPORTE PARA DESPERTAR APP
+// fcm-notifications.js - OPTIMIZADO: Recarga instantánea al recibir FCM
 
 class FCMNotificationService {
   constructor() {
@@ -57,26 +57,37 @@ class FCMNotificationService {
       console.error('❌ Error en registro FCM:', error);
     });
 
-    // 📥 NOTIFICACIÓN RECIBIDA (app abierta o cerrada)
+    // 🔥 NOTIFICACIÓN RECIBIDA (app abierta o cerrada)
     PushNotifications.addListener('pushNotificationReceived', async (notification) => {
       console.log('📬 Notificación FCM recibida:', notification);
       
-      // ✅ VERIFICAR SI ES NOTIFICACIÓN DE "DESPERTAR"
       const data = notification.data || {};
       
+      // ✅ VERIFICAR SI ES NOTIFICACIÓN DE "DESPERTAR"
       if (data.type === 'wake_for_location') {
         console.log('⏰ Notificación de despertar recibida - Actualizando ubicación...');
-        
-        // Forzar actualización de ubicación
         if (window.unifiedGeoService) {
           await window.unifiedGeoService.forceUpdate();
         }
-        
-        // NO reproducir sonido para este tipo
         return;
       }
       
-      // Para otras notificaciones, reproducir sonido según configuración
+      // ✅ CLAVE: Si es notificación de nuevo pedido, recargar INMEDIATAMENTE
+      if (data.tipo === 'nuevo_pedido') {
+        console.log('⚡ Nuevo pedido via FCM - Recargando lista INMEDIATAMENTE');
+        
+        // Forzar verificación en el socket mock (refresca la lista)
+        if (window.socketMockInstance) {
+          window.socketMockInstance.forceCheck();
+        }
+        
+        // También recargar pedidos directamente si la función existe
+        if (typeof window.cargarPedidos === 'function') {
+          window.cargarPedidos();
+        }
+      }
+      
+      // Reproducir sonido según configuración
       if (this.notificacionesActivas) {
         this.audio.play().catch(console.error);
         console.log('🔔 Sonido reproducido');
@@ -89,17 +100,27 @@ class FCMNotificationService {
     });
 
     // 👆 Notificación tocada
-    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+    PushNotifications.addListener('pushNotificationActionPerformed', async (action) => {
       console.log('👆 Notificación tocada:', action);
       
       const data = action.notification.data;
       
-      // Si es de despertar, solo actualizar ubicación
       if (data.type === 'wake_for_location') {
         if (window.unifiedGeoService) {
           window.unifiedGeoService.forceUpdate();
         }
         return;
+      }
+      
+      // ✅ Al tocar la notificación, recargar pedidos inmediatamente
+      if (data.tipo === 'nuevo_pedido') {
+        // Si ya estamos en domiciliarios.html, solo recargar pedidos
+        if (window.location.pathname.includes('domiciliarios.html')) {
+          if (typeof window.cargarPedidos === 'function') {
+            window.cargarPedidos();
+          }
+          return;
+        }
       }
       
       // Para pedidos, redirigir a la página
@@ -108,7 +129,7 @@ class FCMNotificationService {
       }
     });
     
-    console.log('✅ Listeners FCM configurados');
+    console.log('✅ Listeners FCM configurados (optimizados)');
   }
 
   async mostrarNotificacionLocal(notification) {
@@ -267,4 +288,4 @@ class FCMNotificationService {
 }
 
 window.fcmNotificationService = new FCMNotificationService();
-console.log('✅ FCMNotificationService cargado');
+console.log('✅ FCMNotificationService cargado (optimizado)');
