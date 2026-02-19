@@ -73,32 +73,38 @@
   }
 
   // ✅ Calcular totales con información de cupón
-  function calcularTotalesPedido(pedido) {
-    const productosArray = Array.isArray(pedido.productos) ? pedido.productos : [];
-    const subtotalProductos = productosArray.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0);
-    const costoDomicilio = obtenerCostoDomicilio(pedido);
-    
-    if (pedido.descuento_cupon && pedido.total_con_descuento) {
-      return {
-        subtotalProductos,
-        costoDomicilio,
-        descuentoCupon: pedido.descuento_cupon,
-        totalSinDescuento: pedido.total_sin_descuento || (subtotalProductos + costoDomicilio),
-        totalConDescuento: pedido.total_con_descuento,
-        tieneCupon: true
-      };
-    }
-    
-    const total = subtotalProductos + costoDomicilio;
+// ✅ Calcular totales con información de cupón y tarifa DomiPancho
+function calcularTotalesPedido(pedido) {
+  const productosArray = Array.isArray(pedido.productos) ? pedido.productos : [];
+  const subtotalProductos = productosArray.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0);
+  const costoDomicilio = obtenerCostoDomicilio(pedido);
+  
+  // ✅ NUEVO: Incluir tarifa DomiPancho si existe
+  const tarifaDomiPancho = pedido.tarifa_domipancho || 0;
+  
+  if (pedido.descuento_cupon && pedido.total_con_descuento) {
     return {
       subtotalProductos,
       costoDomicilio,
-      descuentoCupon: 0,
-      totalSinDescuento: total,
-      totalConDescuento: total,
-      tieneCupon: false
+      tarifaDomiPancho,  // ✅ NUEVO
+      descuentoCupon: pedido.descuento_cupon,
+      totalSinDescuento: pedido.total_sin_descuento || (subtotalProductos + costoDomicilio + tarifaDomiPancho),
+      totalConDescuento: pedido.total_con_descuento,
+      tieneCupon: true
     };
   }
+  
+  const total = subtotalProductos + costoDomicilio + tarifaDomiPancho;
+  return {
+    subtotalProductos,
+    costoDomicilio,
+    tarifaDomiPancho,  // ✅ NUEVO
+    descuentoCupon: 0,
+    totalSinDescuento: total,
+    totalConDescuento: total,
+    tieneCupon: false
+  };
+}
 
   // ========== AUTENTICACIÓN ==========
   async function logout() {
@@ -358,7 +364,7 @@
         <div class="total-amount" style="${totales.tieneCupon ? 'color: #16a34a;' : ''}">
           $${totales.totalConDescuento.toLocaleString('es-CO')}
         </div>
-        <small>(Incluye domicilio: $${totales.costoDomicilio.toLocaleString('es-CO')})</small>
+        <small>(Domicilio: $${totales.costoDomicilio.toLocaleString('es-CO')}${totales.tarifaDomiPancho > 0 ? ` + Tarifa DP: $${totales.tarifaDomiPancho.toLocaleString('es-CO')}` : ''})</small>
         ${p.tipo_tarifa === 'por_km' && p.distancia_km ? `<small class="km-info">(${p.distancia_km} km)</small>` : ''}
       </div>
 

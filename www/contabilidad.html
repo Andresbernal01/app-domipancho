@@ -630,8 +630,8 @@ main {
         <ul>
           <li><strong>Total Efectivo:</strong> Dinero que debes entregar a DomiPancho</li>
           <li><strong>Total App:</strong> Pagos digitales procesados por la plataforma</li>
-          <li><strong>Tu Sueldo:</strong> Costo del domicilio menos $500 de comisión por entrega</li>
-          <li><strong>Ejemplo:</strong> Domicilio de $5.000 → Tu ganas $4.500, DomiPancho $500</li>
+          <li><strong>Tarifa DomiPancho:</strong> $700 por pedido a domicilio (solo restaurantes que la cobran)</li>
+          <li><strong>Tu Sueldo:</strong> $4.000 por cada domicilio entregado</li>
         </ul>
       </div>
     </main>
@@ -739,6 +739,14 @@ async function cargarResumen() {
           <div class="descripcion">Pedidos entregados hoy</div>
         </div>
         
+        ${data.total_tarifa_domipancho > 0 ? `
+        <div class="resumen-item" style="color: #f59e0b;">
+          <h4>🚚 Tarifa DomiPancho</h4>
+          <div class="valor">$${data.total_tarifa_domipancho.toLocaleString('es-CO')}</div>
+          <div class="descripcion">Incluida en los totales cobrados</div>
+        </div>
+        ` : ''}
+        
         <div class="resumen-item pago">
           <h4>🏢 A Pagar a DomiPancho</h4>
           <div class="valor">$${data.total_efectivo.toLocaleString('es-CO')}</div>
@@ -748,7 +756,7 @@ async function cargarResumen() {
         <div class="resumen-item sueldo">
           <h4>💸 Tu Sueldo</h4>
           <div class="valor">$${data.sueldo.toLocaleString('es-CO')}</div>
-          <div class="descripcion">${data.total_pedidos} entregas (domicilio - $500 c/u)</div>
+          <div class="descripcion">${data.total_pedidos} entregas × $4.000 c/u</div>
         </div>
       </div>
     `;
