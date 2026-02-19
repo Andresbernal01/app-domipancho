@@ -133,19 +133,16 @@ class UnifiedGeolocationService {
       max-width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
     `;
     dialog.innerHTML = `
-      <h3 style="margin-top: 0; color: #333;">📍 Permiso de Ubicación</h3>
-      <p style="color: #666; line-height: 1.5;">
+      <h3>📍 Permiso de Ubicación</h3>
+      <p>
         Para recibir pedidos cercanos y que los clientes rastreen tus entregas,
         necesitamos acceso a tu ubicación <strong>todo el tiempo</strong>.
       </p>
-      <p style="color: #666; line-height: 1.5;">
+      <p>
         En la siguiente pantalla, selecciona:
         <strong>"Permitir todo el tiempo"</strong>
       </p>
-      <button id="close-perm-dialog" style="
-        background: #10b981; color: white; border: none; padding: 12px 24px;
-        border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold;
-      ">Entendido</button>
+      <button id="close-perm-dialog">Entendido</button>
     `;
     document.body.appendChild(dialog);
     

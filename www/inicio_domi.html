@@ -3,1187 +3,2317 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Panel Domiciliario | DomiPancho</title>
+  <title>DomiPancho | Domiciliario</title>
   <link rel="icon" href="img/logo.png">
   
-  <!-- Meta tags para PWA -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#10b981">
+  <meta name="theme-color" content="#0f172a">
   
-  <!-- Scripts -->
   <script src="js/config.js"></script>
   <script src="js/socket-mock.js"></script>
   <script src="js/unified-geolocation.js"></script>
   <script src="js/fcm-notifications.js"></script>
-  <script src="js/domipancho-icons.js"></script>
   <script src="js/inactividad.js"></script>
-  
+
   <style>
     /* ====================================
-       VARIABLES CSS
+       VARIABLES & DESIGN TOKENS
        ==================================== */
     :root {
-      /* Colores principales */
-      --primary: #10b981;
-      --primary-dark: #059669;
-      --secondary: #3b82f6;
-      --danger: #ef4444;
-      --warning: #f59e0b;
-      --success: #22c55e;
+      --bg-base: #0f172a;
+      --bg-surface: #1e293b;
+      --bg-card: #334155;
+      --bg-elevated: #475569;
       
-      /* Fondos */
-      --bg-dark: #1f2937;
-      --bg-card: #374151;
-      --bg-glass: rgba(255, 255, 255, 0.95);
-      --bg-light: #f9fafb;
+      --accent: #22d3ee;
+      --accent-glow: rgba(34, 211, 238, 0.15);
+      --accent-dark: #06b6d4;
+      --success: #34d399;
+      --success-glow: rgba(52, 211, 153, 0.15);
+      --warning: #fbbf24;
+      --warning-glow: rgba(251, 191, 36, 0.15);
+      --danger: #f87171;
+      --danger-glow: rgba(248, 113, 113, 0.15);
+      --purple: #a78bfa;
+      --orange: #fb923c;
       
-      /* Textos */
-      --text-primary: #1f2937;
-      --text-secondary: #6b7280;
-      --text-light: #9ca3af;
-      --text-white: #ffffff;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --text-inverse: #0f172a;
       
-      /* Sombras */
-      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
-      --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
-      --shadow-lg: 0 8px 25px rgba(0, 0, 0, 0.15);
+      --border: rgba(148, 163, 184, 0.12);
+      --border-accent: rgba(34, 211, 238, 0.3);
       
-      /* Espaciado */
-      --space-xs: 0.5rem;
-      --space-sm: 0.75rem;
-      --space-md: 1rem;
-      --space-lg: 1.5rem;
-      --space-xl: 2rem;
-      
-      /* Bordes */
-      --radius-sm: 6px;
-      --radius-md: 10px;
-      --radius-lg: 15px;
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
       --radius-full: 50%;
       
-      /* Transiciones */
-      --transition-fast: 0.2s ease;
-      --transition-base: 0.3s ease;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+      --shadow-md: 0 4px 12px rgba(0,0,0,0.3);
+      --shadow-lg: 0 8px 30px rgba(0,0,0,0.4);
+      --shadow-glow: 0 0 20px var(--accent-glow);
+      
+      --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      --nav-height: 72px;
+      --header-height: 56px;
     }
 
     /* ====================================
-       RESET Y BASE
+       RESET & BASE
        ==================================== */
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-card) 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg-base);
       color: var(--text-primary);
       min-height: 100vh;
-      line-height: 1.6;
+      min-height: 100dvh;
+      line-height: 1.5;
       -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-      padding-bottom: 20px;
       overflow-x: hidden;
+      padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
     }
 
     /* ====================================
-       HEADER PROFESIONAL
+       HEADER
        ==================================== */
     .header {
-      background: var(--bg-glass);
-      backdrop-filter: blur(10px);
-      box-shadow: var(--shadow-md);
       position: sticky;
       top: 0;
-      z-index: 1000;
-      border-bottom: 3px solid var(--primary);
+      z-index: 100;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: max(8px, env(safe-area-inset-top)) 16px 8px;
+      backdrop-filter: blur(16px);
     }
 
-    .header-container {
-      padding: var(--space-sm) var(--space-md);
+    .header-row {
       display: flex;
+      align-items: center;
       justify-content: space-between;
-      align-items: center;
-      gap: var(--space-sm);
+      gap: 12px;
     }
 
-    .header-left {
+    .header-user {
       display: flex;
       align-items: center;
-      flex-shrink: 0;
-    }
-
-    .logout-btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: var(--space-xs);
-      padding: var(--space-xs) var(--space-sm);
-      background: var(--danger);
-      color: white;
-      border: none;
-      border-radius: var(--radius-md);
-      font-weight: 600;
-      font-size: 0.75rem;
-      cursor: pointer;
-      transition: all var(--transition-base);
-      white-space: nowrap;
-      min-width: 36px;
-      height: 36px;
-    }
-
-    .logout-btn svg {
-      width: 18px;
-      height: 18px;
-      flex-shrink: 0;
-    }
-
-    .logout-btn:hover,
-    .logout-btn:active {
-      background: #dc2626;
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-md);
-    }
-
-    .header-center {
-      flex: 1;
+      gap: 10px;
       min-width: 0;
-      text-align: center;
+      flex: 1;
     }
 
-    .restaurant-info h1 {
-      font-size: 1rem;
+    .avatar {
+      width: 36px; height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      border-radius: var(--radius-full);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .avatar svg { width: 20px; height: 20px; color: white; }
+
+    .header-text { min-width: 0; }
+    .header-text h1 {
+      font-size: 0.95rem;
       font-weight: 700;
       color: var(--text-primary);
-      margin: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .header-text .sub {
+      font-size: 0.72rem;
+      color: var(--text-muted);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
-    .header-right {
-      display: flex;
-      align-items: center;
-      flex-shrink: 0;
-    }
+    .header-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: var(--space-xs);
-      padding: var(--space-xs) var(--space-sm);
-      background: var(--bg-light);
+    .btn-icon {
+      width: 36px; height: 36px;
       border-radius: var(--radius-md);
-      font-size: 0.8rem;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .btn-icon:active { transform: scale(0.92); background: var(--bg-card); }
+    .btn-icon svg { width: 18px; height: 18px; }
+    .btn-icon.danger { border-color: rgba(248,113,113,0.3); color: var(--danger); }
+    .btn-icon.danger:active { background: var(--danger-glow); }
+
+    /* ====================================
+       DISPONIBILIDAD STRIP
+       ==================================== */
+    .disponibilidad-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, rgba(34,211,153,0.12) 0%, rgba(34,211,238,0.08) 100%);
+      border-bottom: 1px solid var(--border);
+      transition: var(--transition);
     }
 
-    .user-info svg {
-      flex-shrink: 0;
-      color: var(--primary);
+    .disponibilidad-strip.no-disponible {
+      background: linear-gradient(135deg, rgba(248,113,113,0.12) 0%, rgba(251,146,60,0.08) 100%);
     }
 
-    .user-label {
-      display: none;
+    .disp-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
-    #userName {
+    .disp-dot {
+      width: 10px; height: 10px;
+      border-radius: var(--radius-full);
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      transition: var(--transition);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    .no-disponible .disp-dot {
+      background: var(--danger);
+      box-shadow: 0 0 8px var(--danger);
+      animation: none;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(0.85); }
+    }
+
+    .disp-label {
+      font-size: 0.82rem;
       font-weight: 600;
       color: var(--text-primary);
+    }
+
+    /* Switch toggle */
+    .switch { position: relative; width: 48px; height: 26px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch .slider {
+      position: absolute; cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--bg-elevated);
+      border-radius: 26px;
+      transition: var(--transition);
+      border: 1px solid var(--border);
+    }
+    .switch .slider::before {
+      content: ""; position: absolute;
+      height: 20px; width: 20px;
+      left: 2px; bottom: 2px;
+      background: var(--text-secondary);
+      border-radius: var(--radius-full);
+      transition: var(--transition);
+    }
+    .switch input:checked + .slider { background: var(--success); border-color: var(--success); }
+    .switch input:checked + .slider::before { transform: translateX(22px); background: white; }
+
+    /* ====================================
+       BOTTOM NAVIGATION
+       ==================================== */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 200;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      padding-bottom: env(safe-area-inset-bottom);
+      backdrop-filter: blur(16px);
+    }
+
+    .nav-items {
+      display: flex;
+      height: var(--nav-height);
+    }
+
+    .nav-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: var(--transition);
+      position: relative;
+      border: none;
+      background: transparent;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+      padding: 4px 0;
+    }
+
+    .nav-item svg { width: 22px; height: 22px; transition: var(--transition); }
+    .nav-item span {
+      font-size: 0.62rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: var(--transition);
+    }
+
+    .nav-item.active {
+      color: var(--accent);
+    }
+
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%;
+      transform: translateX(-50%);
+      width: 32px; height: 3px;
+      background: var(--accent);
+      border-radius: 0 0 4px 4px;
+    }
+
+    .nav-item:active { transform: scale(0.9); }
+
+    .nav-badge {
+      position: absolute;
+      top: 4px; right: calc(50% - 22px);
+      min-width: 18px; height: 18px;
+      background: var(--danger);
+      color: white;
+      font-size: 0.6rem;
+      font-weight: 700;
+      border-radius: 10px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 0 4px;
+      border: 2px solid var(--bg-surface);
+    }
+
+    .nav-badge.show { display: flex; }
+
+    /* ====================================
+       PAGE VIEWS
+       ==================================== */
+    .page-view {
+      display: none;
+      padding: 16px;
+      animation: pageFadeIn 0.3s ease;
+      min-height: calc(100vh - var(--header-height) - var(--nav-height) - 50px);
+    }
+
+    .page-view.active { display: block; }
+
+    @keyframes pageFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ====================================
+       PEDIDOS ACTIVOS PAGE
+       ==================================== */
+    .active-orders-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .active-orders-header h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .orders-count {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      background: var(--bg-card);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .orders-count .num {
+      color: var(--accent);
+      font-size: 1.1rem;
+    }
+
+    .orders-count.limite-cerca .num { color: var(--warning); }
+    .orders-count.limite-cerca { border-color: rgba(251,191,36,0.3); }
+    .orders-count.limite-alcanzado .num { color: var(--danger); }
+    .orders-count.limite-alcanzado { border-color: rgba(248,113,113,0.3); }
+
+    /* Pedido card */
+    .pedido-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      margin-bottom: 12px;
+      position: relative;
+      overflow: hidden;
+      transition: var(--transition);
+    }
+
+    .pedido-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent);
+    }
+
+    .pedido-card.mi-pedido { border-color: var(--border-accent); }
+    .pedido-card.mi-pedido::before { background: linear-gradient(90deg, var(--accent), var(--success)); }
+    .pedido-card.color-disponible::before { background: var(--warning); }
+
+    .pedido-card.pedido-preview { opacity: 0.7; }
+
+    .badge-mi-pedido, .badge-manual {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      margin-right: 6px;
+    }
+    .badge-mi-pedido { background: var(--accent-glow); color: var(--accent); border: 1px solid var(--border-accent); }
+    .badge-manual { background: var(--warning-glow); color: var(--warning); border: 1px solid rgba(251,191,36,0.3); }
+
+    .pedido-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .cliente-info h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .cliente-info .telefono {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .estado {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .estado.esperando-repartidor { background: var(--warning-glow); color: var(--warning); }
+    .estado.camino { background: var(--accent-glow); color: var(--accent); }
+    .estado.entregado { background: var(--success-glow); color: var(--success); }
+    .estado.cancelado { background: var(--danger-glow); color: var(--danger); }
+    .estado.pendiente { background: rgba(148,163,184,0.1); color: var(--text-secondary); }
+    .estado.en-preparacion { background: rgba(167,139,250,0.15); color: var(--purple); }
+
+    .distancia-info {
+      background: var(--bg-card);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.78rem;
+      color: var(--accent);
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .info-section {
+      background: var(--bg-card);
+      padding: 10px;
+      border-radius: var(--radius-sm);
+    }
+
+    .info-section h4 {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .info-section .nombre-negocio {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .info-section .direccion-small,
+    .info-section .telefono-small {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+    }
+
+    .info-section .direccion-cliente {
+      font-size: 0.82rem;
+      color: var(--text-primary);
+    }
+
+    .info-section .barrio {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    .total-section {
+      text-align: center;
+      padding: 10px;
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
+      margin-bottom: 12px;
+    }
+
+    .total-amount {
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .total-section small {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .total-original {
+      text-decoration: line-through;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .descuento-badge {
+      display: inline-block;
+      background: var(--success-glow);
+      color: var(--success);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      margin: 4px 0;
+    }
+
+    .km-info { color: var(--text-muted); font-size: 0.7rem; }
+
+    .botones-pedido {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .botones-pedido button {
+      flex: 1;
+      min-width: 80px;
+      padding: 10px 8px;
+      border-radius: var(--radius-md);
+      border: none;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .botones-pedido button:active { transform: scale(0.95); }
+    .botones-pedido button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-tomar { background: var(--accent); color: var(--text-inverse); }
+    .btn-tomar:active { background: var(--accent-dark); }
+    .btn-entregado { background: var(--success); color: var(--text-inverse); }
+    .btn-problema { background: var(--danger); color: white; }
+    .btn-liberar { background: var(--warning); color: var(--text-inverse); }
+    .btn-ver-detalles { background: var(--bg-elevated); color: var(--text-primary); }
+    .btn-no-disponible { background: var(--bg-elevated); color: var(--text-muted); }
+
+    .pedido-footer {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .pedido-footer small { font-size: 0.7rem; color: var(--text-muted); }
+
+    .alerta-proteccion {
+      background: var(--bg-card);
+      border: 1px solid rgba(251,191,36,0.2);
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.78rem;
+      color: var(--warning);
+      margin-bottom: 10px;
+    }
+
+    .no-pedidos {
+      text-align: center;
+      padding: 48px 24px;
+      background: var(--bg-surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+    }
+    .no-pedidos h3 { font-size: 1.1rem; margin-bottom: 8px; }
+    .no-pedidos p { font-size: 0.85rem; color: var(--text-secondary); }
+
+    .alerta {
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      margin-bottom: 12px;
+      font-size: 0.82rem;
+    }
+    .alerta h3 { font-size: 0.9rem; margin-bottom: 4px; }
+    .alerta p { font-size: 0.78rem; color: var(--text-secondary); }
+    .alerta.limite-alcanzado { background: var(--danger-glow); border: 1px solid rgba(248,113,113,0.2); }
+    .alerta.advertencia-limite { background: var(--warning-glow); border: 1px solid rgba(251,191,36,0.2); }
+    .alerta.alerta-no-disponible { background: var(--danger-glow); border: 1px solid rgba(248,113,113,0.2); }
+
+    .pedidos-grid { display: flex; flex-direction: column; gap: 12px; }
+    .separador-pedidos {
+      text-align: center;
+      padding: 16px 0;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .separador-pedidos span {
+      background: var(--bg-card);
+      padding: 6px 16px;
+      border-radius: 20px;
+    }
+
+    .bloqueado {
+      text-align: center;
+      padding: 40px;
+      background: var(--danger-glow);
+      border-radius: var(--radius-lg);
+      border: 1px solid rgba(248,113,113,0.2);
+    }
+
+    .btn-reload {
+      margin-top: 12px;
+      padding: 10px 24px;
+      background: var(--accent);
+      color: var(--text-inverse);
+      border: none;
+      border-radius: var(--radius-md);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .error {
+      text-align: center;
+      padding: 40px;
+      background: var(--bg-surface);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+    }
+    .loading p { color: var(--text-secondary); }
+
+    /* ====================================
+       HISTORIAL PAGE
+       ==================================== */
+    .filtro-fecha-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .filtro-fecha-row label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-secondary);
       white-space: nowrap;
     }
 
-    /* ====================================
-       MAIN CONTAINER
-       ==================================== */
-    .main-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: var(--space-md);
+    .filtro-fecha-row input[type="date"] {
+      flex: 1;
+      padding: 10px 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      font-family: inherit;
+      color-scheme: dark;
     }
 
-    /* ====================================
-       CONTROL DE DISPONIBILIDAD
-       ==================================== */
-    .disponibilidad-control {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-      padding: var(--space-lg);
-      margin-bottom: var(--space-md);
+    .titulo-fecha {
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+      color: var(--accent);
+    }
+
+    .resumen-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .resumen-item {
+      background: var(--bg-surface);
+      padding: 14px;
+      border-radius: var(--radius-md);
+      text-align: center;
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .resumen-item::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: currentColor;
+      opacity: 0.4;
+    }
+
+    .resumen-item h4 {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .resumen-item .valor {
+      font-size: 1.2rem;
+      font-weight: 800;
+    }
+
+    .resumen-item.cancelados .valor { color: var(--danger); }
+    .resumen-item.total-cobrado .valor { color: var(--warning); }
+    .resumen-item.productos .valor { color: var(--purple); }
+
+    /* Historial card */
+    .historial-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-lg);
-      transition: all var(--transition-base);
+      padding: 14px;
+      margin-bottom: 10px;
     }
 
-    .disponibilidad-control.no-disponible {
-      background: linear-gradient(135deg, var(--danger) 0%, #dc2626 100%);
-    }
+    .historial-card.cancelado { border-color: rgba(248,113,113,0.2); }
 
-    .switch-container {
+    .pedido-header-compacto {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: var(--space-md);
+      margin-bottom: 10px;
     }
 
-    .switch-label {
-      color: white;
+    .pedido-header-compacto h3 { font-size: 0.9rem; }
+
+    .estado-compacto {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.68rem;
+      font-weight: 700;
+    }
+
+    .pedido-header-compacto.entregado .estado-compacto {
+      background: var(--success-glow); color: var(--success);
+    }
+    .pedido-header-compacto.cancelado .estado-compacto {
+      background: var(--danger-glow); color: var(--danger);
+    }
+
+    .info-esencial {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .info-esencial .info-item {
+      background: var(--bg-card);
+      padding: 8px;
+      border-radius: var(--radius-sm);
+    }
+
+    .info-esencial h4 { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 4px; }
+    .info-esencial p { font-size: 0.78rem; color: var(--text-secondary); }
+    .info-esencial strong { color: var(--text-primary); }
+
+    .pago-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+    }
+
+    .total-compacto { font-weight: 700; font-size: 0.95rem; }
+    .metodo-pago { font-size: 0.75rem; color: var(--text-secondary); }
+
+    .fechas-compactas {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .fechas-compactas p { font-size: 0.72rem; color: var(--text-muted); }
+
+    .btn-ver-detalles-hist {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      border-radius: var(--radius-md);
+      font-size: 0.78rem;
       font-weight: 600;
-      font-size: 1rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: var(--transition);
+    }
+    .btn-ver-detalles-hist:active { background: var(--bg-card); }
+
+    /* ====================================
+       CONTABILIDAD PAGE
+       ==================================== */
+    .fecha-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      background: var(--bg-surface);
+      padding: 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+    }
+
+    .btn-fecha {
+      padding: 10px 14px;
+      background: var(--accent);
+      color: var(--text-inverse);
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
+      flex-shrink: 0;
+      font-family: inherit;
+    }
+    .btn-fecha:active { transform: scale(0.95); background: var(--accent-dark); }
+
+    .fecha-actual {
+      flex: 1;
+      text-align: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .contab-resumen-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .contab-item {
+      background: var(--bg-surface);
+      padding: 16px;
+      border-radius: var(--radius-md);
+      text-align: center;
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .contab-item::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      opacity: 0.6;
+    }
+
+    .contab-item h4 {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .contab-item .valor {
+      font-size: 1.3rem;
+      font-weight: 800;
+    }
+
+    .contab-item .descripcion {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .contab-item.efectivo::before { background: var(--success); }
+    .contab-item.efectivo .valor { color: var(--success); }
+    .contab-item.app::before { background: #60a5fa; }
+    .contab-item.app .valor { color: #60a5fa; }
+    .contab-item.total::before { background: var(--warning); }
+    .contab-item.total .valor { color: var(--warning); }
+    .contab-item.pedidos::before { background: var(--purple); }
+    .contab-item.pedidos .valor { color: var(--purple); }
+    .contab-item.pago::before { background: var(--orange); }
+    .contab-item.pago .valor { color: var(--orange); }
+    .contab-item.sueldo {
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, rgba(34,211,153,0.08), rgba(34,211,238,0.05));
+      border-color: rgba(34,211,153,0.2);
+    }
+    .contab-item.sueldo::before { background: var(--success); }
+    .contab-item.sueldo .valor { color: var(--success); font-size: 1.6rem; }
+
+    .info-adicional {
+      background: var(--bg-surface);
+      padding: 16px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+    }
+    .info-adicional h3 { font-size: 0.82rem; color: var(--accent); margin-bottom: 12px; text-align: center; }
+    .info-adicional ul { list-style: none; }
+    .info-adicional li {
+      padding: 10px;
+      margin-bottom: 6px;
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      border-left: 3px solid var(--accent);
+    }
+    .info-adicional strong { color: var(--warning); }
+
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top: 3px solid var(--accent);
+      border-radius: var(--radius-full);
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ====================================
+       CAMBIAR PASSWORD PAGE
+       ==================================== */
+    .form-container-pw {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px 20px;
+    }
+
+    .form-title-pw {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .password-field {
+      display: flex;
+      gap: 8px;
+    }
+
+    .password-field input {
+      flex: 1;
+      padding: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      font-family: inherit;
+      transition: var(--transition);
+    }
+    .password-field input:focus { outline: none; border-color: var(--accent); }
+    .password-field input.valid { border-color: var(--success); }
+    .password-field input.invalid { border-color: var(--danger); }
+
+    .toggle-password {
+      width: 44px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+    }
+    .toggle-password:active { background: var(--bg-elevated); }
+
+    .password-requirements {
+      margin-top: 10px;
+      padding: 12px;
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
+      display: none;
+    }
+    .password-requirements.show { display: block; }
+    .password-requirements h4 {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    .requirement {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      padding: 3px 0;
+    }
+    .requirement.valid { color: var(--success); }
+    .requirement .icon { font-size: 0.7rem; }
+
+    .password-strength {
+      margin-top: 8px;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: none;
+    }
+    .strength-weak { background: var(--danger-glow); color: var(--danger); }
+    .strength-medium { background: var(--warning-glow); color: var(--warning); }
+    .strength-strong { background: var(--success-glow); color: var(--success); }
+
+    .submit-btn {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      color: var(--text-inverse);
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: var(--transition);
+      font-family: inherit;
+      margin-top: 8px;
+    }
+    .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .submit-btn:active:not(:disabled) { transform: scale(0.98); }
+
+    .mensaje-pw {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: var(--radius-sm);
+      font-size: 0.82rem;
+      text-align: center;
+      display: none;
+    }
+    .mensaje-pw.success { display: block; background: var(--success-glow); color: var(--success); }
+    .mensaje-pw.error { display: block; background: var(--danger-glow); color: var(--danger); }
+
+    .blocked-container {
+      text-align: center;
+      padding: 32px 20px;
+      background: var(--bg-surface);
+      border: 1px solid rgba(248,113,113,0.2);
+      border-radius: var(--radius-lg);
+    }
+    .blocked-icon { margin-bottom: 12px; display:flex; justify-content:center; }
+    .blocked-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 8px; }
+    .blocked-message { font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6; }
+    .countdown-container { margin-bottom: 20px; }
+    .countdown-title { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px; }
+    .countdown-display { font-size: 2rem; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .countdown-labels { display: flex; justify-content: center; gap: 30px; font-size: 0.65rem; color: var(--text-muted); }
+    .blocked-info { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.8; }
+
+    .nota-48h {
+      margin-top: 12px;
+      font-size: 0.78rem;
+      color: var(--warning);
+      text-align: center;
+    }
+
+    /* ====================================
+       MODALS
+       ==================================== */
+    .modal-problema, .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      backdrop-filter: blur(4px);
+    }
+
+    .modal-contenido, .modal-detalles-contenido {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 24px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+    }
+
+    .modal-contenido h2 { font-size: 1rem; margin-bottom: 16px; }
+    .modal-contenido label {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      margin: 12px 0 6px;
+      font-weight: 600;
+    }
+
+    .modal-contenido select,
+    .modal-contenido input[type="text"],
+    .modal-contenido textarea {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      font-family: inherit;
+    }
+    .modal-contenido select:focus,
+    .modal-contenido input:focus,
+    .modal-contenido textarea:focus { outline: none; border-color: var(--accent); }
+
+    .modal-contenido input[type="radio"] { margin-right: 4px; }
+    .modal-contenido .modal-acciones {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    .modal-contenido .modal-acciones button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: var(--radius-md);
+      font-weight: 700;
+      font-size: 0.82rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: var(--transition);
+    }
+    .modal-contenido .modal-acciones button:first-child { background: var(--accent); color: var(--text-inverse); }
+    .modal-contenido .modal-acciones button:last-child { background: var(--bg-elevated); color: var(--text-primary); }
+
+    .metodos-pago label {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px;
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      transition: var(--transition);
+    }
+    .metodos-pago label:has(input:checked) { border-color: var(--accent); background: var(--accent-glow); }
+    .metodos-pago span { font-size: 0.85rem; }
+
+    .modal-detalles-contenido h2 { font-size: 1rem; margin-bottom: 16px; }
+    .detalle-section {
+      margin-bottom: 16px;
+      padding: 12px;
+      background: var(--bg-card);
+      border-radius: var(--radius-sm);
+    }
+    .detalle-section h4 { font-size: 0.82rem; color: var(--accent); margin-bottom: 8px; }
+    .detalle-section p { font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 4px; }
+    .detalle-section strong { color: var(--text-primary); }
+
+    .producto-detalle-item {
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .producto-detalle-item:last-child { border-bottom: none; }
+    .producto-nombre-detalle { font-weight: 600; font-size: 0.85rem; color: var(--text-primary); }
+    .producto-detalles { font-size: 0.78rem; color: var(--text-muted); }
+
+    .total-destacado { font-size: 1.1rem; }
+    .total-final { font-size: 1.1rem; }
+    .info-km { font-size: 0.75rem; color: var(--text-muted); }
+    .tarifa-km { font-size: 0.75rem; color: var(--text-muted); }
+
+    .btn-cerrar-modal {
+      width: 100%;
+      padding: 12px;
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border: none;
+      border-radius: var(--radius-md);
+      font-weight: 700;
+      font-size: 0.85rem;
+      cursor: pointer;
+      margin-top: 8px;
+      font-family: inherit;
+    }
+
+    .comentario-cancelado {
+      padding: 12px;
+      background: var(--danger-glow);
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(248,113,113,0.2);
+      font-size: 0.82rem;
+      margin-bottom: 12px;
+    }
+
+    /* Message system */
+    .mensaje-sistema {
+      position: fixed;
+      bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 16px);
+      left: 16px; right: 16px;
+      padding: 14px 20px;
+      border-radius: var(--radius-md);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+      z-index: 250;
+      animation: slideUp 0.3s ease;
+    }
+    .mensaje-sistema.success { background: var(--success); color: var(--text-inverse); }
+    .mensaje-sistema.error { background: var(--danger); color: white; }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Success modal */
+    .success-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 300;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .success-modal.show { display: flex; }
+    .success-modal-content {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-xl);
+      padding: 32px 24px;
+      text-align: center;
+      max-width: 400px;
+    }
+    .success-icon { margin-bottom: 12px; display:flex; justify-content:center; }
+    .success-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+    .success-message { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6; }
+    .success-button {
+      padding: 12px 32px;
+      background: var(--accent);
+      color: var(--text-inverse);
+      border: none;
+      border-radius: var(--radius-md);
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    /* ====================================
+       FINANZAS TABS
+       ==================================== */
+    .finanzas-header h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .finanzas-tabs {
+      display: flex;
+      gap: 6px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 4px;
+      margin-bottom: 4px;
+    }
+
+    .fin-tab {
       flex: 1;
       display: flex;
       align-items: center;
-      gap: var(--space-sm);
-    }
-
-    .switch-label svg {
-      flex-shrink: 0;
-    }
-
-    .help-btn {
-      background: rgba(255, 255, 255, 0.2);
-      border: none;
-      color: white;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
       justify-content: center;
-      cursor: pointer;
-      transition: all var(--transition-fast);
-      flex-shrink: 0;
-      padding: 0;
-    }
-
-    .help-btn svg {
-      display: block;
-    }
-
-    .help-btn:hover,
-    .help-btn:active {
-      background: rgba(255, 255, 255, 0.3);
-      transform: scale(1.1);
-    }
-
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 56px;
-      height: 32px;
-      flex-shrink: 0;
-    }
-
-    .switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(255, 255, 255, 0.3);
-      transition: .4s;
-      border-radius: 32px;
-    }
-
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 24px;
-      width: 24px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-    }
-
-    input:checked + .slider {
-      background-color: rgba(255, 255, 255, 0.5);
-    }
-
-    input:checked + .slider:before {
-      transform: translateX(24px);
-    }
-
-    .switch-descripcion {
-      color: rgba(255, 255, 255, 0.95);
-      font-size: 0.85rem;
-      margin: var(--space-md) 0 0 0;
-      line-height: 1.5;
-      padding-top: var(--space-md);
-      border-top: 1px solid rgba(255, 255, 255, 0.2);
-      animation: fadeIn 0.3s ease;
-    }
-
-    /* ====================================
-       ALERTA PEDIDOS ACTIVOS
-       ==================================== */
-    .alerta-pedidos-activos {
-      background: linear-gradient(135deg, var(--warning) 0%, #d97706 100%);
-      color: white;
-      padding: var(--space-md);
-      margin-bottom: var(--space-md);
-      border-radius: var(--radius-lg);
-      font-size: 0.9rem;
-      text-align: left;
-      box-shadow: var(--shadow-md);
-      animation: pulse-warning 2s ease-in-out infinite;
-      display: flex;
-      align-items: center;
-      gap: var(--space-md);
-    }
-
-    .alerta-pedidos-activos svg {
-      flex-shrink: 0;
-    }
-
-    @keyframes pulse-warning {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.85; }
-    }
-
-    /* ====================================
-       CONTADOR PEDIDOS ACTIVOS
-       ==================================== */
-    .pedidos-activos-contador {
-      background: white;
-      padding: var(--space-lg);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md);
-      text-align: center;
-      font-weight: 700;
-      font-size: 1.1rem;
-      color: var(--text-primary);
-      cursor: pointer;
-      transition: all var(--transition-base);
-      margin-bottom: var(--space-md);
-      border: 3px solid var(--primary);
-    }
-
-    .pedidos-activos-contador:active {
-      transform: scale(0.98);
-      box-shadow: var(--shadow-sm);
-    }
-
-    .pedidos-activos-contador.limite-cerca {
-      border-color: var(--warning);
-      background: linear-gradient(135deg, #fff 0%, #fef3c7 100%);
-    }
-
-    .pedidos-activos-contador.limite-alcanzado {
-      border-color: var(--danger);
-      background: linear-gradient(135deg, #fff 0%, #fee2e2 100%);
-    }
-
-    #numPedidosActivos {
-      font-size: 1.5rem;
-      color: var(--primary);
-    }
-
-    .limite-cerca #numPedidosActivos {
-      color: var(--warning);
-    }
-
-    .limite-alcanzado #numPedidosActivos {
-      color: var(--danger);
-    }
-
-    /* ====================================
-       LOADING Y ERROR
-       ==================================== */
-    .loading,
-    .error {
-      background: white;
-      padding: var(--space-xl);
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md);
-      text-align: center;
-      margin-bottom: var(--space-md);
-    }
-
-    .loading p,
-    .error p {
-      font-size: 1rem;
-      color: var(--text-secondary);
-      margin-bottom: var(--space-md);
-    }
-
-    .error button {
-      padding: var(--space-sm) var(--space-lg);
-      background: var(--primary);
-      color: white;
+      gap: 6px;
+      padding: 9px 12px;
       border: none;
-      border-radius: var(--radius-md);
+      background: transparent;
+      color: var(--text-muted);
+      font-size: 0.78rem;
       font-weight: 600;
+      border-radius: var(--radius-sm);
       cursor: pointer;
-      transition: all var(--transition-base);
+      transition: var(--transition);
+      font-family: inherit;
     }
 
-    .error button:active {
-      transform: scale(0.98);
+    .fin-tab svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+    .fin-tab.active {
+      background: var(--bg-card);
+      color: var(--accent);
+      border: 1px solid var(--border-accent);
     }
+
+    .fin-tab:active { transform: scale(0.97); }
+
+    .finanzas-subpage { display: block; }
 
     /* ====================================
-       GRID DE OPCIONES
+       RESPONSIVE
        ==================================== */
-    .cajon-opcion {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: var(--space-md);
+    @media (max-width: 380px) {
+      .header-text h1 { font-size: 0.85rem; }
+      .botones-pedido { flex-direction: column; }
+      .info-grid { grid-template-columns: 1fr; }
+      .info-esencial { grid-template-columns: 1fr; }
     }
 
-    .option-card {
-      background: white;
-      border-radius: var(--radius-lg);
-      padding: var(--space-xl);
-      box-shadow: var(--shadow-md);
-      cursor: pointer;
-      transition: all var(--transition-base);
-      position: relative;
-      overflow: hidden;
-      border: 2px solid transparent;
-    }
-
-    .option-card:active {
-      transform: translateY(-5px);
-      box-shadow: var(--shadow-lg);
-      border-color: var(--primary);
-    }
-
-    .option-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, var(--primary), var(--secondary));
-      transform: scaleX(0);
-      transition: transform var(--transition-base);
-    }
-
-    .option-card:active::before {
-      transform: scaleX(1);
-    }
-
-    .option-card .icono {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: var(--space-md);
-    }
-
-    .option-card .icono svg {
-      width: 64px;
-      height: 64px;
-      color: var(--primary);
-      stroke-width: 1.5;
-    }
-
-    .option-card h2 {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      margin-bottom: var(--space-sm);
-      text-align: center;
-    }
-
-    .option-card p {
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-      text-align: center;
-      line-height: 1.5;
-    }
-
-    /* Badge contador en card de pedidos */
-    .pedidos-disponibles-counter {
-      position: absolute;
-      top: var(--space-md);
-      right: var(--space-md);
-      background: var(--danger);
-      color: white;
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 0.9rem;
-      box-shadow: var(--shadow-md);
-      animation: pulse 2s ease-in-out infinite;
-    }
-
-    .pedidos-disponibles-counter.show {
-      display: flex;
-    }
-
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.1); }
-    }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    /* ====================================
-       ANIMACIONES
-       ==================================== */
-    @keyframes fadeIn {
-      from {
-        opacity: 0;
-        transform: translateY(-5px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    @keyframes slideUp {
-      from {
-        opacity: 0;
-        transform: translateY(20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-
-    /* ====================================
-       RESPONSIVE MOBILE
-       ==================================== */
-    @media (max-width: 768px) {
-      .restaurant-info h1 {
-        font-size: 0.9rem;
-      }
-
-      .user-info {
-        padding: var(--space-xs);
-        font-size: 0.75rem;
-      }
-
-      .logout-btn {
-        font-size: 0.7rem;
-        padding: var(--space-xs);
-      }
-
-      .disponibilidad-control {
-        padding: var(--space-md);
-      }
-
-      .switch-label {
-        font-size: 0.9rem;
-      }
-
-      .switch {
-        width: 50px;
-        height: 28px;
-      }
-
-      .slider:before {
-        height: 20px;
-        width: 20px;
-      }
-
-      input:checked + .slider:before {
-        transform: translateX(22px);
-      }
-
-      .cajon-opcion {
-        grid-template-columns: 1fr;
-        gap: var(--space-sm);
-      }
-
-      .option-card {
-        padding: var(--space-lg);
-      }
-
-      .option-card .icono svg {
-        width: 56px;
-        height: 56px;
-      }
-
-      .option-card h2 {
-        font-size: 1.1rem;
-      }
-
-      .main-container {
-        padding: var(--space-sm);
-      }
-    }
-
-    @media (max-width: 480px) {
-      .restaurant-info h1 {
-        font-size: 0.85rem;
-      }
-
-      .logout-btn span:last-child {
-        display: none;
-      }
-
-      #userName {
-        font-size: 0.7rem;
-      }
-
-      .user-icon {
-        font-size: 0.9rem;
-      }
-    }
-
-    /* ====================================
-       UTILIDADES
-       ==================================== */
-    .hidden {
-      display: none !important;
-    }
-
-    .fade-in {
-      animation: fadeIn 0.3s ease;
-    }
-
-    .slide-up {
-      animation: slideUp 0.4s ease;
+    @media (min-width: 480px) {
+      .contab-resumen-grid { grid-template-columns: repeat(3, 1fr); }
+      .contab-item.sueldo { grid-column: 2 / 3; }
     }
   </style>
 </head>
 <body>
-  <!-- Header -->
+
+  <!-- ========== HEADER ========== -->
   <header class="header">
-    <div class="header-container">
-      <div class="header-left">
-        <button class="logout-btn" onclick="logout()">
+    <div class="header-row">
+      <div class="header-user">
+        <div class="avatar">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-          </svg>
-          <span>Cerrar Sesión</span>
-        </button>
-      </div>
-
-      <div class="header-center">
-        <div class="restaurant-info">
-          <h1 id="restaurantName">Cargando...</h1>
-        </div>
-      </div>
-
-      <div class="header-right">
-        <div class="user-info">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 18px; height: 18px;">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
           </svg>
-          <span class="user-label">Usuario:</span>
-          <span id="userName">-</span>
         </div>
+        <div class="header-text">
+          <h1 id="restaurantName">Cargando...</h1>
+          <div class="sub" id="userName">-</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn-icon" onclick="location.reload()" title="Recargar">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        </button>
+        <button class="btn-icon danger" onclick="logout()" title="Cerrar sesión">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        </button>
       </div>
     </div>
   </header>
 
-  <div class="main-container">
-    <!-- Control de Disponibilidad -->
-    <div class="disponibilidad-control">
-      <div class="switch-container">
-        <span class="switch-label">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px; flex-shrink: 0;">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-          Disponible para pedidos
-        </span>
-        <button class="help-btn" id="helpBtn" aria-label="Mostrar información">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 16px; height: 16px;">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-          </svg>
-        </button>
-        <label class="switch">
-          <input type="checkbox" id="switchDisponibilidad" checked>
-          <span class="slider"></span>
-        </label>
-      </div>
-      <p class="switch-descripcion" id="switchDescripcion" style="display: none;">
-        Cuando estés disponible, recibirás pedidos cercanos y se rastreará tu ubicación. 
-        Al marcar no disponible, dejarás de recibir pedidos y se detendrá el rastreo.
-      </p>
+  <!-- ========== DISPONIBILIDAD STRIP ========== -->
+  <div class="disponibilidad-strip" id="dispStrip">
+    <div class="disp-left">
+      <div class="disp-dot"></div>
+      <span class="disp-label" id="dispLabel">Disponible para pedidos</span>
     </div>
-
-    <!-- Alerta Pedidos Activos -->
-    <div id="alertaPedidosActivos" class="alerta-pedidos-activos" style="display: none;">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 24px; height: 24px; flex-shrink: 0;">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-      </svg>
-      <div>
-        <strong>Pedidos en curso:</strong> No puedes cambiar a "No disponible" ni cerrar sesión
-      </div>
-    </div>
-
-    <!-- Contador de Pedidos Activos -->
-    <div id="contadorPedidos" 
-         class="pedidos-activos-contador" 
-         onclick="window.location.href='domiciliarios.html'"
-         role="button" 
-         tabindex="0" 
-         aria-label="Ver pedidos activos en curso">
-      Pedidos activos: <span id="numPedidosActivos">0</span>/2
-    </div>
-
-    <main>
-      <!-- Loading -->
-      <div id="loading" class="loading">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 48px; height: 48px; margin: 0 auto var(--space-md) auto; color: var(--primary); animation: spin 1s linear infinite;">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-        </svg>
-        <p>Cargando información del restaurante...</p>
-      </div>
-
-      <!-- Error -->
-      <div id="error" class="error" style="display: none;">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 48px; height: 48px; margin: 0 auto var(--space-md) auto; color: var(--danger);">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-        </svg>
-        <p>Error al cargar la información. Por favor, inicia sesión nuevamente.</p>
-        <button onclick="window.location.href='/index.html'">
-          Ir a Login
-        </button>
-      </div>
-
-      <!-- Opciones -->
-      <div id="opciones" class="cajon-opcion" style="display: none;">
-        <div class="option-card pedidos" 
-             onclick="verPedidosAsignados()" 
-             role="button" 
-             tabindex="0" 
-             aria-label="Ver pedidos disponibles para tomar">
-          <span class="icono" aria-hidden="true">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
-            </svg>
-          </span>
-          <h2>Pedidos Disponibles</h2>
-          <p>Consulta y acepta pedidos cercanos a tu ubicación</p>
-          <div class="pedidos-disponibles-counter" 
-               id="pedidosDisponiblesCounter" 
-               aria-live="polite" 
-               aria-atomic="true">0</div>
-        </div>
-      
-        <div class="option-card" onclick="verHistorialEntregas()">
-          <span class="icono">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
-            </svg>
-          </span>
-          <h2>Historial de Entregas</h2>
-          <p>Revisa todas tus entregas completadas</p>
-        </div>
-
-        <div class="option-card" onclick="verEstadisticas()">
-          <span class="icono">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-            </svg>
-          </span>
-          <h2>Mis Estadísticas</h2>
-          <p>Consulta tu desempeño y ganancias</p>
-        </div>
-
-        <div class="option-card" onclick="verConfiguracion()">
-          <span class="icono">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-            </svg>
-          </span>
-          <h2>Configuración</h2>
-          <p>Personaliza tus preferencias y ajustes</p>
-        </div>
-      </div>
-    </main>
+    <label class="switch">
+      <input type="checkbox" id="switchDisponibilidad" checked>
+      <span class="slider"></span>
+    </label>
   </div>
 
+  <!-- ========== PAGE: PEDIDOS ACTIVOS (mis pedidos en curso) ========== -->
+  <div class="page-view active" id="page-pedidos-activos">
+    <div class="active-orders-header">
+      <h2>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:20px;height:20px;display:inline;vertical-align:middle;margin-right:6px;color:var(--accent)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
+        Pedidos Activos
+      </h2>
+      <div class="orders-count" id="contadorPedidos">
+        <span class="num" id="numPedidosActivos">0</span><span>/2</span>
+      </div>
+    </div>
+    <div id="listaPedidosActivos" class="loading">
+      <div class="spinner"></div>
+      <p>Cargando pedidos activos...</p>
+    </div>
+  </div>
+
+  <!-- ========== PAGE: PEDIDOS DISPONIBLES (para tomar) ========== -->
+  <div class="page-view" id="page-pedidos">
+    <div class="active-orders-header">
+      <h2>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:20px;height:20px;display:inline;vertical-align:middle;margin-right:6px;color:var(--warning)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+        Pedidos Disponibles
+      </h2>
+      <div class="orders-count" style="border-color:rgba(251,191,36,0.3)">
+        <span class="num" id="numPedidosDisponibles" style="color:var(--warning)">0</span>
+        <span>disponibles</span>
+      </div>
+    </div>
+    <div id="listaPedidos" class="loading">
+      <div class="spinner"></div>
+      <p>Cargando pedidos...</p>
+    </div>
+  </div>
+
+  <!-- ========== PAGE: FINANZAS (Historial + Contabilidad combinados) ========== -->
+  <div class="page-view" id="page-historial">
+    <div class="finanzas-header">
+      <h2>
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:20px;height:20px;display:inline;vertical-align:middle;margin-right:6px;color:var(--success)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Finanzas
+      </h2>
+    </div>
+
+    <!-- Tabs -->
+    <div class="finanzas-tabs">
+      <button class="fin-tab active" id="tab-historial" onclick="switchFinanzasTab('historial')">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+        Historial
+      </button>
+      <button class="fin-tab" id="tab-contabilidad" onclick="switchFinanzasTab('contabilidad')">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Contabilidad
+      </button>
+    </div>
+
+    <!-- Sub-page: Historial -->
+    <div id="subpage-historial" class="finanzas-subpage active">
+      <div class="filtro-fecha-row" style="margin-top:12px;">
+        <label>Fecha:</label>
+        <input type="date" id="fechaFiltro" onchange="filtrarPorFecha()">
+      </div>
+      <div id="tituloFecha" class="titulo-fecha"></div>
+      <div id="resumenHoy" class="resumen-grid"></div>
+      <div id="listaEntregas" class="loading">
+        <div class="spinner"></div>
+        <p>Cargando historial...</p>
+      </div>
+    </div>
+
+    <!-- Sub-page: Contabilidad -->
+    <div id="subpage-contabilidad" class="finanzas-subpage" style="display:none;">
+      <div class="fecha-controls" style="margin-top:12px;">
+        <button class="btn-fecha" onclick="cambiarDia(-1)">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;display:inline;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          Anterior
+        </button>
+        <div class="fecha-actual" id="fechaActualTexto">Hoy</div>
+        <button class="btn-fecha" onclick="cambiarDia(1)">
+          Siguiente
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;display:inline;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+      <div id="resumenContabilidad">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>Cargando datos contables...</p>
+        </div>
+      </div>
+      <div class="info-adicional">
+        <h3>Información Importante</h3>
+        <ul>
+          <li><strong>Total Efectivo:</strong> Dinero que debes entregar a DomiPancho</li>
+          <li><strong>Total App:</strong> Pagos digitales procesados por la plataforma</li>
+          <li><strong>Tarifa DomiPancho:</strong> $700 por pedido (solo restaurantes que la cobran)</li>
+          <li><strong>Tu Sueldo:</strong> $4.000 por cada domicilio entregado</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== PAGE: CAMBIAR PASSWORD ========== -->
+  <div class="page-view" id="page-config">
+    <h2 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; display:flex; align-items:center; gap:8px;">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:20px;height:20px;color:var(--text-secondary)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+      Configuración
+    </h2>
+    
+    <div id="blockedContainer" class="blocked-container" style="display: none;">
+      <div class="blocked-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:48px;height:48px;color:var(--danger)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+      </div>
+      <div class="blocked-title">Cambio Bloqueado</div>
+      <div class="blocked-message">
+        Solo puedes cambiar tu contraseña una vez cada <strong>48 horas</strong>.
+      </div>
+      <div class="countdown-container">
+        <div class="countdown-title">Tiempo restante:</div>
+        <div class="countdown-display" id="countdownDisplay">00:00:00</div>
+        <div class="countdown-labels">
+          <span>Horas</span><span>Minutos</span><span>Segundos</span>
+        </div>
+      </div>
+      <div class="blocked-info">
+        <strong>Último cambio:</strong> <span id="ultimoCambio">-</span><br>
+        <strong>Próximo cambio:</strong> <span id="proximoCambio">-</span>
+      </div>
+    </div>
+
+    <div id="formContainer" class="form-container-pw">
+      <div class="form-title-pw">Actualizar Contraseña</div>
+      <form id="formCambio">
+        <div class="form-group">
+          <label for="actual">Contraseña Actual:</label>
+          <div class="password-field">
+            <input type="password" id="actual" required>
+            <button type="button" class="toggle-password" onclick="togglePassword('actual')">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="nueva">Nueva Contraseña:</label>
+          <div class="password-field">
+            <input type="password" id="nueva" required>
+            <button type="button" class="toggle-password" onclick="togglePassword('nueva')">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            </button>
+          </div>
+          <div id="passwordRequirements" class="password-requirements">
+            <h4>Requisitos:</h4>
+            <div class="requirement" id="req-length"><span class="icon req-icon req-fail"></span><span>Mínimo 8 caracteres</span></div>
+            <div class="requirement" id="req-uppercase"><span class="icon req-icon req-fail"></span><span>Una letra mayúscula</span></div>
+            <div class="requirement" id="req-lowercase"><span class="icon req-icon req-fail"></span><span>Una letra minúscula</span></div>
+            <div class="requirement" id="req-number"><span class="icon req-icon req-fail"></span><span>Un número</span></div>
+            <div id="passwordStrength" class="password-strength"></div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="confirmar">Confirmar Nueva:</label>
+          <div class="password-field">
+            <input type="password" id="confirmar" required>
+            <button type="button" class="toggle-password" onclick="togglePassword('confirmar')">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            </button>
+          </div>
+        </div>
+        <button type="submit" class="submit-btn" id="submitBtn" disabled>Cambiar Contraseña</button>
+        <p class="nota-48h">Solo puedes cambiar la contraseña una vez cada 48 horas.</p>
+        <div id="mensajePw" class="mensaje-pw"></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========== BOTTOM NAVIGATION ========== -->
+  <nav class="bottom-nav">
+    <div class="nav-items">
+      <button class="nav-item active" data-page="pedidos-activos" onclick="navigateTo('pedidos-activos')">
+        <div style="position:relative;display:inline-flex;">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
+          <div class="nav-badge" id="navBadgeActivos">0</div>
+        </div>
+        <span>Activos</span>
+      </button>
+      <button class="nav-item" data-page="pedidos" onclick="navigateTo('pedidos')">
+        <div style="position:relative;display:inline-flex;">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
+          <div class="nav-badge" id="navBadgePedidos">0</div>
+        </div>
+        <span>Pedidos</span>
+      </button>
+      <button class="nav-item" data-page="historial" onclick="navigateTo('historial')">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        <span>Finanzas</span>
+      </button>
+      <button class="nav-item" data-page="config" onclick="navigateTo('config')">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        <span>Config</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ========== MODALES ========== -->
+  <div id="mensajeSistema" class="mensaje-sistema" style="display:none;"></div>
+
+  <!-- MODAL PROBLEMA -->
+  <div id="modalProblema" class="modal-problema" style="display: none;">
+    <div class="modal-contenido">
+      <h2 style="display:flex;align-items:center;gap:8px;">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;color:var(--danger)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        Reportar Problema
+      </h2>
+      <label for="motivo">Motivo:</label>
+      <select id="motivo" onchange="mostrarOtroCampo(this.value)">
+        <option value="">Seleccione</option>
+        <option value="cliente no respondió">Cliente no respondió</option>
+        <option value="dirección incorrecta">Dirección incorrecta</option>
+        <option value="cliente canceló al llegar">Cliente canceló al llegar</option>
+        <option value="pedido rechazado">Pedido rechazado</option>
+        <option value="otro">Otro</option>
+      </select>
+      <div id="campoOtro" style="display:none;">
+        <label for="detalle_motivo">Explique:</label>
+        <input type="text" id="detalle_motivo" placeholder="Describa el motivo" />
+      </div>
+      <label>¿Llamaste al restaurante?</label>
+      <div style="display: flex; gap: 16px; padding: 8px 0;">
+        <label style="display: flex; align-items: center; gap: 4px;"><input type="radio" name="llamo_restaurante" value="sí"> Sí</label>
+        <label style="display: flex; align-items: center; gap: 4px;"><input type="radio" name="llamo_restaurante" value="no"> No</label>
+      </div>
+      <label>¿Qué hiciste con el pedido?</label>
+      <select id="accion_pedido" onchange="mostrarCampoExplicacion(this.value)">
+        <option value="">Seleccione</option>
+        <option value="lo devolví al restaurante">Lo devolví al restaurante</option>
+        <option value="el restaurante dijo que lo dejara/botara">El restaurante dijo que lo dejara/botara</option>
+        <option value="no lo devolví">No lo devolví (explicar)</option>
+      </select>
+      <div id="campoExplicacionNoDevolvi" style="display: none;">
+        <label for="explicacion_no_devolvi">¿Por qué no?</label>
+        <input type="text" id="explicacion_no_devolvi" placeholder="Escribe tu explicación" />
+      </div>
+      <div class="modal-acciones">
+        <button onclick="confirmarNoEntregado()">Confirmar No Entregado</button>
+        <button onclick="cerrarModalProblema()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL MÉTODO DE PAGO -->
+  <div id="modalMetodoPago" class="modal-problema" style="display: none;">
+    <div class="modal-contenido">
+      <h2 style="display:flex;align-items:center;gap:8px;">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;color:var(--accent)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
+        Método de Pago
+      </h2>
+      <div class="metodos-pago">
+        <label><input type="radio" name="metodo_pago" value="efectivo"><span>Efectivo</span></label>
+        <label><input type="radio" name="metodo_pago" value="app"><span>Pago por App (QR)</span></label>
+      </div>
+      <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 8px;">
+        Si es pago por App, muéstrale el QR físico al cliente.
+      </p>
+      <div class="modal-acciones">
+        <button onclick="confirmarEntrega()" id="btnConfirmarEntrega" disabled>Confirmar Entrega</button>
+        <button onclick="cerrarModalPago()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL LIBERAR PEDIDO -->
+  <div id="modalLiberarPedido" class="modal-problema" style="display: none;">
+    <div class="modal-contenido">
+      <h2 style="display:flex;align-items:center;gap:8px;">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;color:var(--warning)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Liberar Pedido
+      </h2>
+      <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">¿Estás seguro? El pedido estará disponible para otros.</p>
+      <label for="motivo_liberacion">Motivo:</label>
+      <select id="motivo_liberacion" onchange="mostrarDetalleMotivo(this.value)">
+        <option value="">Seleccionar motivo</option>
+        <option value="emergencia personal">Emergencia personal</option>
+        <option value="problema vehiculo">Problema con vehículo</option>
+        <option value="demora imprevista">Demora imprevista</option>
+        <option value="sobrecarga trabajo">Sobrecarga de trabajo</option>
+        <option value="otro">Otro motivo</option>
+      </select>
+      <div id="campoDetalleMotivo" style="display:none; margin-top: 10px;">
+        <label for="detalle_motivo_liberacion">Detalle:</label>
+        <textarea id="detalle_motivo_liberacion" placeholder="Explica brevemente..." rows="3" style="width: 100%; padding: 10px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-family: inherit; resize: vertical;"></textarea>
+      </div>
+      <div class="modal-acciones">
+        <button onclick="confirmarLiberarPedido()" style="background: var(--warning) !important; color: var(--text-inverse) !important;">Liberar Pedido</button>
+        <button onclick="cerrarModalLiberar()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL ÉXITO PASSWORD -->
+  <div id="successModal" class="success-modal">
+    <div class="success-modal-content">
+      <div class="success-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:56px;height:56px;color:var(--success)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <div class="success-title">Contraseña Actualizada</div>
+      <div class="success-message">
+        Tu contraseña ha sido cambiada exitosamente.<br>
+        No podrás cambiarla durante las próximas <strong>48 horas</strong>.
+      </div>
+      <button class="success-button" onclick="closeSuccessModal()">Perfecto</button>
+    </div>
+  </div>
+
+  <!-- ========== SCRIPTS ========== -->
+  <script src="js/domiciliario.js"></script>
+  <script src="js/fcm-notifications.js"></script>
+
   <script>
-    // ========== FUNCIONES DE NAVEGACIÓN ==========
-    function verPedidosAsignados() {
-      window.location.href = 'domiciliarios.html';
+  // ============================================================
+  //  SPA NAVIGATION
+  // ============================================================
+  let currentPage = 'pedidos-activos';
+  const pageLoaded = { 'pedidos-activos': true, pedidos: false, historial: false, contabilidad: false, config: false };
+  let finanzasTabActual = 'historial';
+
+  function navigateTo(page) {
+    if (page === currentPage) return;
+    
+    // Hide all pages
+    document.querySelectorAll('.page-view').forEach(p => p.classList.remove('active'));
+    
+    // Show selected page
+    document.getElementById('page-' + page).classList.add('active');
+    
+    // Update nav
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
+    
+    currentPage = page;
+    
+    // Load page data on first visit
+    if (!pageLoaded[page]) {
+      pageLoaded[page] = true;
+      if (page === 'pedidos') cargarPedidosDisponibles();
+      if (page === 'historial') initHistorial();
+      if (page === 'config') initConfig();
     }
-
-    function verHistorialEntregas() {
-      window.location.href = 'historial_entregas.html';
+    
+    // Reload active orders when switching back
+    if (page === 'pedidos-activos') {
+      if (typeof window.cargarPedidos === 'function') window.cargarPedidos();
     }
+    
+    window.scrollTo(0, 0);
+  }
 
-    function verEstadisticas() {
-      window.location.href = 'contabilidad.html';
+  function switchFinanzasTab(tab) {
+    finanzasTabActual = tab;
+    document.getElementById('tab-historial').classList.toggle('active', tab === 'historial');
+    document.getElementById('tab-contabilidad').classList.toggle('active', tab === 'contabilidad');
+    document.getElementById('subpage-historial').style.display = tab === 'historial' ? 'block' : 'none';
+    document.getElementById('subpage-contabilidad').style.display = tab === 'contabilidad' ? 'block' : 'none';
+
+    if (tab === 'contabilidad' && !pageLoaded['contabilidad']) {
+      pageLoaded['contabilidad'] = true;
+      initContabilidad();
     }
+  }
 
-    function verConfiguracion() {
-      window.location.href = 'cambiar_password.html';
-    }
+  function cargarPedidosDisponibles() {
+    // Trigger load of available orders in domiciliario.js
+    if (typeof window.cargarPedidos === 'function') window.cargarPedidos();
+  }
 
-    // ========== FUNCIÓN LOGOUT ==========
-    async function logout() {
-      try {
-        // Verificar pedidos activos antes de cerrar sesión
-        const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
-        if (response.ok) {
-          const pedidos = await response.json();
-          const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
-          
-          if (pedidosActivos.length > 0) {
-            alert(`No puedes cerrar sesión mientras tienes ${pedidosActivos.length} pedido(s) activo(s).\n\nPrimero debes completar o liberar todos tus pedidos activos.`);
-            return;
-          }
-        }
-      } catch (error) {
-        console.error('Error verificando pedidos:', error);
-      }
-
-      if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
-        try {
-          // Detener tracking
-          if (window.unifiedGeoService) {
-            await window.unifiedGeoService.stopTracking();
-          }
-          
-          // Limpiar sesión local
-          if (window.limpiarSesion) {
-            window.limpiarSesion();
-          }
-          
-          // Cerrar sesión en servidor
-          await window.apiRequest('/api/logout', { method: 'POST' });
-          
-          // Redirigir
-          window.location.href = '/index.html';
-        } catch (error) {
-          console.error('Error en logout:', error);
-          window.location.href = '/index.html';
-        }
-      }
-    }
-
-    function handleKeyPress(event, callback) {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        callback();
-      }
-    }
-
-    // ========== ACTUALIZAR CONTADORES ==========
-    async function actualizarContadores() {
-      try {
-        const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
-        if (!response.ok) return;
-        
-        const pedidos = await response.json();
-        
-        // Contar pedidos activos (camino a tu casa)
-        const pedidosActivos = pedidos.filter(p => 
-          p.estado?.toLowerCase() === 'camino a tu casa'
-        );
-        
-        // Contar pedidos disponibles (esperando repartidor)
-        const pedidosDisponibles = pedidos.filter(p => 
-          p.estado?.toLowerCase() === 'esperando repartidor'
-        );
-        
-        // Actualizar contador de pedidos activos
-        const numActivos = pedidosActivos.length;
-        document.getElementById('numPedidosActivos').textContent = numActivos;
-        
-        const contadorPedidos = document.getElementById('contadorPedidos');
-        contadorPedidos.className = 'pedidos-activos-contador';
-        
-        if (numActivos >= 2) {
-          contadorPedidos.classList.add('limite-alcanzado');
-        } else if (numActivos === 1) {
-          contadorPedidos.classList.add('limite-cerca');
-        }
-        
-        // Actualizar contador de pedidos disponibles
-        const numDisponibles = pedidosDisponibles.length;
-        const counterElement = document.getElementById('pedidosDisponiblesCounter');
-        
-        if (numDisponibles > 0) {
-          counterElement.textContent = numDisponibles;
-          counterElement.classList.add('show');
-        } else {
-          counterElement.classList.remove('show');
-        }
-        
-        console.log(`✅ Contadores actualizados: ${numActivos} activos, ${numDisponibles} disponibles`);
-        
-      } catch (error) {
-        console.error('❌ Error actualizando contadores:', error);
-      }
-    }
-
-    // ========== INICIALIZACIÓN PRINCIPAL ==========
-    document.addEventListener('DOMContentLoaded', async () => {
-      console.log('🎯 Inicializando página de inicio domiciliario...');
-      
-      // ✅ 1. CARGAR INFO DEL USUARIO
-      try {
-        const response = await window.apiRequest('/api/usuario-actual');
-        if (!response.ok) throw new Error('No autenticado');
-        const usuario = await response.json();
-        
-        document.getElementById('restaurantName').textContent = usuario.restaurante_nombre;
-        
-        // Censurar usuario
-        const nombreUsuario = usuario.usuario || '-';
-        const censurado = nombreUsuario.length > 4 
-          ? nombreUsuario.slice(0, -4) + '****' 
-          : nombreUsuario;
-        document.getElementById('userName').textContent = censurado;
-
-        const loading = document.getElementById('loading');
-        const opciones = document.getElementById('opciones');
-        const errorDiv = document.getElementById('error');
-
-        if (loading) loading.style.display = 'none';
-        if (opciones) {
-          opciones.style.display = 'grid';
-          opciones.classList.add('slide-up');
-        }
-        if (errorDiv) errorDiv.style.display = 'none';
-
-      } catch (error) {
-        console.error('Error al cargar usuario:', error);
-        const loading = document.getElementById('loading');
-        const errorDiv = document.getElementById('error');
-
-        if (loading) loading.style.display = 'none';
-        if (errorDiv) errorDiv.style.display = 'block';
-        return;
-      }
-      
-      // ✅ 2. CARGAR ESTADO DE DISPONIBILIDAD
-      const switchDisponibilidad = document.getElementById('switchDisponibilidad');
-      const disponibilidadControl = document.querySelector('.disponibilidad-control');
-      
-      try {
-        const response = await window.apiRequest('/api/domiciliarios/domiciliario/estado-disponibilidad');
-        if (response.ok) {
-          const data = await response.json();
-          const disponible = data.disponible !== false;
-          
-          switchDisponibilidad.checked = disponible;
-          
-          if (!disponible) {
-            disponibilidadControl.classList.add('no-disponible');
-            const switchLabel = document.querySelector('.switch-label');
-            switchLabel.innerHTML = `
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px; flex-shrink: 0;">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-              </svg>
-              No disponible
-            `;
-          }
-          
-          console.log(`📊 Estado inicial: ${disponible ? 'DISPONIBLE' : 'NO DISPONIBLE'}`);
-        }
-      } catch (error) {
-        console.error('❌ Error cargando disponibilidad:', error);
-      }
-      
-      // ✅ 3. INICIALIZAR SEGÚN DISPONIBILIDAD
-      if (switchDisponibilidad.checked) {
-        if (window.unifiedGeoService) {
-          try {
-            await window.unifiedGeoService.initialize();
-            await window.unifiedGeoService.startTracking();
-            console.log('✅ Sistema de tracking activo (disponible)');
-          } catch (error) {
-            console.error('❌ Error en geolocalización:', error);
-          }
-        }
-      } else {
-        console.log('⏸️ No disponible - tracking NO iniciado');
-      }
-      
-      // ✅ 4. CONFIGURAR LISTENER DEL SWITCH
-      switchDisponibilidad.addEventListener('change', async (e) => {
-        const disponible = e.target.checked;
-        
-        // Validar pedidos activos antes de desactivar
+  // ============================================================
+  //  DISPONIBILIDAD
+  // ============================================================
+  async function initDisponibilidad() {
+    const switchDisp = document.getElementById('switchDisponibilidad');
+    const strip = document.getElementById('dispStrip');
+    const label = document.getElementById('dispLabel');
+    
+    try {
+      const response = await window.apiRequest('/api/domiciliarios/domiciliario/estado-disponibilidad');
+      if (response.ok) {
+        const data = await response.json();
+        const disponible = data.disponible !== false;
+        switchDisp.checked = disponible;
         if (!disponible) {
-          try {
-            const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
-            if (response.ok) {
-              const pedidos = await response.json();
-              const pedidosActivos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
-              
-              if (pedidosActivos.length > 0) {
-                e.preventDefault();
-                e.target.checked = true;
-                alert(`No puedes marcar como "No disponible" mientras tienes ${pedidosActivos.length} pedido(s) activo(s).\n\nPrimero debes completar o liberar todos tus pedidos activos.`);
-                return;
-              }
-            }
-          } catch (error) {
-            console.error('Error verificando pedidos:', error);
-            e.target.checked = true;
-            alert('Error al verificar pedidos activos. Intenta nuevamente.');
-            return;
-          }
+          strip.classList.add('no-disponible');
+          label.textContent = 'No disponible';
         }
-        
+      }
+    } catch (e) { console.error('Error disp:', e); }
+    
+    switchDisp.addEventListener('change', async (e) => {
+      const disponible = e.target.checked;
+      
+      if (!disponible) {
         try {
-          console.log(`🔄 Cambiando disponibilidad a: ${disponible}`);
-          
-          const response = await window.apiRequest('/api/domiciliarios/domiciliario/cambiar-disponibilidad', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ disponible: disponible })
-          });
-          
+          const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
           if (response.ok) {
-            if (disponible) {
-              disponibilidadControl.classList.remove('no-disponible');
-              const switchLabel = document.querySelector('.switch-label');
-              switchLabel.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px; flex-shrink: 0;">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                Disponible para pedidos
-              `;
-              
-              console.log('✅ MARCADO COMO DISPONIBLE - Iniciando tracking...');
-              
-              if (window.unifiedGeoService) {
-                try {
-                  await window.unifiedGeoService.initialize();
-                  await window.unifiedGeoService.startTracking();
-                  console.log('✅ Tracking iniciado');
-                  
-                  setTimeout(async () => {
-                    console.log('🔄 Actualizando lista de pedidos...');
-                    await actualizarContadores();
-                  }, 2000);
-                  
-                } catch (error) {
-                  console.error('❌ Error iniciando tracking:', error);
-                  e.target.checked = false;
-                  disponibilidadControl.classList.add('no-disponible');
-                  alert('Error al iniciar el servicio de ubicación');
-                }
-              }
-              
-            } else {
-              disponibilidadControl.classList.add('no-disponible');
-              const switchLabel = document.querySelector('.switch-label');
-              switchLabel.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width: 20px; height: 20px; flex-shrink: 0;">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                No disponible
-              `;
-              
-              console.log('⏸️ MARCADO COMO NO DISPONIBLE - Deteniendo tracking...');
-              
-              if (window.unifiedGeoService) {
-                await window.unifiedGeoService.stopTracking();
-              }
-              
-              console.log('⏸️ Tracking detenido');
+            const pedidos = await response.json();
+            const activos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
+            if (activos.length > 0) {
+              e.preventDefault();
+              e.target.checked = true;
+              alert(`No puedes desactivarte con ${activos.length} pedido(s) activo(s).`);
+              return;
+            }
+          }
+        } catch (err) {
+          e.target.checked = true;
+          alert('Error verificando pedidos.');
+          return;
+        }
+      }
+      
+      try {
+        const response = await window.apiRequest('/api/domiciliarios/domiciliario/cambiar-disponibilidad', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ disponible })
+        });
+        
+        if (response.ok) {
+          if (disponible) {
+            strip.classList.remove('no-disponible');
+            label.textContent = 'Disponible para pedidos';
+            if (window.unifiedGeoService) {
+              await window.unifiedGeoService.initialize();
+              await window.unifiedGeoService.startTracking();
             }
           } else {
-            e.target.checked = !disponible;
-            alert('Error al cambiar disponibilidad');
+            strip.classList.add('no-disponible');
+            label.textContent = 'No disponible';
+            if (window.unifiedGeoService) await window.unifiedGeoService.stopTracking();
           }
-        } catch (error) {
-          console.error('❌ Error:', error);
+        } else {
           e.target.checked = !disponible;
-          alert('Error de conexión');
+          alert('Error al cambiar disponibilidad');
         }
-      });
+      } catch (err) {
+        e.target.checked = !disponible;
+        alert('Error de conexión');
+      }
+    });
+  }
+
+  // ============================================================
+  //  HISTORIAL
+  // ============================================================
+  let pedidosHistorialGlobal = [];
+  let historialCargado = false;
+
+  function initHistorial() {
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+    document.getElementById('fechaFiltro').value = hoy;
+    cargarHistorial(hoy);
+  }
+
+  function filtrarPorFecha() {
+    const filtro = document.getElementById('fechaFiltro').value;
+    cargarHistorial(filtro);
+  }
+
+  const TARIFAS_POR_CIUDAD = {
+    'chiquinquira': 4000, 'tunja': 5000, 'cajica': 3000, 'zipaquira': 4500
+  };
+
+  function obtenerCostoDomicilioHist(pedido) {
+    if (pedido.costo_domicilio) return pedido.costo_domicilio;
+    if (!pedido.restaurantes?.ciudad) return 5000;
+    const ciudad = pedido.restaurantes.ciudad.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return TARIFAS_POR_CIUDAD[ciudad] || 5000;
+  }
+
+  function calcularTotalesHist(pedido) {
+    const productos = Array.isArray(pedido.productos) ? pedido.productos : [];
+    const subtotal = productos.reduce((s, p) => s + (p.precio * p.cantidad), 0);
+    const domicilio = obtenerCostoDomicilioHist(pedido);
+    const tarifa = pedido.tarifa_domipancho || 0;
+    
+    if (pedido.descuento_cupon && pedido.total_con_descuento) {
+      return { subtotalProductos: subtotal, costoDomicilio: domicilio, tarifaDomiPancho: tarifa, descuentoCupon: pedido.descuento_cupon, totalSinDescuento: pedido.total_sin_descuento || (subtotal + domicilio + tarifa), totalConDescuento: pedido.total_con_descuento, tieneCupon: true };
+    }
+    const total = subtotal + domicilio + tarifa;
+    return { subtotalProductos: subtotal, costoDomicilio: domicilio, tarifaDomiPancho: tarifa, descuentoCupon: 0, totalSinDescuento: total, totalConDescuento: total, tieneCupon: false };
+  }
+
+  async function cargarHistorial(fechaFiltro = null) {
+    try {
+      const res = await window.apiRequest('/api/historial-domiciliario');
+      let pedidos = await res.json();
+      pedidos = pedidos.filter(p => ['entregado', 'cancelado'].includes(p.estado?.toLowerCase()));
+      if (fechaFiltro) pedidos = pedidos.filter(p => p.fecha.startsWith(fechaFiltro));
       
-      // ✅ 5. INICIALIZAR FCM
-      if (window.fcmNotificationService) {
+      pedidosHistorialGlobal = pedidos;
+      renderizarHistorial(pedidos);
+      mostrarResumenHist(pedidos);
+
+      let titulo = 'Historial de Entregas';
+      if (fechaFiltro) {
+        const [a, m, d] = fechaFiltro.split('-');
+        const fecha = new Date(`${a}-${m}-${d}T00:00:00-05:00`);
+        const local = fecha.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+        titulo = (fechaFiltro === hoy) ? `Pedidos Hoy — ${local}` : `Pedidos del ${local}`;
+      }
+      document.getElementById('tituloFecha').textContent = titulo;
+    } catch (err) {
+      console.error('Error historial:', err);
+      document.getElementById('listaEntregas').innerHTML = '<div class="error"><h3>Error al cargar historial</h3><p>Intenta recargar.</p></div>';
+    }
+  }
+
+  function renderizarHistorial(pedidos) {
+    if (!pedidos.length) {
+      document.getElementById('listaEntregas').innerHTML = '<div class="no-pedidos"><h3>Sin entregas</h3><p>Selecciona otra fecha.</p></div>';
+      return;
+    }
+    const html = pedidos.map(p => {
+      const t = calcularTotalesHist(p);
+      const ok = p.estado === 'entregado';
+      return `
+        <div class="historial-card ${ok ? '' : 'cancelado'}">
+          <div class="pedido-header-compacto ${ok ? 'entregado' : 'cancelado'}">
+            <h3>${p.nombre} ${p.apellido}</h3>
+            <div class="estado-compacto">${ok ? 'Entregado' : 'No Entregado'}</div>
+          </div>
+          <div class="info-esencial">
+            <div class="info-item"><h4>Origen</h4><p><strong>${p.restaurantes?.nombre || 'Restaurante'}</strong></p><p>${p.restaurantes?.direccion || ''}</p></div>
+            <div class="info-item"><h4>Destino</h4><p><strong>${p.barrio}</strong></p>${p.complemento ? `<p>${p.complemento}</p>` : ''}</div>
+          </div>
+          <div class="pago-info">
+            <div class="total-compacto">${t.tieneCupon ? `<div style="text-decoration:line-through;color:var(--text-muted);font-size:0.8em">$${t.totalSinDescuento.toLocaleString('es-CO')}</div><div style="color:var(--success)">` : ''}$${t.totalConDescuento.toLocaleString('es-CO')}${t.tieneCupon ? '</div>' : ''}</div>
+            <div class="metodo-pago">${p.metodo_pago ? p.metodo_pago.toUpperCase() : 'N/A'}</div>
+          </div>
+          <div class="fechas-compactas">
+            <p>${new Date(p.fecha).toLocaleString('es-CO', { timeZone: 'America/Bogota', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+            ${ok && p.fecha_entrega ? `<p>Entregado: ${new Date(p.fecha_entrega).toLocaleString('es-CO', { timeZone: 'America/Bogota', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</p>` : ''}
+          </div>
+          <button class="btn-ver-detalles-hist" onclick="abrirDetallesHistorial(${p.id})">Ver Detalles</button>
+        </div>`;
+    }).join('');
+    document.getElementById('listaEntregas').innerHTML = html;
+  }
+
+  function mostrarResumenHist(pedidos) {
+    const entregados = pedidos.filter(p => p.estado === 'entregado');
+    const cancelados = pedidos.filter(p => p.estado === 'cancelado');
+    const total = entregados.reduce((s, p) => s + calcularTotalesHist(p).totalConDescuento, 0);
+    const prods = entregados.reduce((s, p) => s + (Array.isArray(p.productos) ? p.productos.reduce((x, pr) => x + pr.cantidad, 0) : 0), 0);
+    
+    document.getElementById('resumenHoy').innerHTML = `
+      <div class="resumen-item"><h4>Entregados</h4><div class="valor" style="color: var(--success)">${entregados.length}</div></div>
+      <div class="resumen-item cancelados"><h4>Cancelados</h4><div class="valor">${cancelados.length}</div></div>
+      <div class="resumen-item total-cobrado"><h4>Total</h4><div class="valor">$${total.toLocaleString('es-CO')}</div></div>
+      <div class="resumen-item productos"><h4>Productos</h4><div class="valor">${prods}</div></div>`;
+  }
+
+  function abrirDetallesHistorial(id) {
+    const pedido = pedidosHistorialGlobal.find(p => p.id === id);
+    if (!pedido) return;
+    
+    const t = calcularTotalesHist(pedido);
+    const ok = pedido.estado === 'entregado';
+    const prodsHtml = Array.isArray(pedido.productos) ? pedido.productos.map(pr => `<div class="producto-detalle-item"><div class="producto-nombre-detalle">${pr.nombre}</div><div class="producto-detalles">${pr.cantidad} × $${pr.precio.toLocaleString('es-CO')} = $${(pr.precio * pr.cantidad).toLocaleString('es-CO')}</div></div>`).join('') : '<p>Sin productos</p>';
+    
+    const modal = document.createElement('div');
+    modal.id = 'modalDetalles';
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex';
+    modal.innerHTML = `<div class="modal-detalles-contenido">
+      <h2>Pedido #${pedido.id}</h2>
+      <div class="detalle-section"><h4>Cliente</h4><p><strong>${pedido.nombre} ${pedido.apellido}</strong></p><p>Estado: ${ok ? 'Entregado' : 'No Entregado'}</p></div>
+      <div class="detalle-section"><h4>Ubicación</h4><p>Barrio: <strong>${pedido.barrio}</strong></p>${pedido.complemento ? `<p>${pedido.complemento}</p>` : ''}</div>
+      <div class="detalle-section"><h4>Restaurante</h4><p><strong>${pedido.restaurantes?.nombre || '-'}</strong></p><p>${pedido.restaurantes?.direccion || ''}</p><p>Tel: ${pedido.restaurantes?.telefono || '-'}</p></div>
+      <div class="detalle-section"><h4>Productos</h4>${prodsHtml}</div>
+      <div class="detalle-section"><h4>Pago</h4>
+        <p>Subtotal: <strong>$${t.subtotalProductos.toLocaleString('es-CO')}</strong></p>
+        <p>Domicilio: <strong>$${t.costoDomicilio.toLocaleString('es-CO')}</strong></p>
+        ${t.tarifaDomiPancho > 0 ? `<p>Tarifa DP: <strong>$${t.tarifaDomiPancho.toLocaleString('es-CO')}</strong></p>` : ''}
+        ${t.tieneCupon ? `<p style="color:var(--success)">Descuento: -$${t.descuentoCupon.toLocaleString('es-CO')}</p>` : ''}
+        <p class="total-final"><strong>Total: $${t.totalConDescuento.toLocaleString('es-CO')}</strong></p>
+        <p>Método: <strong>${pedido.metodo_pago ? pedido.metodo_pago.toUpperCase() : 'N/A'}</strong></p>
+      </div>
+      <div class="detalle-section"><h4>Fechas</h4>
+        <p>Pedido: ${new Date(pedido.fecha).toLocaleString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+        ${ok && pedido.fecha_entrega ? `<p>Entrega: ${new Date(pedido.fecha_entrega).toLocaleString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</p>` : ''}
+      </div>
+      ${!ok && pedido.comentario_domiciliario ? `<div class="comentario-cancelado"><strong>Motivo:</strong><br>${pedido.comentario_domiciliario.replace(/\n/g, '<br>')}</div>` : ''}
+      <button class="btn-cerrar-modal" onclick="cerrarDetallesPedido()">Cerrar</button>
+    </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) cerrarDetallesPedido(); });
+  }
+
+  // ============================================================
+  //  CONTABILIDAD
+  // ============================================================
+  let fechaContab = new Date();
+  fechaContab = new Date(fechaContab.toLocaleString("en-US", { timeZone: "America/Bogota" }));
+
+  function initContabilidad() { cargarResumenContab(); }
+
+  function cambiarDia(delta) {
+    fechaContab.setDate(fechaContab.getDate() + delta);
+    fechaContab = new Date(fechaContab.toLocaleString("en-US", { timeZone: "America/Bogota" }));
+    cargarResumenContab();
+  }
+
+  async function cargarResumenContab() {
+    document.getElementById('resumenContabilidad').innerHTML = '<div class="loading"><div class="spinner"></div><p>Cargando datos...</p></div>';
+    
+    const fechaISO = fechaContab.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+    
+    document.getElementById("fechaActualTexto").textContent = (fechaISO === hoy) ? "Hoy" :
+      fechaContab.toLocaleDateString('es-CO', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+
+    try {
+      const res = await window.apiRequest('/api/resumen-contabilidad?fecha=' + fechaISO);
+      if (!res.ok) throw new Error('Error');
+      const d = await res.json();
+
+      document.getElementById('resumenContabilidad').innerHTML = `
+        <div class="contab-resumen-grid">
+          <div class="contab-item efectivo"><h4>Efectivo</h4><div class="valor">$${d.total_efectivo.toLocaleString('es-CO')}</div><div class="descripcion">Cobrado en efectivo</div></div>
+          <div class="contab-item app"><h4>App</h4><div class="valor">$${d.total_app.toLocaleString('es-CO')}</div><div class="descripcion">Pagos digitales</div></div>
+          <div class="contab-item total"><h4>Total</h4><div class="valor">$${d.total.toLocaleString('es-CO')}</div><div class="descripcion">Efectivo + App</div></div>
+          <div class="contab-item pedidos"><h4>Pedidos</h4><div class="valor">${d.total_pedidos}</div><div class="descripcion">Entregas del día</div></div>
+          ${d.total_tarifa_domipancho > 0 ? `<div class="contab-item" style="color:var(--warning)"><h4>Tarifa DP</h4><div class="valor" style="color:var(--warning)">$${d.total_tarifa_domipancho.toLocaleString('es-CO')}</div><div class="descripcion">Incluida en totales</div></div>` : ''}
+          <div class="contab-item pago"><h4>A Pagar</h4><div class="valor">$${d.total_efectivo.toLocaleString('es-CO')}</div><div class="descripcion">Efectivo a entregar</div></div>
+          <div class="contab-item sueldo"><h4>Tu Sueldo</h4><div class="valor">$${d.sueldo.toLocaleString('es-CO')}</div><div class="descripcion">${d.total_pedidos} entregas × $4.000</div></div>
+        </div>`;
+    } catch (err) {
+      document.getElementById('resumenContabilidad').innerHTML = '<div class="error"><h3>Error al cargar datos</h3><p>No se pudieron cargar los datos contables.</p></div>';
+    }
+  }
+
+  // ============================================================
+  //  CAMBIAR PASSWORD
+  // ============================================================
+  let countdownInterval = null;
+
+  function initConfig() {
+    verificarPermisosCambio();
+    setupPasswordForm();
+  }
+
+  async function verificarPermisosCambio() {
+    try {
+      const response = await window.apiRequest('/api/puede-cambiar-password');
+      const data = await response.json();
+      if (!data.puede_cambiar) {
+        mostrarBloqueoPorTiempo(data);
+      } else {
+        document.getElementById('blockedContainer').style.display = 'none';
+        document.getElementById('formContainer').style.display = 'block';
+      }
+    } catch (e) {
+      document.getElementById('formContainer').style.display = 'block';
+    }
+  }
+
+  function mostrarBloqueoPorTiempo(data) {
+    document.getElementById('blockedContainer').style.display = 'block';
+    document.getElementById('formContainer').style.display = 'none';
+    if (data.ultimo_cambio) document.getElementById('ultimoCambio').textContent = new Date(data.ultimo_cambio).toLocaleString('es-CO');
+    if (data.siguiente_cambio) document.getElementById('proximoCambio').textContent = new Date(data.siguiente_cambio).toLocaleString('es-CO');
+    iniciarCountdown(data.tiempo_restante_ms);
+  }
+
+  function iniciarCountdown(ms) {
+    let rest = ms;
+    const update = () => {
+      if (rest <= 0) { clearInterval(countdownInterval); document.getElementById('countdownDisplay').textContent = '¡Disponible!'; setTimeout(() => { verificarPermisosCambio(); }, 2000); return; }
+      const h = Math.floor(rest / 3600000), m = Math.floor((rest % 3600000) / 60000), s = Math.floor((rest % 60000) / 1000);
+      document.getElementById('countdownDisplay').textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      rest -= 1000;
+    };
+    update();
+    countdownInterval = setInterval(update, 1000);
+  }
+
+  function togglePassword(id) {
+    const f = document.getElementById(id);
+    const b = f.parentElement.querySelector('.toggle-password');
+    const eyeOpen = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>`;
+    const eyeOff = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>`;
+    if (f.type === 'password') { f.type = 'text'; b.innerHTML = eyeOff; }
+    else { f.type = 'password'; b.innerHTML = eyeOpen; }
+  }
+
+  function setupPasswordForm() {
+    const actual = document.getElementById('actual');
+    const nueva = document.getElementById('nueva');
+    const confirmar = document.getElementById('confirmar');
+    const reqs = document.getElementById('passwordRequirements');
+    const btn = document.getElementById('submitBtn');
+
+    nueva.addEventListener('focus', () => reqs.classList.add('show'));
+    nueva.addEventListener('input', () => {
+      const pw = nueva.value;
+      const r = { length: pw.length >= 8, upper: /[A-Z]/.test(pw), lower: /[a-z]/.test(pw), num: /\d/.test(pw) };
+      updateReq('req-length', r.length); updateReq('req-uppercase', r.upper); updateReq('req-lowercase', r.lower); updateReq('req-number', r.num);
+      const count = Object.values(r).filter(Boolean).length;
+      const str = document.getElementById('passwordStrength');
+      if (count === 0) { str.style.display = 'none'; }
+      else { str.style.display = 'block'; str.className = 'password-strength ' + (count < 2 ? 'strength-weak' : count < 4 ? 'strength-medium' : 'strength-strong'); str.textContent = count < 2 ? 'Débil' : count < 4 ? 'Media' : 'Fuerte'; }
+      nueva.className = pw ? (Object.values(r).every(Boolean) ? 'valid' : 'invalid') : '';
+      validatePwForm();
+    });
+    confirmar.addEventListener('input', validatePwForm);
+    actual.addEventListener('input', validatePwForm);
+
+    function validatePwForm() {
+      const pw = nueva.value;
+      const ok = pw.length >= 8 && /[A-Z]/.test(pw) && /[a-z]/.test(pw) && /\d/.test(pw);
+      const match = confirmar.value && pw === confirmar.value;
+      confirmar.className = confirmar.value ? (match ? 'valid' : 'invalid') : '';
+      btn.disabled = !(actual.value.trim() && ok && match);
+    }
+
+    document.getElementById('formCambio').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (nueva.value !== confirmar.value) { showPwMsg('No coinciden', 'error'); return; }
+      if (nueva.value === actual.value) { showPwMsg('Debe ser diferente', 'error'); return; }
+      btn.disabled = true; btn.textContent = 'Cambiando...';
+      try {
+        const res = await window.apiRequest('/api/cambiar-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actual: actual.value, nueva: nueva.value }) });
+        const data = await res.json();
+        if (res.ok) { document.getElementById('successModal').classList.add('show'); }
+        else { showPwMsg(data.error || 'Error', 'error'); if (data.bloqueado) setTimeout(verificarPermisosCambio, 2000); }
+      } catch (err) { showPwMsg('Error de conexión', 'error'); }
+      finally { btn.textContent = 'Cambiar Contraseña'; validatePwForm(); }
+    });
+  }
+
+  function updateReq(id, ok) {
+    const el = document.getElementById(id);
+    const icon = el.querySelector('.icon');
+    if (ok) {
+      el.classList.add('valid');
+      icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>`;
+    } else {
+      el.classList.remove('valid');
+      icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>`;
+    }
+  }
+
+  function showPwMsg(text, type) {
+    const m = document.getElementById('mensajePw');
+    m.textContent = text; m.className = `mensaje-pw ${type}`;
+    setTimeout(() => { m.className = 'mensaje-pw'; }, 5000);
+  }
+
+  function closeSuccessModal() {
+    document.getElementById('successModal').classList.remove('show');
+    setTimeout(verificarPermisosCambio, 500);
+  }
+
+  // ============================================================
+  //  LOGOUT
+  // ============================================================
+  async function logout() {
+    try {
+      const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
+      if (response.ok) {
+        const pedidos = await response.json();
+        const activos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
+        if (activos.length > 0) { alert(`No puedes cerrar sesión con ${activos.length} pedido(s) activo(s).`); return; }
+      }
+    } catch (e) {}
+
+    if (confirm('¿Cerrar sesión?')) {
+      try {
+        if (window.unifiedGeoService) await window.unifiedGeoService.stopTracking();
+        if (window.limpiarSesion) window.limpiarSesion();
+        await window.apiRequest('/api/logout', { method: 'POST' });
+        window.location.href = '/index.html';
+      } catch (e) { window.location.href = '/index.html'; }
+    }
+  }
+
+  // ============================================================
+  //  CONTADORES + NAV BADGE
+  // ============================================================
+  async function actualizarContadores() {
+    try {
+      const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
+      if (!response.ok) return;
+      const pedidos = await response.json();
+      
+      const activos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
+      const disponibles = pedidos.filter(p => p.estado?.toLowerCase() === 'esperando repartidor');
+      
+      // Update header counter (activos)
+      const numActivos = activos.length;
+      const el = document.getElementById('numPedidosActivos');
+      const cont = document.getElementById('contadorPedidos');
+      if (el) el.textContent = numActivos;
+      if (cont) {
+        cont.className = 'orders-count';
+        if (numActivos >= 2) cont.classList.add('limite-alcanzado');
+        else if (numActivos === 1) cont.classList.add('limite-cerca');
+      }
+
+      // Update disponibles counter
+      const numDisp = document.getElementById('numPedidosDisponibles');
+      if (numDisp) numDisp.textContent = disponibles.length;
+      
+      // Update nav badges
+      const badgeActivos = document.getElementById('navBadgeActivos');
+      if (badgeActivos) {
+        if (numActivos > 0) { badgeActivos.textContent = numActivos; badgeActivos.classList.add('show'); }
+        else badgeActivos.classList.remove('show');
+      }
+      const badgeDisp = document.getElementById('navBadgePedidos');
+      if (badgeDisp) {
+        if (disponibles.length > 0) { badgeDisp.textContent = disponibles.length; badgeDisp.classList.add('show'); }
+        else badgeDisp.classList.remove('show');
+      }
+    } catch (e) {}
+  }
+
+  // ============================================================
+  //  SINCRONIZAR PEDIDOS ACTIVOS (mi sección separada)
+  // ============================================================
+  function sincronizarPedidosActivos() {
+    const fuente = document.getElementById('listaPedidos');
+    const destino = document.getElementById('listaPedidosActivos');
+    if (!fuente || !destino) return;
+
+    // Clonar solo las cards que son "mi pedido" (tienen clase mi-pedido)
+    const misCards = fuente.querySelectorAll('.pedido-card.mi-pedido');
+    
+    if (misCards.length === 0) {
+      destino.innerHTML = `
+        <div class="no-pedidos">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:48px;height:48px;margin:0 auto 16px;display:block;color:var(--text-muted)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
+          <h3>Sin pedidos activos</h3>
+          <p>Tus pedidos en camino aparecerán aquí</p>
+        </div>`;
+    } else {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'pedidos-grid';
+      misCards.forEach(card => wrapper.appendChild(card.cloneNode(true)));
+      destino.innerHTML = '';
+      destino.appendChild(wrapper);
+    }
+  }
+
+  
+  document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🎯 Inicializando SPA DomiPancho...');
+    
+    // 1. Cargar usuario
+    try {
+      const response = await window.apiRequest('/api/usuario-actual');
+      if (!response.ok) throw new Error('No auth');
+      const usuario = await response.json();
+      document.getElementById('restaurantName').textContent = usuario.restaurante_nombre || 'DomiPancho';
+      const nombre = usuario.usuario || '-';
+      document.getElementById('userName').textContent = nombre.length > 4 ? nombre.slice(0, -4) + '****' : nombre;
+    } catch (e) {
+      console.error('Error auth:', e);
+    }
+    
+    // 2. Disponibilidad
+    await initDisponibilidad();
+    
+    // 3. Geolocation
+    const switchDisp = document.getElementById('switchDisponibilidad');
+    if (switchDisp.checked && window.unifiedGeoService) {
+      try {
+        await window.unifiedGeoService.initialize();
+        await window.unifiedGeoService.startTracking();
+      } catch (e) { console.error('Geo error:', e); }
+    }
+    
+    // 4. FCM
+    if (window.fcmNotificationService) {
+      try { await window.fcmNotificationService.inicializar(); } catch (e) {}
+    }
+    
+    // 5. Contadores
+    await actualizarContadores();
+    setInterval(actualizarContadores, 10000);
+    
+    // 6. Socket
+    if (typeof io !== 'undefined') {
+      const socket = io();
+      socket.on('connect', async () => {
         try {
-          await window.fcmNotificationService.inicializar();
-          console.log('✅ FCM inicializado');
-        } catch (error) {
-          console.error('❌ Error FCM:', error);
+          const r = await window.apiRequest('/api/usuario-actual');
+          if (r.ok) { const u = await r.json(); socket.emit('join-domiciliario', u.id); }
+        } catch (e) {}
+      });
+      ['nuevo-pedido-geografico', 'estado-pedido-actualizado', 'pedido-removido', 'pedido-tomado', 'pedido-liberado'].forEach(ev => {
+        socket.on(ev, () => actualizarContadores());
+      });    }
+    
+    console.log('✅ SPA completamente inicializado');
+
+    // Bridge: cuando cargarPedidos corra, sincronizar la lista de activos
+    const _origCargar = window.cargarPedidos;
+    if (_origCargar) {
+      window.cargarPedidos = async function() {
+        await _origCargar();
+        sincronizarPedidosActivos();
+      };
+    }
+    // Also observe listaPedidos for mutations to sync activos
+    const listaObs = document.getElementById('listaPedidos');
+    if (listaObs) {
+      new MutationObserver(() => sincronizarPedidosActivos()).observe(listaObs, { childList: true, subtree: true });
+    }
+  });
+
+  // Visibility change
+  document.addEventListener('visibilitychange', async () => {
+    if (!document.hidden) {
+      actualizarContadores();
+      if (window.unifiedGeoService && window.unifiedGeoService.isTracking === false) {
+        const activo = localStorage.getItem('domiciliario_pedido_activo');
+        if (activo === 'true' && window.unifiedGeoService.permissionStatus === 'granted') {
+          try { await window.unifiedGeoService.startTracking(); } catch (e) {}
         }
       }
-      
-      // ✅ 6. ACTUALIZAR CONTADORES
-      await actualizarContadores();
-      setInterval(actualizarContadores, 10000);
-      
-      // ✅ 7. CONFIGURAR SOCKET.IO
-      if (typeof io !== 'undefined') {
-        const socket = io();
-        
-        socket.on('connect', async () => {
-          console.log('🔌 Socket conectado');
-          
-          try {
-            const response = await window.apiRequest('/api/usuario-actual');
-            if (response.ok) {
-              const usuario = await response.json();
-              socket.emit('join-domiciliario', usuario.id);
-            }
-          } catch (error) {
-            console.error('❌ Error usuario:', error);
-          }
-        });
-        
-        socket.on('nuevo-pedido-geografico', async () => {
-          await actualizarContadores();
-        });
-        
-        socket.on('estado-pedido-actualizado', async () => {
-          await actualizarContadores();
-        });
-        
-        socket.on('pedido-removido', async () => {
-          await actualizarContadores();
-        });
-        
-        socket.on('pedido-tomado', async () => {
-          await actualizarContadores();
-        });
-        
-        socket.on('pedido-liberado', async () => {
-          await actualizarContadores();
-        });
-      }
-      
-      console.log('✅ Sistema completamente inicializado');
-    });
+    }
+  });
 
-    // ✅ ACTUALIZAR AL VOLVER A LA PÁGINA
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        console.log('👀 Página visible - actualizando...');
-        actualizarContadores();
-      }
-    });
-
-    // ✅ HELPER PARA DESCRIPCIÓN
-    document.addEventListener('DOMContentLoaded', function() {
-      const helpBtn = document.getElementById('helpBtn');
-      const descripcion = document.getElementById('switchDescripcion');
-      
-      if (helpBtn && descripcion) {
-        helpBtn.addEventListener('click', function() {
-          const isVisible = descripcion.style.display === 'block';
-          descripcion.style.display = isVisible ? 'none' : 'block';
-          helpBtn.textContent = isVisible ? 'ℹ' : '✕';
-        });
-      }
-    });
+  // Escape key handler
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      cerrarDetallesPedido();
+      const mp = document.getElementById('modalMetodoPago');
+      if (mp && mp.style.display === 'flex') cerrarModalPago();
+    }
+  });
   </script>
 </body>
 </html>

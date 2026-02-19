@@ -128,7 +128,7 @@ function calcularTotalesPedido(pedido) {
         const usuario = await response.json();
         const userEl = document.getElementById('restaurantName');
         if (userEl) {
-          userEl.textContent = `👤 ${usuario.usuario || 'Usuario'}`;
+          userEl.textContent = `${usuario.usuario || 'Usuario'}`;
         }
         return usuario;
       }
@@ -320,8 +320,8 @@ function calcularTotalesPedido(pedido) {
     const complementoMostrar = esMiPedido ? (p.complemento ? ' ' + p.complemento : '') : '';
 
     const badges = [];
-    if (esMiPedido) badges.push('<div class="badge-mi-pedido">🚛 Mi Pedido</div>');
-    if (p.envio_manual_domiciliario) badges.push('<div class="badge-manual">📤 Envío Manual</div>');
+    if (esMiPedido) badges.push('<div class="badge-mi-pedido">Mi Pedido</div>');
+    if (p.envio_manual_domiciliario) badges.push('<div class="badge-manual">Envío Manual</div>');
 
     return `
       <div class="pedido-card ${esMiPedido ? 'mi-pedido color-mi-pedido' : 'color-disponible'} ${!disponible && !esMiPedido ? 'pedido-preview' : ''}" data-pedido-id="${p.id}">
@@ -330,23 +330,23 @@ function calcularTotalesPedido(pedido) {
         <div class="pedido-header">
           <div class="cliente-info">
             <h3>${p.nombre} ${p.apellido}</h3>
-            <div class="telefono">📞 ${telefonoMostrar}</div>
+            <div class="telefono">${telefonoMostrar}</div>
           </div>
           <div class="estado ${estadoClase}">${p.estado}</div>
         </div>
 
-        ${mostrarDistancia ? `<div class="distancia-info"><strong>📍 Dist restaurante: ${p.distancia_al_restaurante.toFixed(3)}km</strong></div>` : ''}
+        ${mostrarDistancia ? `<div class="distancia-info"><strong>Dist restaurante: ${p.distancia_al_restaurante.toFixed(3)}km</strong></div>` : ''}
 
         <div class="info-grid">
           <div class="info-section">
-            <h4>🏬 Origen</h4>
+            <h4>Origen</h4>
             <p class="nombre-negocio">${p.restaurantes?.nombre || 'Restaurante'}</p>
-            <p class="direccion-small">📍 ${p.restaurantes?.direccion || 'Sin dirección'}</p>
-            <p class="telefono-small">📞 ${p.restaurantes?.telefono || 'Sin teléfono'}</p>
+            <p class="direccion-small">${p.restaurantes?.direccion || 'Sin dirección'}</p>
+            <p class="telefono-small">${p.restaurantes?.telefono || 'Sin teléfono'}</p>
           </div>
 
           <div class="info-section">
-            <h4>🏠 Destino</h4>
+            <h4>Destino</h4>
             <p class="direccion-cliente">${direccionMostrar}${complementoMostrar}</p>
             <p class="barrio"><em>${p.barrio}</em></p>
           </div>
@@ -354,10 +354,10 @@ function calcularTotalesPedido(pedido) {
 
         <div class="total-section">
         ${totales.tieneCupon ? `
-          <div class="total-original" style="text-decoration: line-through; color: #9ca3af; font-size: 0.9em;">
+          <div class="total-original">
             $${totales.totalSinDescuento.toLocaleString('es-CO')}
           </div>
-          <div class="descuento-badge" style="background: #dcfce7; color: #16a34a; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; margin: 4px 0;">
+          <div class="descuento-badge">
             🎟️ -$${totales.descuentoCupon.toLocaleString('es-CO')}
           </div>
         ` : ''}
@@ -369,7 +369,7 @@ function calcularTotalesPedido(pedido) {
       </div>
 
         <div class="botones-pedido">
-          <button class="btn-ver-detalles" onclick="abrirDetallesPedido(${p.id}, ${esMiPedido})">👁️ Detalles</button>
+          <button class="btn-ver-detalles" onclick="abrirDetallesPedido(${p.id}, ${esMiPedido})">Detalles</button>
           ${generarBotonesAccion(p, esMiPedido, cantidadActivos, disponible)}
         </div>
 
@@ -396,9 +396,9 @@ function calcularTotalesPedido(pedido) {
     
     if (esMiPedido) {
       return `
-        <button class="btn-liberar" onclick="abrirModalLiberar(${pedido.id})">🔄 Liberar</button>
-        <button class="btn-entregado" onclick="abrirModalPago(${pedido.id})">✅ Entregado</button>
-        <button class="btn-problema" onclick="abrirModalProblema(${pedido.id})">❌ Problema</button>
+        <button class="btn-liberar" onclick="abrirModalLiberar(${pedido.id})">Liberar</button>
+        <button class="btn-entregado" onclick="abrirModalPago(${pedido.id})">Entregado</button>
+        <button class="btn-problema" onclick="abrirModalProblema(${pedido.id})">Problema</button>
       `;
     }
     
@@ -421,7 +421,7 @@ function calcularTotalesPedido(pedido) {
     }
     
     if (pedidosActivosGlobal >= 2) {
-      mostrarMensaje('❌ No puedes tomar más pedidos. Máximo 2 pedidos activos permitidos.', 'error');
+      mostrarMensaje('❌No puedes tomar más pedidos. Máximo 2 pedidos activos permitidos.', 'error');
       return;
     }
   
@@ -447,14 +447,14 @@ function calcularTotalesPedido(pedido) {
           await window.unifiedGeoService.startTracking();
         }
         
-        mostrarMensaje(`✅ Pedido asignado (${result.pedidosActivos || 1}/2 activos)`);
+        mostrarMensaje(`Pedido asignado (${result.pedidosActivos || 1}/2 activos)`);
         actualizarContadorPedidos(result.pedidosActivos || 1);
         // ✅ Recargar inmediatamente sin delay
         await cargarPedidos();
       } else {
         if (btnTomar) {
           btnTomar.disabled = false;
-          btnTomar.textContent = '📦 Tomar';
+          btnTomar.textContent = 'Tomar';
         }
         mostrarMensaje(`❌ ${result.error || 'No se pudo tomar el pedido'}`, 'error');
       }
@@ -462,7 +462,7 @@ function calcularTotalesPedido(pedido) {
       console.error('Error al tomar pedido:', error);
       if (btnTomar) {
         btnTomar.disabled = false;
-        btnTomar.textContent = '📦 Tomar';
+        btnTomar.textContent = 'Tomar';
       }
       mostrarMensaje('❌ Error de conexión', 'error');
     }
@@ -782,14 +782,14 @@ function calcularTotalesPedido(pedido) {
           ${mensajeProteccion}
           
           <div class="detalle-section">
-            <h4>👤 Información del Cliente</h4>
+            <h4>Información del Cliente</h4>
             <p><strong>Nombre:</strong> ${pedido.nombre} ${pedido.apellido}</p>
             <p><strong>Teléfono:</strong> ${telefonoMostrar}</p>
             <p><strong>Estado:</strong> ${pedido.estado}</p>
           </div>
   
           <div class="detalle-section">
-            <h4>📍 Dirección de Entrega</h4>
+            <h4>Dirección de Entrega</h4>
             <p><strong>${direccionMostrar}</strong></p>
             ${complementoMostrar}
             <p><strong>Barrio:</strong> ${pedido.barrio}</p>
@@ -816,8 +816,8 @@ function calcularTotalesPedido(pedido) {
           ${pedido.tipo_tarifa === 'por_km' && pedido.distancia_km ? 
             `<p class="info-km"><em>(Tarifa por km: ${pedido.distancia_km} km recorridos)</em></p>` : ''}
           ${totales.tieneCupon ? `
-            <p style="color: #6b7280; margin-top: 8px;"><strong>Subtotal:</strong> <span style="text-decoration: line-through;">$${totales.totalSinDescuento.toLocaleString('es-CO')}</span></p>
-            <p style="color: #10b981; font-size: 1.05em; margin: 8px 0;"><strong>🎟️ Descuento cupón:</strong> -$${totales.descuentoCupon.toLocaleString('es-CO')}</p>
+            <p><strong>Subtotal:</strong> <span>$${totales.totalSinDescuento.toLocaleString('es-CO')}</span></p>
+            <p><strong>🎟️ Descuento cupón:</strong> -$${totales.descuentoCupon.toLocaleString('es-CO')}</p>
           ` : ''}
           <p class="total-destacado" style="${totales.tieneCupon ? 'color: #10b981;' : ''}"><strong>Total a cobrar: $${totales.totalConDescuento.toLocaleString('es-CO')}</strong></p>
         </div>
