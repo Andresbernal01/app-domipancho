@@ -180,7 +180,10 @@ function calcularTotalesPedido(pedido) {
   
       const usuario = await cargarUsuario();
       if (!usuario) return;
-  
+
+      // ✅ Actualizar cache para que abrirDetallesPedido sea instantáneo
+      _actualizarCache(pedidos, usuario.id);
+
       // 3. FILTRAR PEDIDOS
       let pedidosFiltrados = pedidos.filter(pedido => {
         if (pedido.estado?.toLowerCase() === 'camino a tu casa' && pedido.domiciliario_id === usuario.id) {
@@ -194,9 +197,11 @@ function calcularTotalesPedido(pedido) {
       
       actualizarContadorPedidos(misActivos.length);
   
-      const pedidosAMostrar = misActivos.length >= 2 ? misActivos : [...misActivos, ...disponiblesArr];
-  
-      renderizarPedidos(pedidosAMostrar, misActivos, [], disponible);
+      // ✅ Solo mostrar disponibles en esta sección; los activos van en su propio tab
+      renderizarPedidos(disponiblesArr, misActivos, [], disponible);
+
+    // ✅ Actualizar tab de Activos también
+    cargarPedidosActivos();
 
     } catch (err) {
       console.error('Error al cargar pedidos:', err);
@@ -218,7 +223,7 @@ function calcularTotalesPedido(pedido) {
     }
   }
 
-  function renderizarPedidos(pedidosAMostrar, misActivos, pedidosGeograficos, disponible) {
+  function renderizarPedidos(pedidosDisponibles, misActivos, pedidosGeograficos, disponible) {
     const contenedor = document.getElementById('listaPedidos');
     
     if (!contenedor) {
@@ -226,7 +231,7 @@ function calcularTotalesPedido(pedido) {
       return;
     }
     
-    if (!Array.isArray(pedidosAMostrar) || pedidosAMostrar.length === 0) {
+    if (!Array.isArray(pedidosDisponibles) || pedidosDisponibles.length === 0) {
       if (disponible) {
         contenedor.innerHTML = misActivos.length >= 2 
           ? '<div class="no-pedidos"><h3>🚛 Tienes el máximo de pedidos (2/2)</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>'
@@ -252,48 +257,15 @@ function calcularTotalesPedido(pedido) {
       htmlContent += '<div class="alerta advertencia-limite"><h3>⚠️ Puedes tomar 1 pedido más (1/2)</h3><p>Tienes espacio para un pedido adicional.</p></div>';
     }
   
-    const pedidosOrdenados = pedidosAMostrar.sort((a, b) => {
-      const aEsMio = a.estado?.toLowerCase() === 'camino a tu casa';
-      const bEsMio = b.estado?.toLowerCase() === 'camino a tu casa';
-      
-      if (aEsMio && !bEsMio) return -1;
-      if (!aEsMio && bEsMio) return 1;
-      
-      return new Date(a.fecha) - new Date(b.fecha);
-    });
+    const pedidosOrdenados = [...pedidosDisponibles].sort((a, b) =>
+      new Date(a.fecha) - new Date(b.fecha)
+    );
   
-    const misPedidosHtml = [];
-    const pedidosDisponiblesHtml = [];
-  
+    htmlContent += '<div class="pedidos-grid">';
     pedidosOrdenados.forEach(p => {
-      const esMiPedido = p.estado?.toLowerCase() === 'camino a tu casa';
-      const html = generarHtmlPedido(p, esMiPedido, pedidosGeograficos, misActivos.length, disponible);
-      
-      if (esMiPedido) {
-        misPedidosHtml.push(html);
-      } else {
-        pedidosDisponiblesHtml.push(html);
-      }
+      htmlContent += generarHtmlPedido(p, false, pedidosGeograficos, misActivos.length, disponible);
     });
-  
-    if (misPedidosHtml.length > 0) {
-      htmlContent += '<div class="pedidos-grid">';
-      htmlContent += misPedidosHtml.join('');
-      htmlContent += '</div>';
-    }
-  
-    if (misPedidosHtml.length > 0 && pedidosDisponiblesHtml.length > 0) {
-      const tituloSeccion = disponible ? 
-        '📋 Más Pedidos Disponibles en tu Área' : 
-        '📋 Pedidos Esperando Repartidor en tu Ciudad';
-      htmlContent += `<div class="separador-pedidos"><span>${tituloSeccion}</span></div>`;
-    }
-  
-    if (pedidosDisponiblesHtml.length > 0) {
-      htmlContent += '<div class="pedidos-grid">';
-      htmlContent += pedidosDisponiblesHtml.join('');
-      htmlContent += '</div>';
-    }
+    htmlContent += '</div>';
   
     contenedor.innerHTML = htmlContent;
   }
@@ -312,96 +284,100 @@ function calcularTotalesPedido(pedido) {
 
   function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, disponible) {
     const estadoClase = ESTADOS_CLASES[p.estado?.toLowerCase()] || 'pendiente';
-    const totales = calcularTotalesPedido(p);
-    const mostrarDistancia = !esMiPedido && p.distancia_al_restaurante !== null && disponible;
+    const totales     = calcularTotalesPedido(p);
+    const horaStr     = new Date(p.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    const cardClass   = esMiPedido ? 'mi-pedido' : 'disponible';
+    const previewClass = (!disponible && !esMiPedido) ? ' pedido-preview' : '';
 
-    const telefonoMostrar = esMiPedido ? p.telefono : ocultarTelefono(p.telefono);
-    const direccionMostrar = esMiPedido ? p.direccion : ocultarDireccion(p.direccion);
-    const complementoMostrar = esMiPedido ? (p.complemento ? ' ' + p.complemento : '') : '';
+    // Origen: nombre restaurante + direccion
+    const origenNombre = p.restaurantes?.nombre || 'Restaurante';
+    const origenDir    = p.restaurantes?.direccion || '';
 
-    const badges = [];
-    if (esMiPedido) badges.push('<div class="badge-mi-pedido">Mi Pedido</div>');
-    if (p.envio_manual_domiciliario) badges.push('<div class="badge-manual">Envío Manual</div>');
+    // Destino: completo si es mi pedido, oculto si no
+    const destinoDir    = esMiPedido
+      ? (p.direccion || '') + (p.complemento ? ', ' + p.complemento : '')
+      : 'Ver al tomar el pedido';
+    const destinoBarrio = p.barrio || '';
+    const destinoDotClass = esMiPedido ? 'destino-activo' : 'destino';
+
+    // Distancia
+    const distanciaStr = (!esMiPedido && p.distancia_al_restaurante != null && disponible)
+      ? `<span class="card-dist">${p.distancia_al_restaurante.toFixed(2)} km al restaurante</span>`
+      : '';
+
+    // Total
+    const totalStr  = `$${totales.totalConDescuento.toLocaleString('es-CO')}`;
+    const cuponHtml = totales.tieneCupon
+      ? `<span class="card-cupon">Cupon -$${totales.descuentoCupon.toLocaleString('es-CO')}</span>`
+      : '';
+
+    // Estado texto limpio
+    const estadoTexto = esMiPedido ? 'En camino' : 'Disponible';
+
+    // Botones: layout diferente para mi pedido vs disponible
+    const botonesHtml = esMiPedido
+      ? `<div class="card-btns mi-pedido-btns">
+           <button class="cbtn cbtn-det" onclick="abrirDetallesPedido(${p.id}, true)">Ver detalles</button>
+           <div class="card-btns-acciones">
+             <button class="cbtn cbtn-lib"  onclick="abrirModalLiberar(${p.id})">Liberar</button>
+             <button class="cbtn cbtn-ok"   onclick="abrirModalPago(${p.id})">Entregar</button>
+             <button class="cbtn cbtn-prob" onclick="abrirModalProblema(${p.id})">Problema</button>
+           </div>
+         </div>`
+      : `<div class="card-btns">
+           <button class="cbtn cbtn-det" onclick="abrirDetallesPedido(${p.id}, false)">Ver detalles</button>
+           ${generarBotonesAccion(p, esMiPedido, cantidadActivos, disponible)}
+         </div>`;
 
     return `
-      <div class="pedido-card ${esMiPedido ? 'mi-pedido color-mi-pedido' : 'color-disponible'} ${!disponible && !esMiPedido ? 'pedido-preview' : ''}" data-pedido-id="${p.id}">
-        ${badges.join('')}
-        
-        <div class="pedido-header">
-          <div class="cliente-info">
-            <h3>${p.nombre} ${p.apellido}</h3>
-            <div class="telefono">${telefonoMostrar}</div>
-          </div>
-          <div class="estado ${estadoClase}">${p.estado}</div>
+      <div class="pedido-card ${cardClass}${previewClass}" data-pedido-id="${p.id}">
+
+        <div class="card-top">
+          <span class="card-id">#${p.id}</span>
+          <span class="estado ${estadoClase}">${estadoTexto}</span>
+          <span class="card-hora">${horaStr}</span>
         </div>
 
-        ${mostrarDistancia ? `<div class="distancia-info"><strong>Dist restaurante: ${p.distancia_al_restaurante.toFixed(3)}km</strong></div>` : ''}
-
-        <div class="info-grid">
-          <div class="info-section">
-            <h4>Origen</h4>
-            <p class="nombre-negocio">${p.restaurantes?.nombre || 'Restaurante'}</p>
-            <p class="direccion-small">${p.restaurantes?.direccion || 'Sin dirección'}</p>
-            <p class="telefono-small">${p.restaurantes?.telefono || 'Sin teléfono'}</p>
+        <div class="card-ruta">
+          <div class="card-punto">
+            <span class="punto-dot origen"></span>
+            <span class="punto-texto">
+              <span class="punto-label">Origen</span>
+              <span class="punto-val">${origenNombre}</span>
+              ${origenDir ? `<span class="punto-sub">${origenDir}</span>` : ''}
+            </span>
           </div>
-
-          <div class="info-section">
-            <h4>Destino</h4>
-            <p class="direccion-cliente">${direccionMostrar}${complementoMostrar}</p>
-            <p class="barrio"><em>${p.barrio}</em></p>
+          <div class="card-punto">
+            <span class="punto-dot ${destinoDotClass}"></span>
+            <span class="punto-texto">
+              <span class="punto-label">Destino</span>
+              <span class="punto-val">${destinoDir}</span>
+              ${destinoBarrio ? `<span class="punto-sub">Barrio: ${destinoBarrio}</span>` : ''}
+            </span>
           </div>
         </div>
 
-        <div class="total-section">
-        ${totales.tieneCupon ? `
-          <div class="total-original">
-            $${totales.totalSinDescuento.toLocaleString('es-CO')}
-          </div>
-          <div class="descuento-badge">
-            🎟️ -$${totales.descuentoCupon.toLocaleString('es-CO')}
-          </div>
-        ` : ''}
-        <div class="total-amount" style="${totales.tieneCupon ? 'color: #16a34a;' : ''}">
-          $${totales.totalConDescuento.toLocaleString('es-CO')}
-        </div>
-        <small>(Domicilio: $${totales.costoDomicilio.toLocaleString('es-CO')}${totales.tarifaDomiPancho > 0 ? ` + Tarifa DP: $${totales.tarifaDomiPancho.toLocaleString('es-CO')}` : ''})</small>
-        ${p.tipo_tarifa === 'por_km' && p.distancia_km ? `<small class="km-info">(${p.distancia_km} km)</small>` : ''}
-      </div>
-
-        <div class="botones-pedido">
-          <button class="btn-ver-detalles" onclick="abrirDetallesPedido(${p.id}, ${esMiPedido})">Detalles</button>
-          ${generarBotonesAccion(p, esMiPedido, cantidadActivos, disponible)}
+        <div class="card-money">
+          <span class="card-total${totales.tieneCupon ? ' con-cupon' : ''}">${totalStr}</span>
+          ${cuponHtml}
+          ${distanciaStr}
         </div>
 
-        <div class="pedido-footer">
-          <small>📅 ${new Date(p.fecha).toLocaleDateString('es-CO')} - ${new Date(p.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</small>
-        </div>
+        ${botonesHtml}
+
       </div>
     `;
   }
 
   function generarBotonesAccion(pedido, esMiPedido, cantidadActivos, disponible) {
+    // Solo se usa para pedidos disponibles (mi-pedido ya tiene sus botones arriba)
     if (pedido.estado === 'esperando repartidor') {
       if (!disponible) {
-        return `
-          <button class="btn-tomar btn-no-disponible" disabled title="Activa 'Disponible' para tomar pedidos">
-            🔴 Activate
-          </button>
-        `;
-      } else {
-        const deshabilitado = cantidadActivos >= 2;
-        return `<button class="btn-tomar" onclick="tomarPedido(${pedido.id})" ${deshabilitado ? 'disabled' : ''}>${deshabilitado ? '🚫 Límite' : '📦 Tomar'}</button>`;
+        return `<button class="cbtn cbtn-nd" disabled>No disponible</button>`;
       }
+      const off = cantidadActivos >= 2;
+      return `<button class="cbtn cbtn-tomar" onclick="tomarPedido(${pedido.id})" ${off ? 'disabled' : ''}>${off ? 'Limite alcanzado' : 'Tomar pedido'}</button>`;
     }
-    
-    if (esMiPedido) {
-      return `
-        <button class="btn-liberar" onclick="abrirModalLiberar(${pedido.id})">Liberar</button>
-        <button class="btn-entregado" onclick="abrirModalPago(${pedido.id})">Entregado</button>
-        <button class="btn-problema" onclick="abrirModalProblema(${pedido.id})">Problema</button>
-      `;
-    }
-    
     return '';
   }
 
@@ -740,121 +716,125 @@ function calcularTotalesPedido(pedido) {
     }
   }
 
-  async function abrirDetallesPedido(pedidoId, esMiPedido = false) {
-    try {
-      const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
-      const pedidos = await response.json();
-      const pedido = pedidos.find(p => p.id === pedidoId);
-      
-      if (!pedido) {
-        mostrarMensaje('No se pudo encontrar el pedido', 'error');
-        return;
-      }
-  
-      const usuario = await cargarUsuario();
-      const esPedidoActivo = pedido.domiciliario_id === usuario?.id && pedido.estado?.toLowerCase() === 'camino a tu casa';
-  
-      const telefonoMostrar = esPedidoActivo ? pedido.telefono : ocultarTelefono(pedido.telefono);
-      const direccionMostrar = esPedidoActivo ? pedido.direccion : 'Toma el pedido para ver la dirección completa';
-      const complementoMostrar = esPedidoActivo && pedido.complemento ? `<p><strong>Complemento:</strong> ${pedido.complemento}</p>` : '';
-      const mensajeProteccion = !esPedidoActivo ? '<div class="alerta-proteccion">🔒 Toma el pedido para ver los datos completos del cliente</div>' : '';
-  
-      const productosHtml = Array.isArray(pedido.productos) 
-        ? pedido.productos.map(pr => {
-            const subtotal = pr.precio * pr.cantidad;
-            return `
-              <div class="producto-detalle-item">
-                <div class="producto-nombre-detalle">${pr.nombre}</div>
-                <div class="producto-detalles">
-                  Cantidad: ${pr.cantidad} × ${pr.precio.toLocaleString('es-CO')} = ${subtotal.toLocaleString('es-CO')}
-                </div>
-              </div>
-            `;
-          }).join('') 
-        : '<p>No hay productos disponibles</p>';
-  
-      const totales = calcularTotalesPedido(pedido);
-  
-      const modalHTML = `
-        <div class="modal-detalles-contenido">
-          <h2>📋 Detalles del Pedido #${pedido.id}</h2>
-          
-          ${mensajeProteccion}
-          
-          <div class="detalle-section">
-            <h4>Información del Cliente</h4>
-            <p><strong>Nombre:</strong> ${pedido.nombre} ${pedido.apellido}</p>
-            <p><strong>Teléfono:</strong> ${telefonoMostrar}</p>
-            <p><strong>Estado:</strong> ${pedido.estado}</p>
-          </div>
-  
-          <div class="detalle-section">
-            <h4>Dirección de Entrega</h4>
-            <p><strong>${direccionMostrar}</strong></p>
-            ${complementoMostrar}
-            <p><strong>Barrio:</strong> ${pedido.barrio}</p>
-          </div>
-  
-          <div class="detalle-section">
-            <h4>🏬 Información del Negocio</h4>
-            <p><strong>Nombre:</strong> ${pedido.restaurantes?.nombre || 'Desconocido'}</p>
-            <p><strong>Dirección:</strong> ${pedido.restaurantes?.direccion || 'No disponible'}</p>
-            <p><strong>Teléfono:</strong> ${pedido.restaurantes?.telefono || 'No disponible'}</p>
-          </div>
-  
-          <div class="detalle-section">
-            <h4>🛒 Productos del Pedido</h4>
-            <div class="productos-detalle">
-              ${productosHtml}
-            </div>
-          </div>
-  
-          <div class="detalle-section">
-          <h4>💰 Resumen de Pago</h4>
-          <p><strong>Subtotal productos:</strong> $${totales.subtotalProductos.toLocaleString('es-CO')}</p>
-          <p><strong>Domicilio:</strong> $${totales.costoDomicilio.toLocaleString('es-CO')}</p>
-          ${pedido.tipo_tarifa === 'por_km' && pedido.distancia_km ? 
-            `<p class="info-km"><em>(Tarifa por km: ${pedido.distancia_km} km recorridos)</em></p>` : ''}
-          ${totales.tieneCupon ? `
-            <p><strong>Subtotal:</strong> <span>$${totales.totalSinDescuento.toLocaleString('es-CO')}</span></p>
-            <p><strong>🎟️ Descuento cupón:</strong> -$${totales.descuentoCupon.toLocaleString('es-CO')}</p>
-          ` : ''}
-          <p class="total-destacado" style="${totales.tieneCupon ? 'color: #10b981;' : ''}"><strong>Total a cobrar: $${totales.totalConDescuento.toLocaleString('es-CO')}</strong></p>
-        </div>
-  
-          <div class="detalle-section">
-            <h4>📅 Información del Pedido</h4>
-            <p><strong>Fecha:</strong> ${new Date(pedido.fecha).toLocaleString('es-CO', {
-              timeZone: 'America/Bogota',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true
-            })}</p>
-            <p><strong>ID del pedido:</strong> #${pedido.id}</p>
-          </div>
-  
-          <button class="btn-cerrar-modal" onclick="cerrarDetallesPedido()">❌ Cerrar Detalles</button>
-        </div>
-      `;
-  
-      const modal = document.createElement('div');
-      modal.id = 'modalDetalles';
-      modal.className = 'modal-overlay';
-      modal.innerHTML = modalHTML;
-      
-      document.body.appendChild(modal);
-  
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) cerrarDetallesPedido();
-      });
-  
-    } catch (err) {
-      console.error('Error al cargar detalles:', err);
-      mostrarMensaje('Error al cargar los detalles del pedido', 'error');
+  // ── Cache de pedidos para que el modal abra INSTANTÁNEAMENTE ──
+  let _cachePedidos   = [];
+  let _cacheUsuarioId = null;
+
+  // Se llama desde cargarPedidos y cargarPedidosActivos para mantener cache fresco
+  function _actualizarCache(pedidos, usuarioId) {
+    _cachePedidos   = pedidos   || _cachePedidos;
+    _cacheUsuarioId = usuarioId ?? _cacheUsuarioId;
+  }
+
+  function abrirDetallesPedido(pedidoId, esMiPedido = false) {
+    // ✅ INSTANTÁNEO: buscar en cache (ya cargado al renderizar)
+    const pedido = _cachePedidos.find(p => p.id === pedidoId);
+
+    if (!pedido) {
+      mostrarMensaje('No se encontró el pedido', 'error');
+      return;
     }
+
+    const esPedidoActivo = esMiPedido ||
+      (pedido.domiciliario_id === _cacheUsuarioId && pedido.estado?.toLowerCase() === 'camino a tu casa');
+
+    const telefonoMostrar = esPedidoActivo ? (pedido.telefono || 'N/A') : ocultarTelefono(pedido.telefono);
+
+    // Dirección completa siempre que sea mi pedido
+    const direccionCompleta = esPedidoActivo
+      ? (pedido.direccion || '') + (pedido.complemento ? ', ' + pedido.complemento : '')
+      : 'Disponible al tomar el pedido';
+
+    const mensajeProteccion = !esPedidoActivo
+      ? '<div class="alerta-proteccion">Toma el pedido para ver los datos completos del cliente</div>'
+      : '';
+
+    const productosHtml = Array.isArray(pedido.productos) && pedido.productos.length
+      ? pedido.productos.map(pr => {
+          const sub = pr.precio * pr.cantidad;
+          return `
+            <div class="producto-detalle-item">
+              <div class="producto-nombre-detalle">${pr.nombre}</div>
+              <div class="producto-detalles">
+                ${pr.cantidad} x $${pr.precio.toLocaleString('es-CO')} = <strong>$${sub.toLocaleString('es-CO')}</strong>
+              </div>
+            </div>`;
+        }).join('')
+      : '<p style="color:var(--text-muted);font-size:0.85rem;">Sin productos disponibles</p>';
+
+    const totales = calcularTotalesPedido(pedido);
+
+    const fechaStr = new Date(pedido.fecha).toLocaleString('es-CO', {
+      timeZone: 'America/Bogota', year: 'numeric', month: 'long',
+      day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+    });
+
+    const modalHTML = `
+      <div class="modal-detalles-contenido">
+        <h2>Pedido #${pedido.id}</h2>
+
+        ${mensajeProteccion}
+
+        <div class="detalle-section">
+          <h4>Cliente</h4>
+          <p><strong>Nombre:</strong> ${pedido.nombre} ${pedido.apellido}</p>
+          <p><strong>Telefono:</strong> ${telefonoMostrar}</p>
+          <p><strong>Estado:</strong> ${pedido.estado}</p>
+        </div>
+
+        <div class="detalle-section">
+          <h4>Origen — ${pedido.restaurantes?.nombre || 'Restaurante'}</h4>
+          <p>${pedido.restaurantes?.direccion || 'Sin direccion registrada'}</p>
+          ${pedido.restaurantes?.telefono ? `<p>Tel: ${pedido.restaurantes.telefono}</p>` : ''}
+        </div>
+
+        <div class="detalle-section">
+          <h4>Destino</h4>
+          <p><strong>${direccionCompleta || 'Sin direccion'}</strong></p>
+          ${pedido.barrio ? `<p>Barrio: ${pedido.barrio}</p>` : ''}
+        </div>
+
+        <div class="detalle-section">
+          <h4>Productos</h4>
+          ${productosHtml}
+        </div>
+
+        <div class="detalle-section">
+          <h4>Resumen de pago</h4>
+          <p>Subtotal productos: $${totales.subtotalProductos.toLocaleString('es-CO')}</p>
+          <p>Domicilio: $${totales.costoDomicilio.toLocaleString('es-CO')}</p>
+          ${totales.tarifaDomiPancho > 0 ? `<p>Tarifa DomiPancho: $${totales.tarifaDomiPancho.toLocaleString('es-CO')}</p>` : ''}
+          ${pedido.tipo_tarifa === 'por_km' && pedido.distancia_km ? `<p>Tarifa por km: ${pedido.distancia_km} km</p>` : ''}
+          ${totales.tieneCupon ? `
+            <p>Subtotal sin descuento: $${totales.totalSinDescuento.toLocaleString('es-CO')}</p>
+            <p>Descuento cupon: -$${totales.descuentoCupon.toLocaleString('es-CO')}</p>` : ''}
+          <p class="total-destacado" style="${totales.tieneCupon ? 'color:#10b981;' : ''}">
+            <strong>Total a cobrar: $${totales.totalConDescuento.toLocaleString('es-CO')}</strong>
+          </p>
+        </div>
+
+        <div class="detalle-section">
+          <h4>Fecha del pedido</h4>
+          <p>${fechaStr}</p>
+        </div>
+
+        <button class="btn-cerrar-modal" onclick="cerrarDetallesPedido()">Cerrar</button>
+      </div>`;
+
+    // Eliminar modal anterior si existe
+    const existing = document.getElementById('modalDetalles');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'modalDetalles';
+    modal.className = 'modal-overlay';
+    modal.style.display = 'flex'; // ✅ visible de inmediato, sin fetch
+    modal.innerHTML = modalHTML;
+    document.body.appendChild(modal);
+
+    modal.addEventListener('click', e => {
+      if (e.target === modal) cerrarDetallesPedido();
+    });
   }
 
   function cerrarDetallesPedido() {
@@ -913,7 +893,11 @@ function calcularTotalesPedido(pedido) {
     const usuario = await cargarUsuario();
     if (!usuario) return;
     
-    await cargarPedidos();
+    // ✅ Cargar activos Y disponibles en paralelo para máxima velocidad
+    await Promise.all([
+      cargarPedidos(),
+      cargarPedidosActivos()
+    ]);
     
     console.log('✅ Sistema FCM disponible desde fcm-notifications.js');
     
@@ -946,6 +930,53 @@ function calcularTotalesPedido(pedido) {
       mostrarCampoExplicacion(this.value);
     });
   }
+
+  // ========== CARGAR PEDIDOS ACTIVOS (tab Activos) ==========
+  async function cargarPedidosActivos() {
+    const destino = document.getElementById('listaPedidosActivos');
+    if (!destino) return;
+
+    try {
+      const [resUser, resPedidos] = await Promise.all([
+        window.apiRequest('/api/usuario-actual'),
+        window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias')
+      ]);
+
+      if (!resUser.ok || !resPedidos.ok) throw new Error('Error de API');
+
+      const [usuario, pedidos] = await Promise.all([resUser.json(), resPedidos.json()]);
+
+      // ✅ Actualizar cache para modal instantáneo
+      _actualizarCache(pedidos, usuario.id);
+
+      const activos = pedidos.filter(p =>
+        p.estado?.toLowerCase() === 'camino a tu casa' && p.domiciliario_id === usuario.id
+      );
+
+      if (activos.length === 0) {
+        destino.innerHTML = `
+          <div class="no-pedidos">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:48px;height:48px;margin:0 auto 16px;display:block;color:var(--text-muted)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
+            <h3>Sin pedidos activos</h3>
+            <p>Tus pedidos en camino aparecerán aquí</p>
+          </div>`;
+      } else {
+        let html = '<div class="pedidos-grid">';
+        activos.forEach(p => {
+          html += generarHtmlPedido(p, true, [], activos.length, true);
+        });
+        html += '</div>';
+        destino.innerHTML = html;
+      }
+    } catch (err) {
+      console.error('Error cargando pedidos activos:', err);
+      destino.innerHTML = `<div class="no-pedidos"><h3>Error al cargar</h3><p>Toca aquí para recargar</p></div>`;
+    }
+  }
+
+  // Sobreescribir cargarPedidos para que también actualice activos
+  const _cargarPedidosOriginal = cargarPedidos;
+  window.cargarPedidosActivos = cargarPedidosActivos;
 
   // ========== EXPORTAR FUNCIONES GLOBALES ==========
   window.logout = logout;
