@@ -1297,3 +1297,182 @@
         .contab-resumen-grid { grid-template-columns: repeat(3, 1fr); }
         .contab-item.sueldo { grid-column: 2 / 3; }
       }
+/* ====================================
+   MAPA DOMICILIARIO
+   ==================================== */
+.cbtn-mapa {
+  background: var(--purple);
+  color: var(--text-inverse);
+}
+
+.modal-mapa-contenido {
+  background: var(--bg-surface);
+  width: 100%;
+  max-width: 600px;
+  max-height: 95vh;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mapa-domi-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+
+.mapa-domi-header h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.btn-cerrar-mapa {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-elevated);
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-cerrar-mapa:active {
+  transform: scale(0.96);
+}
+
+.mapa-domi-aviso {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(243, 156, 18, 0.1);
+  border-bottom: 1px solid rgba(243, 156, 18, 0.2);
+  color: var(--warning);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.mapa-domi-info {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mapa-domi-leyenda {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.leyenda-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.leyenda-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mapa-domi-distancia {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Marcadores del mapa */
+.domiciliario-marker-container,
+.destino-marker-container,
+.restaurante-marker-container {
+  background: none !important;
+  border: none !important;
+}
+
+.location-pin {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.location-pin .pin-image {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #e74c3c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 12px rgba(231, 76, 60, 0.4);
+  border: 3px solid white;
+  overflow: hidden;
+}
+
+.location-pin .pin-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.location-pin .pin-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid white;
+}
+
+.location-pin.destino .pin-circle {
+  background: #3b82f6;
+  box-shadow: 0 3px 12px rgba(59, 130, 246, 0.4);
+}
+
+.location-pin.restaurante .pin-circle {
+  background: #f59e0b;
+  box-shadow: 0 3px 12px rgba(245, 158, 11, 0.4);
+}
+
+.location-pin .pin-point {
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  margin-top: -2px;
+}
+
+.location-pin .pin-point {
+  border-top: 10px solid #e74c3c;
+}
+
+.location-pin.destino .pin-point {
+  border-top-color: #3b82f6;
+}
+
+.location-pin.restaurante .pin-point {
+  border-top-color: #f59e0b;
+}
+
+@media (max-width: 380px) {
+  .mapa-domi-leyenda { gap: 10px; }
+  .leyenda-item { font-size: 0.72rem; }
+  #mapaContainerDomi { height: 380px !important; }
+}

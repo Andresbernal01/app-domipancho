@@ -17,6 +17,8 @@
   <script src="js/fcm-notifications.js"></script>
   <script src="js/inactividad.js"></script>
   <link rel="stylesheet" href="css/inicio.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
 
@@ -315,9 +317,10 @@
       <div class="metodos-pago">
         <label><input type="radio" name="metodo_pago" value="efectivo"><span>Efectivo</span></label>
         <label><input type="radio" name="metodo_pago" value="app"><span>Pago por App (QR)</span></label>
+        <label><input type="radio" name="metodo_pago" value="pagado al restaurante"><span>Pagado al restaurante</span></label>
       </div>
       <p style="font-size: 0.78rem; color: var(--text-muted); margin-top: 8px;">
-        Si es pago por App, muéstrale el QR físico al cliente.
+        Si es pago por App, mustrale el QR fisico al cliente. Si el cliente ya pago en el restaurante, selecciona "Pagado al restaurante".
       </p>
       <div class="modal-acciones">
         <button onclick="confirmarEntrega()" id="btnConfirmarEntrega" disabled>Confirmar Entrega</button>
@@ -366,6 +369,41 @@
         No podrás cambiarla durante las próximas <strong>48 horas</strong>.
       </div>
       <button class="success-button" onclick="closeSuccessModal()">Perfecto</button>
+    </div>
+  </div>
+
+  <!-- MODAL MAPA DOMICILIARIO -->
+  <div id="modalMapaDomiciliario" class="modal-overlay" style="display: none;">
+    <div class="modal-mapa-contenido">
+      <div class="mapa-domi-header">
+        <button class="btn-cerrar-mapa" onclick="cerrarMapaDomiciliario()">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:20px;height:20px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+          Volver
+        </button>
+        <h3>Mapa del Pedido</h3>
+      </div>
+      <div class="mapa-domi-aviso">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <span>Recuerda siempre verificar la direccion antes de iniciar ruta con mapa</span>
+      </div>
+      <div id="mapaContainerDomi" style="width: 100%; height: 450px; border-radius: 8px; overflow: hidden;"></div>
+      <div class="mapa-domi-info">
+        <div class="mapa-domi-leyenda">
+          <div class="leyenda-item">
+            <span class="leyenda-dot" style="background:#e74c3c;"></span>
+            <span>Tu posicion</span>
+          </div>
+          <div class="leyenda-item">
+            <span class="leyenda-dot" style="background:#3b82f6;"></span>
+            <span>Destino del cliente</span>
+          </div>
+          <div class="leyenda-item">
+            <span class="leyenda-dot" style="background:#f59e0b;"></span>
+            <span>Restaurante</span>
+          </div>
+        </div>
+        <div class="mapa-domi-distancia" id="distanciaMapaDomi">Calculando...</div>
+      </div>
     </div>
   </div>
 
@@ -985,6 +1023,8 @@
       cerrarDetallesPedido();
       const mp = document.getElementById('modalMetodoPago');
       if (mp && mp.style.display === 'flex') cerrarModalPago();
+      const mm = document.getElementById('modalMapaDomiciliario');
+      if (mm && mm.style.display === 'flex') cerrarMapaDomiciliario();
     }
   });
   </script>

@@ -318,6 +318,7 @@ function calcularTotalesPedido(pedido) {
     const botonesHtml = esMiPedido
       ? `<div class="card-btns mi-pedido-btns">
            <button class="cbtn cbtn-det" onclick="abrirDetallesPedido(${p.id}, true)">Ver detalles</button>
+           <button class="cbtn cbtn-mapa" onclick="abrirMapaDomiciliario(${p.id})">Ver mapa</button>
            <div class="card-btns-acciones">
              <button class="cbtn cbtn-lib"  onclick="abrirModalLiberar(${p.id})">Liberar</button>
              <button class="cbtn cbtn-ok"   onclick="abrirModalPago(${p.id})">Entregar</button>
@@ -497,7 +498,7 @@ function calcularTotalesPedido(pedido) {
       const result = await res.json();
       
       if (res.ok) {
-        const metodoPagoTexto = metodo.value === 'efectivo' ? 'efectivo' : 'pago por App';
+        const metodoPagoTexto = metodo.value === 'efectivo' ? 'efectivo' : metodo.value === 'pagado al restaurante' ? 'pagado al restaurante' : 'pago por App';
         mostrarMensaje(`✅ Pedido entregado exitosamente con ${metodoPagoTexto}`);
         
         // ✅ VERIFICAR SI HAY MÁS PEDIDOS ACTIVOS
@@ -978,6 +979,272 @@ function calcularTotalesPedido(pedido) {
   const _cargarPedidosOriginal = cargarPedidos;
   window.cargarPedidosActivos = cargarPedidosActivos;
 
+  // ========== MAPA DOMICILIARIO ==========
+  let mapaDomiActivo = null;
+  let intervaloMapaDomi = null;
+  let markerDomi = null;
+  let markerClienteDomi = null;
+  let markerRestauranteDomi = null;
+  let rutaPolylineDomi = null;
+  let coordsClienteMapa = null;
+  let mapaCentrado = false;
+
+  const iconoDomiMapa = () => L.divIcon({
+    className: 'domiciliario-marker-container',
+    html: `
+      <div class="location-pin">
+        <div class="pin-image">
+          <img src="img/logo.png" alt="Domiciliario">
+        </div>
+        <div class="pin-point"></div>
+      </div>
+    `,
+    iconSize: [50, 60],
+    iconAnchor: [25, 60],
+    popupAnchor: [0, -60]
+  });
+
+  const iconoClienteMapa = () => L.divIcon({
+    className: 'destino-marker-container',
+    html: `
+      <div class="location-pin destino">
+        <div class="pin-circle">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+            <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+          </svg>
+        </div>
+        <div class="pin-point"></div>
+      </div>
+    `,
+    iconSize: [40, 50],
+    iconAnchor: [20, 50],
+    popupAnchor: [0, -50]
+  });
+
+  const iconoRestauranteMapa = () => L.divIcon({
+    className: 'restaurante-marker-container',
+    html: `
+      <div class="location-pin restaurante">
+        <div class="pin-circle">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+            <path d="M11 9H9V2H7v7H5V2H3v7c0 2.12 1.66 3.84 3.75 3.97V22h2.5v-9.03C11.34 12.84 13 11.12 13 9V2h-2v7zm5-3v8h2.5v8H21V2c-2.76 0-5 2.24-5 4z"/>
+          </svg>
+        </div>
+        <div class="pin-point"></div>
+      </div>
+    `,
+    iconSize: [40, 50],
+    iconAnchor: [20, 50],
+    popupAnchor: [0, -50]
+  });
+
+  async function calcularRutaRealDomi(latOrigen, lonOrigen, latDestino, lonDestino) {
+    try {
+      const url = `https://router.project-osrm.org/route/v1/driving/${lonOrigen},${latOrigen};${lonDestino},${latDestino}?overview=full&geometries=geojson`;
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+        const route = data.routes[0];
+        const coordinates = route.geometry.coordinates;
+        const latLngs = coordinates.map(coord => [coord[1], coord[0]]);
+        const distanciaKm = (route.distance / 1000).toFixed(2);
+        const duracionMin = Math.round(route.duration / 60);
+        return { latLngs, distancia: distanciaKm, duracion: duracionMin };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error calculando ruta:', error);
+      return null;
+    }
+  }
+
+  function calcularDistanciaEntrePuntosDomi(lat1, lon1, lat2, lon2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  }
+
+  function limpiarMapaDomi() {
+    if (intervaloMapaDomi) {
+      clearInterval(intervaloMapaDomi);
+      intervaloMapaDomi = null;
+    }
+    if (mapaDomiActivo) {
+      try { mapaDomiActivo.remove(); } catch (e) {}
+      mapaDomiActivo = null;
+    }
+    markerDomi = null;
+    markerClienteDomi = null;
+    markerRestauranteDomi = null;
+    rutaPolylineDomi = null;
+    coordsClienteMapa = null;
+    mapaCentrado = false;
+    const container = document.getElementById('mapaContainerDomi');
+    if (container) container.innerHTML = '';
+  }
+
+  async function abrirMapaDomiciliario(pedidoId) {
+    const modal = document.getElementById('modalMapaDomiciliario');
+    if (!modal) return;
+
+    modal.style.display = 'flex';
+    limpiarMapaDomi();
+
+    // Esperar que el DOM se actualice
+    await new Promise(r => setTimeout(r, 150));
+
+    const mapaEl = document.getElementById('mapaContainerDomi');
+    if (!mapaEl) return;
+
+    // Crear mapa
+    mapaDomiActivo = L.map('mapaContainerDomi', { attributionControl: false }).setView([5.0689, -73.8217], 13);
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '',
+      maxZoom: 19
+    }).addTo(mapaDomiActivo);
+
+    // Funcion de actualizar posiciones
+    async function actualizarPosicionesMapa() {
+      try {
+        const response = await window.apiRequest(`/api/pedido/${pedidoId}/ubicacion-domiciliario`);
+        if (!response.ok) return;
+
+        const data = await response.json();
+
+        // Marcador del restaurante (solo una vez)
+        if (data.ubicacion_restaurante && !markerRestauranteDomi) {
+          const latR = parseFloat(data.ubicacion_restaurante.latitud);
+          const lonR = parseFloat(data.ubicacion_restaurante.longitud);
+          if (latR && lonR && !isNaN(latR) && !isNaN(lonR) && Math.abs(latR) <= 90 && Math.abs(lonR) <= 180) {
+            markerRestauranteDomi = L.marker([latR, lonR], { icon: iconoRestauranteMapa() }).addTo(mapaDomiActivo);
+            markerRestauranteDomi.bindPopup(data.nombre_restaurante || 'Restaurante');
+          }
+        }
+
+        // Posicion del domiciliario (en tiempo real desde geolocation service)
+        let latDomi = null, lonDomi = null;
+
+        // Primero intentar desde unifiedGeoService (posicion local mas fresca)
+        if (window.unifiedGeoService && window.unifiedGeoService.lastPosition) {
+          latDomi = window.unifiedGeoService.lastPosition.latitude;
+          lonDomi = window.unifiedGeoService.lastPosition.longitude;
+        }
+
+        // Si no hay local, usar la del servidor (ubicacion_domiciliario)
+        if ((!latDomi || !lonDomi) && data.ubicacion_domiciliario) {
+          latDomi = parseFloat(data.ubicacion_domiciliario.latitud);
+          lonDomi = parseFloat(data.ubicacion_domiciliario.longitud);
+        }
+
+        if (latDomi && lonDomi && !isNaN(latDomi) && !isNaN(lonDomi)) {
+          if (markerDomi) {
+            markerDomi.setLatLng([latDomi, lonDomi]);
+          } else {
+            markerDomi = L.marker([latDomi, lonDomi], { icon: iconoDomiMapa() }).addTo(mapaDomiActivo);
+            markerDomi.bindPopup('Tu posicion');
+          }
+        }
+
+        // Marcador del cliente (solo una vez)
+        if (data.direccion_cliente && !markerClienteDomi) {
+          const latC = parseFloat(data.direccion_cliente.latitud);
+          const lonC = parseFloat(data.direccion_cliente.longitud);
+
+          if (latC && lonC && !isNaN(latC) && !isNaN(lonC) && Math.abs(latC) <= 90 && Math.abs(lonC) <= 180) {
+            coordsClienteMapa = { lat: latC, lon: lonC };
+            markerClienteDomi = L.marker([latC, lonC], { icon: iconoClienteMapa() }).addTo(mapaDomiActivo);
+            markerClienteDomi.bindPopup('Destino del cliente');
+          }
+        }
+
+        // Centrar mapa en la primera carga con todos los puntos visibles
+        if (!mapaCentrado) {
+          const puntos = [];
+          if (latDomi && lonDomi) puntos.push([latDomi, lonDomi]);
+          if (coordsClienteMapa) puntos.push([coordsClienteMapa.lat, coordsClienteMapa.lon]);
+          if (markerRestauranteDomi) {
+            const rPos = markerRestauranteDomi.getLatLng();
+            puntos.push([rPos.lat, rPos.lng]);
+          }
+
+          if (puntos.length > 1) {
+            mapaDomiActivo.fitBounds(L.latLngBounds(puntos), { padding: [50, 50] });
+            mapaCentrado = true;
+          } else if (puntos.length === 1) {
+            mapaDomiActivo.setView(puntos[0], 15);
+            mapaCentrado = true;
+          }
+        }
+
+        // Actualizar ruta entre domiciliario y cliente
+        if (latDomi && lonDomi && coordsClienteMapa) {
+          const rutaData = await calcularRutaRealDomi(latDomi, lonDomi, coordsClienteMapa.lat, coordsClienteMapa.lon);
+
+          if (rutaPolylineDomi) {
+            mapaDomiActivo.removeLayer(rutaPolylineDomi);
+          }
+
+          if (rutaData) {
+            rutaPolylineDomi = L.polyline(rutaData.latLngs, {
+              color: 'black',
+              weight: 5,
+              opacity: 0.8
+            }).addTo(mapaDomiActivo);
+
+            const distEl = document.getElementById('distanciaMapaDomi');
+            if (distEl) {
+              distEl.textContent = `A ${rutaData.distancia} km del destino (~${rutaData.duracion} min)`;
+            }
+          } else {
+            // Fallback linea recta
+            rutaPolylineDomi = L.polyline([
+              [latDomi, lonDomi],
+              [coordsClienteMapa.lat, coordsClienteMapa.lon]
+            ], {
+              color: 'black',
+              weight: 4,
+              opacity: 0.7,
+              dashArray: '10, 10'
+            }).addTo(mapaDomiActivo);
+
+            const dist = calcularDistanciaEntrePuntosDomi(latDomi, lonDomi, coordsClienteMapa.lat, coordsClienteMapa.lon);
+            const distEl = document.getElementById('distanciaMapaDomi');
+            if (distEl) {
+              distEl.textContent = `A ${dist.toFixed(2)} km del destino (linea recta)`;
+            }
+          }
+        } else if (!coordsClienteMapa) {
+          const distEl = document.getElementById('distanciaMapaDomi');
+          if (distEl) {
+            distEl.textContent = 'El cliente no tiene coordenadas GPS registradas';
+          }
+        }
+
+      } catch (error) {
+        console.error('Error actualizando mapa domiciliario:', error);
+      }
+    }
+
+    // Primera actualizacion inmediata
+    await actualizarPosicionesMapa();
+
+    // Actualizar cada 10 segundos
+    intervaloMapaDomi = setInterval(actualizarPosicionesMapa, 10000);
+  }
+
+  function cerrarMapaDomiciliario() {
+    limpiarMapaDomi();
+    const modal = document.getElementById('modalMapaDomiciliario');
+    if (modal) modal.style.display = 'none';
+  }
+
   // ========== EXPORTAR FUNCIONES GLOBALES ==========
   window.logout = logout;
   window.tomarPedido = tomarPedido;
@@ -995,6 +1262,8 @@ function calcularTotalesPedido(pedido) {
   window.confirmarLiberarPedido = confirmarLiberarPedido;
   window.abrirDetallesPedido = abrirDetallesPedido;
   window.cerrarDetallesPedido = cerrarDetallesPedido;
+  window.abrirMapaDomiciliario = abrirMapaDomiciliario;
+  window.cerrarMapaDomiciliario = cerrarMapaDomiciliario;
   window.cargarPedidos = cargarPedidos;
 
 })();
