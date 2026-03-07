@@ -106,7 +106,35 @@ function calcularTotalesPedido(pedido) {
   };
 }
 
-  // ========== AUTENTICACIÓN ==========
+  // ✅ Generar desglose de envío según configuración de tarifa
+  // 2 líneas: tarifa DomiPancho incluida en domicilio
+  // 3 líneas: tarifa DomiPancho como línea separada
+  function generarDesgloseEnvio(pedido, totales) {
+    const esPorKm = pedido.tipo_tarifa === 'por_km';
+    const distanciaInfo = esPorKm && pedido.distancia_km 
+      ? ` <small style="color:#6b7280;">(${pedido.distancia_km} km)</small>` 
+      : '';
+    
+    // Detectar si la tarifa se muestra separada:
+    // Si el pedido tiene tarifa_domipancho > 0 Y el costo_domicilio NO la incluye,
+    // entonces son 3 líneas. Si no, son 2 líneas (tarifa incluida en domicilio).
+    // Heurística: si ambos valores existen por separado en el pedido, mostrar separado.
+    const mostrarSeparada = totales.tarifaDomiPancho > 0 && pedido.tarifa_domipancho > 0;
+    
+    if (mostrarSeparada) {
+      // 3 LÍNEAS: Domicilio (solo envío) + Tarifa DomiPancho aparte
+      return `
+        <p>Costo envío: $${totales.costoDomicilio.toLocaleString('es-CO')}${distanciaInfo}</p>
+        <p>Tarifa DomiPancho: $${totales.tarifaDomiPancho.toLocaleString('es-CO')}</p>
+      `;
+    } else {
+      // 2 LÍNEAS: Domicilio (incluye tarifa DomiPancho si existe)
+      const costoTotal = totales.costoDomicilio + totales.tarifaDomiPancho;
+      return `
+        <p>Domicilio: $${costoTotal.toLocaleString('es-CO')}${distanciaInfo}</p>
+      `;
+    }
+  }
   async function logout() {
     try {
       const response = await window.apiRequest('/api/logout', { method: 'POST' });
@@ -305,11 +333,18 @@ function calcularTotalesPedido(pedido) {
       ? `<span class="card-dist">${p.distancia_al_restaurante.toFixed(2)} km al restaurante</span>`
       : '';
 
-    // Total
+    // Total y desglose en tarjeta
     const totalStr  = `$${totales.totalConDescuento.toLocaleString('es-CO')}`;
     const cuponHtml = totales.tieneCupon
       ? `<span class="card-cupon">Cupon -$${totales.descuentoCupon.toLocaleString('es-CO')}</span>`
       : '';
+    
+    // Info de envío en la tarjeta
+    const esPorKm = p.tipo_tarifa === 'por_km';
+    const costoEnvioTotal = totales.costoDomicilio + totales.tarifaDomiPancho;
+    const envioHtml = esPorKm && p.distancia_km
+      ? `<span class="card-envio">Envío $${costoEnvioTotal.toLocaleString('es-CO')} (${p.distancia_km} km)</span>`
+      : `<span class="card-envio">Envío $${costoEnvioTotal.toLocaleString('es-CO')}</span>`;
 
     // Estado texto limpio
     const estadoTexto = esMiPedido ? 'En camino' : 'Disponible';
@@ -360,6 +395,7 @@ function calcularTotalesPedido(pedido) {
 
         <div class="card-money">
           <span class="card-total${totales.tieneCupon ? ' con-cupon' : ''}">${totalStr}</span>
+          ${envioHtml}
           ${cuponHtml}
           ${distanciaStr}
         </div>
@@ -803,9 +839,7 @@ function calcularTotalesPedido(pedido) {
         <div class="detalle-section">
           <h4>Resumen de pago</h4>
           <p>Subtotal productos: $${totales.subtotalProductos.toLocaleString('es-CO')}</p>
-          <p>Domicilio: $${totales.costoDomicilio.toLocaleString('es-CO')}</p>
-          ${totales.tarifaDomiPancho > 0 ? `<p>Tarifa DomiPancho: $${totales.tarifaDomiPancho.toLocaleString('es-CO')}</p>` : ''}
-          ${pedido.tipo_tarifa === 'por_km' && pedido.distancia_km ? `<p>Tarifa por km: ${pedido.distancia_km} km</p>` : ''}
+          ${generarDesgloseEnvio(pedido, totales)}
           ${totales.tieneCupon ? `
             <p>Subtotal sin descuento: $${totales.totalSinDescuento.toLocaleString('es-CO')}</p>
             <p>Descuento cupon: -$${totales.descuentoCupon.toLocaleString('es-CO')}</p>` : ''}

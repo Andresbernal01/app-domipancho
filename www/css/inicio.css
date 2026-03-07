@@ -473,6 +473,11 @@
         font-weight: 600;
         margin-left: auto;
       }
+      .card-envio {
+        font-size: 0.72rem;
+        color: var(--text-muted);
+        font-weight: 500;
+      }
   
       /* ── Botones: NUNCA se salen ── */
       .card-btns {
