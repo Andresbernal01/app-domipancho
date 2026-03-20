@@ -17,6 +17,45 @@
   <script src="js/fcm-notifications.js"></script>
   <script src="js/inactividad.js"></script>
   <link rel="stylesheet" href="css/inicio.css">
+  <style>
+    /* ✅ Animación para banner de notificación */
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    /* ✅ Indicador de alarma activa en el header */
+    .alarm-active-indicator {
+      position: fixed;
+      bottom: 70px;
+      left: 12px;
+      right: 12px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: white;
+      padding: 12px 16px;
+      border-radius: 12px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 9999;
+      box-shadow: 0 4px 20px rgba(34,197,94,0.4);
+      animation: pulse-alarm 1.5s ease-in-out infinite;
+    }
+    .alarm-active-indicator.show { display: flex; }
+    @keyframes pulse-alarm {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.02); }
+    }
+    .alarm-active-indicator button {
+      background: rgba(255,255,255,0.25);
+      border: none;
+      color: white;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+  </style>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
@@ -231,6 +270,12 @@
         <div id="mensajePw" class="mensaje-pw"></div>
       </form>
     </div>
+  </div>
+
+  <!-- ✅ INDICADOR DE ALARMA ACTIVA -->
+  <div class="alarm-active-indicator" id="alarmIndicator">
+    <span>🔔 ¡Nuevo pedido disponible!</span>
+    <button onclick="detenerAlarmaYVer()">Ver pedido</button>
   </div>
 
   <!-- ========== BOTTOM NAVIGATION ========== -->
@@ -527,10 +572,18 @@
               await window.unifiedGeoService.initialize();
               await window.unifiedGeoService.startTracking();
             }
+            // ✅ NUEVO: Sincronizar FCM con estado de disponibilidad
+            if (window.fcmNotificationService) {
+              window.fcmNotificationService.setDisponible(true);
+            }
           } else {
             strip.classList.add('no-disponible');
             label.textContent = 'No disponible';
             if (window.unifiedGeoService) await window.unifiedGeoService.stopTracking();
+            // ✅ NUEVO: Sincronizar FCM con estado de disponibilidad
+            if (window.fcmNotificationService) {
+              window.fcmNotificationService.setDisponible(false);
+            }
           }
         } else {
           e.target.checked = !disponible;
@@ -860,6 +913,45 @@
   // ============================================================
   //  LOGOUT
   // ============================================================
+
+  // ✅ NUEVO: Función global para detener alarma y navegar a pedidos
+  function detenerAlarmaYVer() {
+    if (window.fcmNotificationService) {
+      window.fcmNotificationService.detenerAlarma();
+    }
+    // Ocultar indicador
+    const ind = document.getElementById('alarmIndicator');
+    if (ind) ind.classList.remove('show');
+    // Navegar a pedidos disponibles
+    if (typeof navigateTo === 'function') {
+      navigateTo('pedidos');
+    }
+    // Recargar pedidos
+    if (typeof window.cargarPedidos === 'function') {
+      window.cargarPedidos();
+    }
+  }
+  window.detenerAlarmaYVer = detenerAlarmaYVer;
+
+  // ✅ NUEVO: Observar estado de alarma para mostrar/ocultar indicador
+  setInterval(() => {
+    const ind = document.getElementById('alarmIndicator');
+    if (!ind) return;
+    if (window.fcmNotificationService && window.fcmNotificationService.alarmInterval) {
+      ind.classList.add('show');
+    } else {
+      ind.classList.remove('show');
+    }
+  }, 500);
+
+  // ✅ NUEVO: Detener alarma al interactuar con cualquier cosa en la app
+  document.addEventListener('click', () => {
+    if (window.fcmNotificationService && window.fcmNotificationService.alarmInterval) {
+      // No detener automáticamente - el usuario debe tocar "Ver pedido" o el banner
+      // Esto es intencional: la alarma debe ser explícitamente detenida
+    }
+  }, { passive: true });
+
   async function logout() {
     try {
       const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
@@ -961,7 +1053,12 @@
     
     // 4. FCM
     if (window.fcmNotificationService) {
-      try { await window.fcmNotificationService.inicializar(); } catch (e) {}
+      try { 
+        await window.fcmNotificationService.inicializar();
+        // ✅ NUEVO: Sincronizar disponibilidad con FCM
+        const switchDisp = document.getElementById('switchDisponibilidad');
+        window.fcmNotificationService.setDisponible(switchDisp.checked);
+      } catch (e) {}
     }
     
     // 5. Contadores

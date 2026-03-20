@@ -26,6 +26,13 @@
     'cancelado': 'cancelado'
   };
 
+
+  const TIPO_ESPECIAL_CONFIG = {
+    restaurante_externo: { emoji: '🍔', label: 'Rest. Externo', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+    encomienda:          { emoji: '📦', label: 'Encomienda',    color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
+    compra_encargo:      { emoji: '🛒', label: 'Compra Encargo', color: '#06b6d4', bg: 'rgba(6,182,212,0.12)'  }
+  };
+
   // ========== UTILIDADES ==========
   function obtenerCostoDomicilio(pedido) {
     if (pedido.costo_domicilio) {
@@ -316,40 +323,61 @@ function calcularTotalesPedido(pedido) {
     const horaStr     = new Date(p.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
     const cardClass   = esMiPedido ? 'mi-pedido' : 'disponible';
     const previewClass = (!disponible && !esMiPedido) ? ' pedido-preview' : '';
-
-    // Origen: nombre restaurante + direccion
-    const origenNombre = p.restaurantes?.nombre || 'Restaurante';
-    const origenDir    = p.restaurantes?.direccion || '';
-
-    // Destino: completo si es mi pedido, oculto si no
-    const destinoDir    = esMiPedido
+   
+    // ✅ DETECTAR PEDIDO ESPECIAL
+    const esEspecial = !!p.tipo_pedido_especial;
+    const configEsp = esEspecial ? (TIPO_ESPECIAL_CONFIG[p.tipo_pedido_especial] || null) : null;
+   
+    // Badge de pedido especial
+    const badgeEspecial = configEsp
+      ? `<div class="badge-especial" style="background:${configEsp.bg}; color:${configEsp.color}; padding:3px 10px; border-radius:8px; font-size:0.72rem; font-weight:700; display:inline-flex; align-items:center; gap:4px; margin-bottom:6px; border:1px solid ${configEsp.color}30;">
+           ${configEsp.emoji} ${configEsp.label}
+         </div>`
+      : '';
+   
+    // Origen: para especiales usa origen_especial, para normales el restaurante
+    const origenNombre = esEspecial
+      ? (p.origen_especial || 'Origen especial')
+      : (p.restaurantes?.nombre || 'Restaurante');
+    const origenDir = esEspecial ? '' : (p.restaurantes?.direccion || '');
+   
+    // Descripción especial (solo para especiales, debajo del origen)
+    const descEspecialHtml = esEspecial && p.descripcion_especial
+      ? `<span class="punto-sub" style="color:${configEsp?.color || '#f59e0b'}; font-weight:600; font-size:0.75rem;">${p.descripcion_especial.substring(0, 80)}${p.descripcion_especial.length > 80 ? '...' : ''}</span>`
+      : '';
+   
+    // Notas especiales
+    const notasHtml = esEspecial && p.notas_especial
+      ? `<span class="punto-sub" style="font-style:italic; opacity:0.8;">📝 ${p.notas_especial.substring(0, 60)}${p.notas_especial.length > 60 ? '...' : ''}</span>`
+      : '';
+   
+    // Destino
+    const destinoDir = esMiPedido
       ? (p.direccion || '') + (p.complemento ? ', ' + p.complemento : '')
       : 'Ver al tomar el pedido';
     const destinoBarrio = p.barrio || '';
     const destinoDotClass = esMiPedido ? 'destino-activo' : 'destino';
-
-    // Distancia
-    const distanciaStr = (!esMiPedido && p.distancia_al_restaurante != null && disponible)
+   
+    // Distancia (solo para pedidos normales con restaurante)
+    const distanciaStr = (!esMiPedido && !esEspecial && p.distancia_al_restaurante != null && disponible)
       ? `<span class="card-dist">${p.distancia_al_restaurante.toFixed(2)} km al restaurante</span>`
       : '';
-
-    // Total y desglose en tarjeta
+   
+    // Total y desglose
     const totalStr  = `$${totales.totalConDescuento.toLocaleString('es-CO')}`;
     const cuponHtml = totales.tieneCupon
       ? `<span class="card-cupon">Cupon -$${totales.descuentoCupon.toLocaleString('es-CO')}</span>`
       : '';
     
-    // Info de envío en la tarjeta
     const esPorKm = p.tipo_tarifa === 'por_km';
     const costoEnvioTotal = totales.costoDomicilio + totales.tarifaDomiPancho;
     const envioHtml = esPorKm && p.distancia_km
       ? `<span class="card-envio">Envío $${costoEnvioTotal.toLocaleString('es-CO')} (${p.distancia_km} km)</span>`
       : `<span class="card-envio">Envío $${costoEnvioTotal.toLocaleString('es-CO')}</span>`;
-
-    // Estado texto limpio
+   
     const estadoTexto = esMiPedido ? 'En camino' : 'Disponible';
-
-    // Botones: layout diferente para mi pedido vs disponible
+   
+    // Botones
     const botonesHtml = esMiPedido
       ? `<div class="card-btns mi-pedido-btns">
            <button class="cbtn cbtn-det" onclick="abrirDetallesPedido(${p.id}, true)">Ver detalles</button>
@@ -364,44 +392,53 @@ function calcularTotalesPedido(pedido) {
            <button class="cbtn cbtn-det" onclick="abrirDetallesPedido(${p.id}, false)">Ver detalles</button>
            ${generarBotonesAccion(p, esMiPedido, cantidadActivos, disponible)}
          </div>`;
-
+   
+    // Border especial para pedidos especiales
+    const borderStyle = configEsp
+      ? `border-left: 3px solid ${configEsp.color};`
+      : '';
+   
     return `
-      <div class="pedido-card ${cardClass}${previewClass}" data-pedido-id="${p.id}">
-
+      <div class="pedido-card ${cardClass}${previewClass}" data-pedido-id="${p.id}" style="${borderStyle}">
+   
+        ${badgeEspecial}
+   
         <div class="card-top">
           <span class="card-id">#${p.id}</span>
           <span class="estado ${estadoClase}">${estadoTexto}</span>
           <span class="card-hora">${horaStr}</span>
         </div>
-
+   
         <div class="card-ruta">
           <div class="card-punto">
             <span class="punto-dot origen"></span>
             <span class="punto-texto">
-              <span class="punto-label">Origen</span>
+              <span class="punto-label">${esEspecial ? 'Recoger en' : 'Origen'}</span>
               <span class="punto-val">${origenNombre}</span>
               ${origenDir ? `<span class="punto-sub">${origenDir}</span>` : ''}
+              ${descEspecialHtml}
+              ${notasHtml}
             </span>
           </div>
           <div class="card-punto">
             <span class="punto-dot ${destinoDotClass}"></span>
             <span class="punto-texto">
-              <span class="punto-label">Destino</span>
+              <span class="punto-label">Entregar en</span>
               <span class="punto-val">${destinoDir}</span>
               ${destinoBarrio ? `<span class="punto-sub">Barrio: ${destinoBarrio}</span>` : ''}
             </span>
           </div>
         </div>
-
+   
         <div class="card-money">
           <span class="card-total${totales.tieneCupon ? ' con-cupon' : ''}">${totalStr}</span>
           ${envioHtml}
           ${cuponHtml}
           ${distanciaStr}
         </div>
-
+   
         ${botonesHtml}
-
+   
       </div>
     `;
   }
@@ -420,6 +457,11 @@ function calcularTotalesPedido(pedido) {
 
   // ========== ACCIONES DE PEDIDOS ==========
   async function tomarPedido(pedidoId) {
+    // ✅ NUEVO: Detener alarma al interactuar con un pedido
+    if (window.fcmNotificationService) {
+      window.fcmNotificationService.detenerAlarma();
+    }
+    
     try {
       const dispResponse = await window.apiRequest('/api/domiciliarios/domiciliario/estado-disponibilidad');
       if (dispResponse.ok) {
@@ -764,6 +806,11 @@ function calcularTotalesPedido(pedido) {
   }
 
   function abrirDetallesPedido(pedidoId, esMiPedido = false) {
+    // ✅ NUEVO: Detener alarma al ver detalles
+    if (window.fcmNotificationService) {
+      window.fcmNotificationService.detenerAlarma();
+    }
+    
     // ✅ INSTANTÁNEO: buscar en cache (ya cargado al renderizar)
     const pedido = _cachePedidos.find(p => p.id === pedidoId);
 
@@ -896,6 +943,7 @@ function calcularTotalesPedido(pedido) {
       console.log('⚡ Nuevo pedido disponible:', data.pedidoId);
       // ✅ Recargar INMEDIATAMENTE sin delay
       cargarPedidos();
+      // Nota: La alarma sonora la maneja FCM, no el socket mock
     });
     
     socketInstance.on('pedido-removido', (data) => {
