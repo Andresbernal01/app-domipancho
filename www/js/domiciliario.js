@@ -867,9 +867,12 @@ function calcularTotalesPedido(pedido) {
         </div>
 
         <div class="detalle-section">
-          <h4>Origen — ${pedido.restaurantes?.nombre || 'Restaurante'}</h4>
-          <p>${pedido.restaurantes?.direccion || 'Sin direccion registrada'}</p>
-          ${pedido.restaurantes?.telefono ? `<p>Tel: ${pedido.restaurantes.telefono}</p>` : ''}
+          <h4>Origen — ${pedido.tipo_pedido_especial ? (pedido.origen_especial || 'Origen especial') : (pedido.restaurantes?.nombre || 'Restaurante')}</h4>
+          <p>${pedido.tipo_pedido_especial ? (pedido.origen_especial || 'Sin dirección') : (pedido.restaurantes?.direccion || 'Sin direccion registrada')}</p>
+          ${pedido.tipo_pedido_especial && pedido.telefono_origen_especial ? `<p>📞 Tel: <a href="tel:${pedido.telefono_origen_especial}" style="color:#f59e0b;text-decoration:none;">${pedido.telefono_origen_especial}</a></p>` : ''}
+          ${!pedido.tipo_pedido_especial && pedido.restaurantes?.telefono ? `<p>Tel: ${pedido.restaurantes.telefono}</p>` : ''}
+          ${pedido.tipo_pedido_especial && pedido.descripcion_especial ? `<p style="margin-top:6px;color:#94a3b8;font-size:0.85rem;">📋 ${pedido.descripcion_especial}</p>` : ''}
+          ${pedido.tipo_pedido_especial && pedido.notas_especial ? `<p style="font-style:italic;color:#64748b;font-size:0.82rem;">📝 ${pedido.notas_especial}</p>` : ''}
         </div>
 
         <div class="detalle-section">
