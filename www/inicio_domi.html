@@ -55,6 +55,34 @@
       font-size: 0.85rem;
       cursor: pointer;
     }
+
+    /* ✅ Toggle de ruta en mapa domiciliario */
+    .mapa-ruta-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .ruta-toggle-btn {
+      background: #1e293b;
+      border: 1.5px solid #334155;
+      color: #94a3b8;
+      padding: 7px 14px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .ruta-toggle-btn.active {
+      background: #f59e0b;
+      border-color: #f59e0b;
+      color: #000;
+    }
+    .ruta-toggle-btn:hover:not(.active) {
+      border-color: #f59e0b;
+      color: #f1f5f9;
+    }
   </style>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -433,6 +461,16 @@
       </div>
       <div id="mapaContainerDomi" style="width: 100%; height: 450px; border-radius: 8px; overflow: hidden;"></div>
       <div class="mapa-domi-info">
+        <!-- ✅ Toggle de ruta: Restaurante vs Cliente -->
+        <div class="mapa-ruta-toggle" id="mapaRutaToggle" style="display:none; margin-bottom:10px;">
+          <span style="font-size:0.78rem; font-weight:600; color:#94a3b8; margin-right:8px;">Ruta hacia:</span>
+          <button class="ruta-toggle-btn active" id="btnRutaRestaurante" onclick="cambiarRutaMapa('restaurante')">
+            🍔 Restaurante
+          </button>
+          <button class="ruta-toggle-btn" id="btnRutaCliente" onclick="cambiarRutaMapa('cliente')">
+            🏠 Cliente
+          </button>
+        </div>
         <div class="mapa-domi-leyenda">
           <div class="leyenda-item">
             <span class="leyenda-dot" style="background:#e74c3c;"></span>

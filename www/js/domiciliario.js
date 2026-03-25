@@ -1066,13 +1066,21 @@ function calcularTotalesPedido(pedido) {
 
   // ========== MAPA DOMICILIARIO ==========
   let mapaDomiActivo = null;
-  let intervaloMapaDomi = null;
+  let intervaloMapaDomi = null;       // Intervalo para API call (datos externos)
+  let intervaloPosicionLocal = null;  // ✅ Intervalo rápido para posición local
+  let watchIdMapa = null;             // ✅ watchPosition mientras el mapa está abierto
   let markerDomi = null;
   let markerClienteDomi = null;
   let markerRestauranteDomi = null;
   let rutaPolylineDomi = null;
   let coordsClienteMapa = null;
+  let coordsRestauranteMapa = null;
+  let rutaDestino = 'restaurante';
   let mapaCentrado = false;
+  let _pedidoMapaId = null;
+  let _ultimaLatRuta = null;          // ✅ Para detectar movimiento significativo
+  let _ultimaLonRuta = null;
+  let _rutaRecalculando = false;      // ✅ Evitar recálculos simultáneos
 
   const iconoDomiMapa = () => L.divIcon({
     className: 'domiciliario-marker-container',
@@ -1160,6 +1168,16 @@ function calcularTotalesPedido(pedido) {
       clearInterval(intervaloMapaDomi);
       intervaloMapaDomi = null;
     }
+    // ✅ Limpiar intervalo de posición local rápida
+    if (intervaloPosicionLocal) {
+      clearInterval(intervaloPosicionLocal);
+      intervaloPosicionLocal = null;
+    }
+    // ✅ Limpiar watchPosition del mapa
+    if (watchIdMapa !== null) {
+      navigator.geolocation.clearWatch(watchIdMapa);
+      watchIdMapa = null;
+    }
     if (mapaDomiActivo) {
       try { mapaDomiActivo.remove(); } catch (e) {}
       mapaDomiActivo = null;
@@ -1169,9 +1187,18 @@ function calcularTotalesPedido(pedido) {
     markerRestauranteDomi = null;
     rutaPolylineDomi = null;
     coordsClienteMapa = null;
+    coordsRestauranteMapa = null;
+    rutaDestino = 'restaurante';
     mapaCentrado = false;
+    _pedidoMapaId = null;
+    _ultimaLatRuta = null;
+    _ultimaLonRuta = null;
+    _rutaRecalculando = false;
     const container = document.getElementById('mapaContainerDomi');
     if (container) container.innerHTML = '';
+    // Ocultar toggle
+    const toggle = document.getElementById('mapaRutaToggle');
+    if (toggle) toggle.style.display = 'none';
   }
 
   async function abrirMapaDomiciliario(pedidoId) {
@@ -1180,6 +1207,7 @@ function calcularTotalesPedido(pedido) {
 
     modal.style.display = 'flex';
     limpiarMapaDomi();
+    _pedidoMapaId = pedidoId;
 
     // Esperar que el DOM se actualice
     await new Promise(r => setTimeout(r, 150));
@@ -1195,8 +1223,117 @@ function calcularTotalesPedido(pedido) {
       maxZoom: 19
     }).addTo(mapaDomiActivo);
 
-    // Funcion de actualizar posiciones
-    async function actualizarPosicionesMapa() {
+    // ✅ HELPER: Obtener posición local del domiciliario (sin API call)
+    function obtenerPosicionLocal() {
+      if (window.unifiedGeoService && window.unifiedGeoService.lastPosition) {
+        return {
+          lat: window.unifiedGeoService.lastPosition.latitude,
+          lon: window.unifiedGeoService.lastPosition.longitude
+        };
+      }
+      return null;
+    }
+
+    // ✅ HELPER: Verificar si se movió más de X metros desde último cálculo de ruta
+    function seMovioSignificativamente(lat, lon, umbralMetros = 50) {
+      if (_ultimaLatRuta === null || _ultimaLonRuta === null) return true;
+      const distancia = calcularDistanciaEntrePuntosDomi(lat, lon, _ultimaLatRuta, _ultimaLonRuta);
+      return distancia * 1000 > umbralMetros; // convertir km a metros
+    }
+
+    // ✅ FUNCIÓN RÁPIDA: Solo actualizar marcador del domiciliario (sin API, sin ruta)
+    function actualizarMarcadorLocal() {
+      const pos = obtenerPosicionLocal();
+      if (!pos || !mapaDomiActivo) return;
+
+      if (markerDomi) {
+        markerDomi.setLatLng([pos.lat, pos.lon]);
+      } else {
+        markerDomi = L.marker([pos.lat, pos.lon], { icon: iconoDomiMapa() }).addTo(mapaDomiActivo);
+        markerDomi.bindPopup('Tu posicion');
+      }
+    }
+
+    // ✅ FUNCIÓN: Recalcular ruta solo si hubo movimiento significativo
+    async function recalcularRutaSiNecesario(latDomi, lonDomi) {
+      if (_rutaRecalculando) return;
+      if (!seMovioSignificativamente(latDomi, lonDomi, 50)) return;
+
+      let coordsDestino = null;
+      let labelDestino = '';
+
+      if (rutaDestino === 'restaurante' && coordsRestauranteMapa) {
+        coordsDestino = coordsRestauranteMapa;
+        labelDestino = 'restaurante';
+      } else if (rutaDestino === 'cliente' && coordsClienteMapa) {
+        coordsDestino = coordsClienteMapa;
+        labelDestino = 'cliente';
+      } else if (coordsRestauranteMapa) {
+        coordsDestino = coordsRestauranteMapa;
+        labelDestino = 'restaurante';
+      } else if (coordsClienteMapa) {
+        coordsDestino = coordsClienteMapa;
+        labelDestino = 'cliente';
+      }
+
+      if (!coordsDestino) {
+        const distEl = document.getElementById('distanciaMapaDomi');
+        if (distEl) distEl.textContent = 'Sin coordenadas GPS del destino';
+        return;
+      }
+
+      _rutaRecalculando = true;
+
+      try {
+        const rutaData = await calcularRutaRealDomi(latDomi, lonDomi, coordsDestino.lat, coordsDestino.lon);
+
+        if (rutaPolylineDomi && mapaDomiActivo) {
+          mapaDomiActivo.removeLayer(rutaPolylineDomi);
+        }
+
+        if (rutaData) {
+          rutaPolylineDomi = L.polyline(rutaData.latLngs, {
+            color: labelDestino === 'restaurante' ? '#f59e0b' : '#3b82f6',
+            weight: 5,
+            opacity: 0.8
+          }).addTo(mapaDomiActivo);
+
+          const distEl = document.getElementById('distanciaMapaDomi');
+          if (distEl) {
+            const icon = labelDestino === 'restaurante' ? '🍔' : '🏠';
+            distEl.textContent = `${icon} A ${rutaData.distancia} km del ${labelDestino} (~${rutaData.duracion} min)`;
+          }
+        } else {
+          // Fallback linea recta
+          rutaPolylineDomi = L.polyline([
+            [latDomi, lonDomi],
+            [coordsDestino.lat, coordsDestino.lon]
+          ], {
+            color: labelDestino === 'restaurante' ? '#f59e0b' : '#3b82f6',
+            weight: 4,
+            opacity: 0.7,
+            dashArray: '10, 10'
+          }).addTo(mapaDomiActivo);
+
+          const dist = calcularDistanciaEntrePuntosDomi(latDomi, lonDomi, coordsDestino.lat, coordsDestino.lon);
+          const distEl = document.getElementById('distanciaMapaDomi');
+          if (distEl) {
+            const icon = labelDestino === 'restaurante' ? '🍔' : '🏠';
+            distEl.textContent = `${icon} A ${dist.toFixed(2)} km del ${labelDestino} (linea recta)`;
+          }
+        }
+
+        _ultimaLatRuta = latDomi;
+        _ultimaLonRuta = lonDomi;
+      } catch (error) {
+        console.error('Error recalculando ruta:', error);
+      } finally {
+        _rutaRecalculando = false;
+      }
+    }
+
+    // ✅ FUNCIÓN COMPLETA: Obtener datos del servidor (restaurante, cliente) + centrar mapa inicial
+    async function actualizarDatosExternos() {
       try {
         const response = await window.apiRequest(`/api/pedido/${pedidoId}/ubicacion-domiciliario`);
         if (!response.ok) return;
@@ -1208,32 +1345,9 @@ function calcularTotalesPedido(pedido) {
           const latR = parseFloat(data.ubicacion_restaurante.latitud);
           const lonR = parseFloat(data.ubicacion_restaurante.longitud);
           if (latR && lonR && !isNaN(latR) && !isNaN(lonR) && Math.abs(latR) <= 90 && Math.abs(lonR) <= 180) {
+            coordsRestauranteMapa = { lat: latR, lon: lonR };
             markerRestauranteDomi = L.marker([latR, lonR], { icon: iconoRestauranteMapa() }).addTo(mapaDomiActivo);
             markerRestauranteDomi.bindPopup(data.nombre_restaurante || 'Restaurante');
-          }
-        }
-
-        // Posicion del domiciliario (en tiempo real desde geolocation service)
-        let latDomi = null, lonDomi = null;
-
-        // Primero intentar desde unifiedGeoService (posicion local mas fresca)
-        if (window.unifiedGeoService && window.unifiedGeoService.lastPosition) {
-          latDomi = window.unifiedGeoService.lastPosition.latitude;
-          lonDomi = window.unifiedGeoService.lastPosition.longitude;
-        }
-
-        // Si no hay local, usar la del servidor (ubicacion_domiciliario)
-        if ((!latDomi || !lonDomi) && data.ubicacion_domiciliario) {
-          latDomi = parseFloat(data.ubicacion_domiciliario.latitud);
-          lonDomi = parseFloat(data.ubicacion_domiciliario.longitud);
-        }
-
-        if (latDomi && lonDomi && !isNaN(latDomi) && !isNaN(lonDomi)) {
-          if (markerDomi) {
-            markerDomi.setLatLng([latDomi, lonDomi]);
-          } else {
-            markerDomi = L.marker([latDomi, lonDomi], { icon: iconoDomiMapa() }).addTo(mapaDomiActivo);
-            markerDomi.bindPopup('Tu posicion');
           }
         }
 
@@ -1249,15 +1363,42 @@ function calcularTotalesPedido(pedido) {
           }
         }
 
+        // Mostrar toggle si ambos destinos tienen coordenadas
+        const toggle = document.getElementById('mapaRutaToggle');
+        if (toggle && coordsRestauranteMapa && coordsClienteMapa) {
+          toggle.style.display = 'flex';
+        }
+
+        // ✅ Actualizar marcador domiciliario (con fallback al servidor si no hay local)
+        let latDomi = null, lonDomi = null;
+        const posLocal = obtenerPosicionLocal();
+        if (posLocal) {
+          latDomi = posLocal.lat;
+          lonDomi = posLocal.lon;
+        } else if (data.ubicacion_domiciliario) {
+          latDomi = parseFloat(data.ubicacion_domiciliario.latitud);
+          lonDomi = parseFloat(data.ubicacion_domiciliario.longitud);
+          // ✅ Guardar en unifiedGeoService como fallback
+          if (window.unifiedGeoService && latDomi && lonDomi) {
+            window.unifiedGeoService.lastPosition = { latitude: latDomi, longitude: lonDomi };
+          }
+        }
+
+        if (latDomi && lonDomi && !isNaN(latDomi) && !isNaN(lonDomi)) {
+          if (markerDomi) {
+            markerDomi.setLatLng([latDomi, lonDomi]);
+          } else {
+            markerDomi = L.marker([latDomi, lonDomi], { icon: iconoDomiMapa() }).addTo(mapaDomiActivo);
+            markerDomi.bindPopup('Tu posicion');
+          }
+        }
+
         // Centrar mapa en la primera carga con todos los puntos visibles
         if (!mapaCentrado) {
           const puntos = [];
           if (latDomi && lonDomi) puntos.push([latDomi, lonDomi]);
           if (coordsClienteMapa) puntos.push([coordsClienteMapa.lat, coordsClienteMapa.lon]);
-          if (markerRestauranteDomi) {
-            const rPos = markerRestauranteDomi.getLatLng();
-            puntos.push([rPos.lat, rPos.lng]);
-          }
+          if (coordsRestauranteMapa) puntos.push([coordsRestauranteMapa.lat, coordsRestauranteMapa.lon]);
 
           if (puntos.length > 1) {
             mapaDomiActivo.fitBounds(L.latLngBounds(puntos), { padding: [50, 50] });
@@ -1268,60 +1409,142 @@ function calcularTotalesPedido(pedido) {
           }
         }
 
-        // Actualizar ruta entre domiciliario y cliente
-        if (latDomi && lonDomi && coordsClienteMapa) {
-          const rutaData = await calcularRutaRealDomi(latDomi, lonDomi, coordsClienteMapa.lat, coordsClienteMapa.lon);
-
-          if (rutaPolylineDomi) {
-            mapaDomiActivo.removeLayer(rutaPolylineDomi);
-          }
-
-          if (rutaData) {
-            rutaPolylineDomi = L.polyline(rutaData.latLngs, {
-              color: 'black',
-              weight: 5,
-              opacity: 0.8
-            }).addTo(mapaDomiActivo);
-
-            const distEl = document.getElementById('distanciaMapaDomi');
-            if (distEl) {
-              distEl.textContent = `A ${rutaData.distancia} km del destino (~${rutaData.duracion} min)`;
-            }
-          } else {
-            // Fallback linea recta
-            rutaPolylineDomi = L.polyline([
-              [latDomi, lonDomi],
-              [coordsClienteMapa.lat, coordsClienteMapa.lon]
-            ], {
-              color: 'black',
-              weight: 4,
-              opacity: 0.7,
-              dashArray: '10, 10'
-            }).addTo(mapaDomiActivo);
-
-            const dist = calcularDistanciaEntrePuntosDomi(latDomi, lonDomi, coordsClienteMapa.lat, coordsClienteMapa.lon);
-            const distEl = document.getElementById('distanciaMapaDomi');
-            if (distEl) {
-              distEl.textContent = `A ${dist.toFixed(2)} km del destino (linea recta)`;
-            }
-          }
-        } else if (!coordsClienteMapa) {
-          const distEl = document.getElementById('distanciaMapaDomi');
-          if (distEl) {
-            distEl.textContent = 'El cliente no tiene coordenadas GPS registradas';
-          }
+        // ✅ Recalcular ruta solo si se movió significativamente
+        if (latDomi && lonDomi) {
+          await recalcularRutaSiNecesario(latDomi, lonDomi);
         }
 
       } catch (error) {
-        console.error('Error actualizando mapa domiciliario:', error);
+        console.error('Error actualizando datos externos del mapa:', error);
       }
     }
 
-    // Primera actualizacion inmediata
-    await actualizarPosicionesMapa();
+    // ✅ INICIAR watchPosition LOCAL mientras el mapa está abierto (posición ultra-fresca)
+    try {
+      if (navigator.geolocation) {
+        watchIdMapa = navigator.geolocation.watchPosition(
+          (position) => {
+            if (window.unifiedGeoService) {
+              window.unifiedGeoService.lastPosition = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+              };
+            }
+            // Actualizar marcador inmediatamente
+            actualizarMarcadorLocal();
+          },
+          (error) => console.warn('watchPosition mapa error:', error.message),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 2000 }
+        );
+        console.log('✅ watchPosition activo para el mapa');
+      }
+    } catch (e) {
+      console.warn('No se pudo iniciar watchPosition para mapa:', e);
+    }
 
-    // Actualizar cada 10 segundos
-    intervaloMapaDomi = setInterval(actualizarPosicionesMapa, 10000);
+    // ✅ Primera actualización completa inmediata
+    await actualizarDatosExternos();
+
+    // ✅ Actualización RÁPIDA del marcador local cada 3 segundos
+    intervaloPosicionLocal = setInterval(() => {
+      if (!mapaDomiActivo) return;
+      actualizarMarcadorLocal();
+      
+      // Recalcular ruta cada 3 ciclos (~9 seg) si se movió bastante
+      const pos = obtenerPosicionLocal();
+      if (pos && seMovioSignificativamente(pos.lat, pos.lon, 50)) {
+        recalcularRutaSiNecesario(pos.lat, pos.lon);
+      }
+    }, 3000);
+
+    // ✅ Actualización de datos EXTERNOS (restaurante, cliente) cada 15 segundos
+    intervaloMapaDomi = setInterval(actualizarDatosExternos, 15000);
+  }
+
+  function cambiarRutaMapa(destino) {
+    rutaDestino = destino;
+
+    // Actualizar toggle visual
+    const btnRest = document.getElementById('btnRutaRestaurante');
+    const btnCli = document.getElementById('btnRutaCliente');
+    if (btnRest) btnRest.classList.toggle('active', destino === 'restaurante');
+    if (btnCli) btnCli.classList.toggle('active', destino === 'cliente');
+
+    // ✅ Forzar recálculo inmediato de ruta (resetear posición de referencia)
+    _ultimaLatRuta = null;
+    _ultimaLonRuta = null;
+
+    // Remover ruta actual
+    if (rutaPolylineDomi && mapaDomiActivo) {
+      mapaDomiActivo.removeLayer(rutaPolylineDomi);
+      rutaPolylineDomi = null;
+    }
+
+    // ✅ Obtener posición local y recalcular ruta
+    let latDomi = null, lonDomi = null;
+    if (window.unifiedGeoService && window.unifiedGeoService.lastPosition) {
+      latDomi = window.unifiedGeoService.lastPosition.latitude;
+      lonDomi = window.unifiedGeoService.lastPosition.longitude;
+    }
+    if ((!latDomi || !lonDomi) && markerDomi) {
+      const pos = markerDomi.getLatLng();
+      latDomi = pos.lat;
+      lonDomi = pos.lng;
+    }
+
+    let coordsDestino = null;
+    let labelDestino = '';
+    if (destino === 'restaurante' && coordsRestauranteMapa) {
+      coordsDestino = coordsRestauranteMapa;
+      labelDestino = 'restaurante';
+    } else if (destino === 'cliente' && coordsClienteMapa) {
+      coordsDestino = coordsClienteMapa;
+      labelDestino = 'cliente';
+    }
+
+    if (latDomi && lonDomi && coordsDestino) {
+      // Recalcular ruta de forma asíncrona
+      (async () => {
+        const rutaData = await calcularRutaRealDomi(latDomi, lonDomi, coordsDestino.lat, coordsDestino.lon);
+
+        if (rutaData && mapaDomiActivo) {
+          rutaPolylineDomi = L.polyline(rutaData.latLngs, {
+            color: labelDestino === 'restaurante' ? '#f59e0b' : '#3b82f6',
+            weight: 5,
+            opacity: 0.8
+          }).addTo(mapaDomiActivo);
+
+          const distEl = document.getElementById('distanciaMapaDomi');
+          if (distEl) {
+            const icon = labelDestino === 'restaurante' ? '🍔' : '🏠';
+            distEl.textContent = `${icon} A ${rutaData.distancia} km del ${labelDestino} (~${rutaData.duracion} min)`;
+          }
+
+          _ultimaLatRuta = latDomi;
+          _ultimaLonRuta = lonDomi;
+        } else if (mapaDomiActivo) {
+          rutaPolylineDomi = L.polyline([
+            [latDomi, lonDomi],
+            [coordsDestino.lat, coordsDestino.lon]
+          ], {
+            color: labelDestino === 'restaurante' ? '#f59e0b' : '#3b82f6',
+            weight: 4,
+            opacity: 0.7,
+            dashArray: '10, 10'
+          }).addTo(mapaDomiActivo);
+
+          const dist = calcularDistanciaEntrePuntosDomi(latDomi, lonDomi, coordsDestino.lat, coordsDestino.lon);
+          const distEl = document.getElementById('distanciaMapaDomi');
+          if (distEl) {
+            const icon = labelDestino === 'restaurante' ? '🍔' : '🏠';
+            distEl.textContent = `${icon} A ${dist.toFixed(2)} km del ${labelDestino} (linea recta)`;
+          }
+
+          _ultimaLatRuta = latDomi;
+          _ultimaLonRuta = lonDomi;
+        }
+      })();
+    }
   }
 
   function cerrarMapaDomiciliario() {
@@ -1349,6 +1572,7 @@ function calcularTotalesPedido(pedido) {
   window.cerrarDetallesPedido = cerrarDetallesPedido;
   window.abrirMapaDomiciliario = abrirMapaDomiciliario;
   window.cerrarMapaDomiciliario = cerrarMapaDomiciliario;
+  window.cambiarRutaMapa = cambiarRutaMapa;
   window.cargarPedidos = cargarPedidos;
 
 })();
