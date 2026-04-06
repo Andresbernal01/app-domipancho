@@ -57,7 +57,10 @@
         line-height: 1.5;
         -webkit-font-smoothing: antialiased;
         overflow-x: hidden;
+        overflow-y: scroll; /* ✅ FIX: fuerza scrollbar nativo estable */
         padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
+        /* ✅ FIX PARPADEO: scroll suave en iOS sin jank */
+        -webkit-overflow-scrolling: touch;
       }
   
       /* ====================================
@@ -70,7 +73,10 @@
         background: var(--bg-surface);
         border-bottom: 1px solid var(--border);
         padding: max(8px, env(safe-area-inset-top)) 16px 8px;
-        backdrop-filter: blur(16px);
+        /* ✅ FIX PARPADEO: GPU layer + evitar backdrop-filter en scroll */
+        will-change: transform;
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
       }
   
       .header-row {
@@ -171,8 +177,8 @@
       }
   
       @keyframes pulse-dot {
-        0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.6; transform: scale(0.85); }
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.45; }
       }
   
       .disp-label {
@@ -213,7 +219,10 @@
         background: var(--bg-surface);
         border-top: 1px solid var(--border);
         padding-bottom: env(safe-area-inset-bottom);
-        backdrop-filter: blur(16px);
+        /* ✅ FIX PARPADEO: GPU layer, sin backdrop-filter */
+        will-change: transform;
+        transform: translateZ(0);
+        -webkit-transform: translateZ(0);
       }
   
       .nav-items {
