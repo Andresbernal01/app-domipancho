@@ -1078,9 +1078,11 @@ function calcularTotalesPedido(pedido) {
   let rutaDestino = 'restaurante';
   let mapaCentrado = false;
   let _pedidoMapaId = null;
+  let _mapaSessionId = 0;            // ✅ ID único por apertura de mapa para evitar race conditions
   let _ultimaLatRuta = null;          // ✅ Para detectar movimiento significativo
   let _ultimaLonRuta = null;
   let _rutaRecalculando = false;      // ✅ Evitar recálculos simultáneos
+  let _cacheRutas = { restaurante: null, cliente: null }; // ✅ Cache de rutas OSRM
 
   const iconoDomiMapa = () => L.divIcon({
     className: 'domiciliario-marker-container',
@@ -1191,36 +1193,52 @@ function calcularTotalesPedido(pedido) {
     rutaDestino = 'restaurante';
     mapaCentrado = false;
     _pedidoMapaId = null;
+    _mapaSessionId++;  // ✅ Invalidar cualquier operación async pendiente del mapa anterior
     _ultimaLatRuta = null;
     _ultimaLonRuta = null;
     _rutaRecalculando = false;
+    _cacheRutas = { restaurante: null, cliente: null };
     const container = document.getElementById('mapaContainerDomi');
     if (container) container.innerHTML = '';
     // Ocultar toggle
     const toggle = document.getElementById('mapaRutaToggle');
     if (toggle) toggle.style.display = 'none';
+    // ✅ Resetear texto de distancia al spinner de "calculando"
+    const distEl = document.getElementById('distanciaMapaDomi');
+    if (distEl) distEl.innerHTML = '<div class="spinner-mini"></div> Calculando ruta...';
+    // ✅ Ocultar botón de navegación
+    const btnNav = document.getElementById('btnNavegarExterno');
+    if (btnNav) btnNav.style.display = 'none';
   }
 
   async function abrirMapaDomiciliario(pedidoId) {
     const modal = document.getElementById('modalMapaDomiciliario');
     if (!modal) return;
 
-    modal.style.display = 'flex';
+    modal.style.display = 'block';
     limpiarMapaDomi();
     _pedidoMapaId = pedidoId;
+    const sesionMapa = ++_mapaSessionId; // ✅ ID único para esta apertura
 
     // Esperar que el DOM se actualice
-    await new Promise(r => setTimeout(r, 150));
+    await new Promise(r => setTimeout(r, 100));
 
     const mapaEl = document.getElementById('mapaContainerDomi');
     if (!mapaEl) return;
 
-    // Crear mapa
-    mapaDomiActivo = L.map('mapaContainerDomi', { attributionControl: false }).setView([5.0689, -73.8217], 13);
+    // Crear mapa fullscreen con OSM tiles (como mapa_admin)
+    mapaDomiActivo = L.map('mapaContainerDomi', {
+      attributionControl: false,
+      zoomControl: false
+    }).setView([5.0689, -73.8217], 13);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '',
-      maxZoom: 19
+    // ✅ Zoom control a la derecha (no se tapa con controles)
+    L.control.zoom({ position: 'topright' }).addTo(mapaDomiActivo);
+
+    // ✅ Tile OSM detallado (mismo que mapa_admin)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      crossOrigin: true
     }).addTo(mapaDomiActivo);
 
     // ✅ HELPER: Obtener posición local del domiciliario (sin API call)
@@ -1254,120 +1272,167 @@ function calcularTotalesPedido(pedido) {
       }
     }
 
-    // ✅ FUNCIÓN: Recalcular ruta solo si hubo movimiento significativo
-    async function recalcularRutaSiNecesario(latDomi, lonDomi) {
-      if (_rutaRecalculando) return;
-      if (!seMovioSignificativamente(latDomi, lonDomi, 50)) return;
+    // ✅ FUNCIÓN: Dibujar la ruta del destino activo desde cache
+    function dibujarRutaDesdeCache(latDomi, lonDomi) {
+      if (!mapaDomiActivo) return;
 
-      let coordsDestino = null;
-      let labelDestino = '';
-
-      if (rutaDestino === 'restaurante' && coordsRestauranteMapa) {
-        coordsDestino = coordsRestauranteMapa;
-        labelDestino = 'restaurante';
-      } else if (rutaDestino === 'cliente' && coordsClienteMapa) {
-        coordsDestino = coordsClienteMapa;
-        labelDestino = 'cliente';
-      } else if (coordsRestauranteMapa) {
-        coordsDestino = coordsRestauranteMapa;
-        labelDestino = 'restaurante';
-      } else if (coordsClienteMapa) {
-        coordsDestino = coordsClienteMapa;
-        labelDestino = 'cliente';
+      // Siempre limpiar polyline anterior
+      if (rutaPolylineDomi) {
+        mapaDomiActivo.removeLayer(rutaPolylineDomi);
+        rutaPolylineDomi = null;
       }
 
-      if (!coordsDestino) {
+      const label = rutaDestino;
+      const colorRuta = label === 'restaurante' ? '#f59e0b' : '#3b82f6';
+      const iconRuta = label === 'restaurante' ? '🍔' : '🏠';
+      const cached = _cacheRutas[label];
+
+      if (cached && cached.latLngs) {
+        // ✅ Ruta OSRM cacheada — dibujar instantáneamente
+        rutaPolylineDomi = L.polyline(cached.latLngs, {
+          color: colorRuta, weight: 5, opacity: 0.8
+        }).addTo(mapaDomiActivo);
+
         const distEl = document.getElementById('distanciaMapaDomi');
-        if (distEl) distEl.textContent = 'Sin coordenadas GPS del destino';
-        return;
+        if (distEl) distEl.textContent = `${iconRuta} A ${cached.distancia} km del ${label} (~${cached.duracion} min)`;
+      } else {
+        // Sin cache aún — mostrar spinner "Calculando..."
+        const distEl = document.getElementById('distanciaMapaDomi');
+        if (distEl) distEl.innerHTML = `<div class="spinner-mini"></div> Calculando ruta al ${label}...`;
       }
+    }
 
+    // ✅ FUNCIÓN: Calcular ruta OSRM para un destino y cachear
+    async function calcularYCachearRuta(label, latDomi, lonDomi, coordsDestino) {
+      try {
+        const rutaData = await calcularRutaRealDomi(latDomi, lonDomi, coordsDestino.lat, coordsDestino.lon);
+        // ✅ Guard: si el mapa cambió mientras OSRM respondía, descartar resultado
+        if (_mapaSessionId !== sesionMapa) return null;
+        if (rutaData) {
+          _cacheRutas[label] = rutaData;
+          console.log(`✅ Ruta ${label} cacheada: ${rutaData.distancia} km`);
+        } else {
+          // Fallback: no hay ruta OSRM, cachear distancia haversine
+          const dist = calcularDistanciaEntrePuntosDomi(latDomi, lonDomi, coordsDestino.lat, coordsDestino.lon);
+          _cacheRutas[label] = {
+            latLngs: [[latDomi, lonDomi], [coordsDestino.lat, coordsDestino.lon]],
+            distancia: dist.toFixed(2),
+            duracion: Math.round(dist * 3), // estimado ~3 min/km
+            esFallback: true
+          };
+        }
+        return _cacheRutas[label];
+      } catch (err) {
+        console.error(`Error calculando ruta ${label}:`, err);
+        return null;
+      }
+    }
+
+    // ✅ FUNCIÓN: Precalcular AMBAS rutas en paralelo + dibujar la activa
+    async function precalcularRutas(latDomi, lonDomi) {
+      if (_rutaRecalculando) return;
       _rutaRecalculando = true;
 
       try {
-        const rutaData = await calcularRutaRealDomi(latDomi, lonDomi, coordsDestino.lat, coordsDestino.lon);
+        const promesas = [];
 
-        if (rutaPolylineDomi && mapaDomiActivo) {
-          mapaDomiActivo.removeLayer(rutaPolylineDomi);
+        if (coordsRestauranteMapa) {
+          promesas.push(calcularYCachearRuta('restaurante', latDomi, lonDomi, coordsRestauranteMapa));
+        }
+        if (coordsClienteMapa) {
+          promesas.push(calcularYCachearRuta('cliente', latDomi, lonDomi, coordsClienteMapa));
         }
 
-        if (rutaData) {
-          rutaPolylineDomi = L.polyline(rutaData.latLngs, {
-            color: labelDestino === 'restaurante' ? '#f59e0b' : '#3b82f6',
-            weight: 5,
-            opacity: 0.8
-          }).addTo(mapaDomiActivo);
+        // ✅ Ambas rutas en PARALELO — no espera una para empezar la otra
+        await Promise.all(promesas);
 
-          const distEl = document.getElementById('distanciaMapaDomi');
-          if (distEl) {
-            const icon = labelDestino === 'restaurante' ? '🍔' : '🏠';
-            distEl.textContent = `${icon} A ${rutaData.distancia} km del ${labelDestino} (~${rutaData.duracion} min)`;
-          }
-        } else {
-          // Fallback linea recta
-          rutaPolylineDomi = L.polyline([
-            [latDomi, lonDomi],
-            [coordsDestino.lat, coordsDestino.lon]
-          ], {
-            color: labelDestino === 'restaurante' ? '#f59e0b' : '#3b82f6',
-            weight: 4,
-            opacity: 0.7,
-            dashArray: '10, 10'
-          }).addTo(mapaDomiActivo);
-
-          const dist = calcularDistanciaEntrePuntosDomi(latDomi, lonDomi, coordsDestino.lat, coordsDestino.lon);
-          const distEl = document.getElementById('distanciaMapaDomi');
-          if (distEl) {
-            const icon = labelDestino === 'restaurante' ? '🍔' : '🏠';
-            distEl.textContent = `${icon} A ${dist.toFixed(2)} km del ${labelDestino} (linea recta)`;
-          }
-        }
+        // ✅ Guard: si el mapa cambió mientras calculaba, no dibujar
+        if (_mapaSessionId !== sesionMapa) return;
 
         _ultimaLatRuta = latDomi;
         _ultimaLonRuta = lonDomi;
+
+        // Dibujar la ruta del destino activo
+        dibujarRutaDesdeCache(latDomi, lonDomi);
       } catch (error) {
-        console.error('Error recalculando ruta:', error);
+        console.error('Error precalculando rutas:', error);
       } finally {
         _rutaRecalculando = false;
       }
     }
 
+    // ✅ FUNCIÓN: Recalcular rutas solo si se movió significativamente
+    async function recalcularRutaSiNecesario(latDomi, lonDomi) {
+      if (_rutaRecalculando) return;
+      if (!seMovioSignificativamente(latDomi, lonDomi, 50)) return;
+      await precalcularRutas(latDomi, lonDomi);
+    }
+
     // ✅ FUNCIÓN COMPLETA: Obtener datos del servidor (restaurante, cliente) + centrar mapa inicial
     async function actualizarDatosExternos() {
+      // ✅ Guard: si el mapa cambió de sesión, no hacer nada
+      if (!mapaDomiActivo || _mapaSessionId !== sesionMapa) return;
+
       try {
         const response = await window.apiRequest(`/api/pedido/${pedidoId}/ubicacion-domiciliario`);
         if (!response.ok) return;
+        // Re-check después del await
+        if (!mapaDomiActivo || _mapaSessionId !== sesionMapa) return;
 
         const data = await response.json();
 
-        // Marcador del restaurante (solo una vez)
-        if (data.ubicacion_restaurante && !markerRestauranteDomi) {
+        // Marcador del restaurante (solo una vez por apertura de mapa)
+        if (!markerRestauranteDomi && data.ubicacion_restaurante) {
           const latR = parseFloat(data.ubicacion_restaurante.latitud);
           const lonR = parseFloat(data.ubicacion_restaurante.longitud);
           if (latR && lonR && !isNaN(latR) && !isNaN(lonR) && Math.abs(latR) <= 90 && Math.abs(lonR) <= 180) {
             coordsRestauranteMapa = { lat: latR, lon: lonR };
             markerRestauranteDomi = L.marker([latR, lonR], { icon: iconoRestauranteMapa() }).addTo(mapaDomiActivo);
             markerRestauranteDomi.bindPopup(data.nombre_restaurante || 'Restaurante');
+          } else {
+            // Marcar como intentado para no reintentar
+            markerRestauranteDomi = 'sin_gps';
           }
         }
 
-        // Marcador del cliente (solo una vez)
-        if (data.direccion_cliente && !markerClienteDomi) {
-          const latC = parseFloat(data.direccion_cliente.latitud);
-          const lonC = parseFloat(data.direccion_cliente.longitud);
+        // ✅ Marcador del cliente — SOLO si tiene coordenadas GPS válidas
+        // Pedidos especiales (pedido_especial.html) NO tienen latitud_cliente/longitud_cliente
+        if (!markerClienteDomi) {
+          const latC = data.direccion_cliente ? parseFloat(data.direccion_cliente.latitud) : NaN;
+          const lonC = data.direccion_cliente ? parseFloat(data.direccion_cliente.longitud) : NaN;
 
           if (latC && lonC && !isNaN(latC) && !isNaN(lonC) && Math.abs(latC) <= 90 && Math.abs(lonC) <= 180) {
             coordsClienteMapa = { lat: latC, lon: lonC };
             markerClienteDomi = L.marker([latC, lonC], { icon: iconoClienteMapa() }).addTo(mapaDomiActivo);
             markerClienteDomi.bindPopup('Destino del cliente');
+          } else {
+            // ✅ NO hay coords de cliente (pedido especial o por_zona)
+            // Marcar como intentado para no confundir con coords de otro pedido
+            markerClienteDomi = 'sin_gps';
+            coordsClienteMapa = null;
           }
         }
 
-        // Mostrar toggle si ambos destinos tienen coordenadas
+        // Mostrar toggle si hay coordenadas del restaurante
         const toggle = document.getElementById('mapaRutaToggle');
-        if (toggle && coordsRestauranteMapa && coordsClienteMapa) {
+        if (toggle && coordsRestauranteMapa) {
           toggle.style.display = 'flex';
+          const btnCliente = document.getElementById('btnRutaCliente');
+          if (btnCliente) {
+            // ✅ Ocultar botón "Cliente" si no hay coordenadas GPS
+            btnCliente.style.display = coordsClienteMapa ? '' : 'none';
+          }
+          // ✅ Si el toggle está en "cliente" pero no hay coords, forzar a "restaurante"
+          if (!coordsClienteMapa && rutaDestino === 'cliente') {
+            rutaDestino = 'restaurante';
+            const btnRest = document.getElementById('btnRutaRestaurante');
+            if (btnRest) btnRest.classList.add('active');
+            if (btnCliente) btnCliente.classList.remove('active');
+          }
         }
+
+        // ✅ Actualizar botón de navegación externa
+        actualizarBotonNavegacion();
 
         // ✅ Actualizar marcador domiciliario (con fallback al servidor si no hay local)
         let latDomi = null, lonDomi = null;
@@ -1409,9 +1474,15 @@ function calcularTotalesPedido(pedido) {
           }
         }
 
-        // ✅ Recalcular ruta solo si se movió significativamente
+        // ✅ Calcular rutas: en primera carga forzar precálculo de AMBAS rutas en paralelo
         if (latDomi && lonDomi) {
-          await recalcularRutaSiNecesario(latDomi, lonDomi);
+          if (!mapaCentrado || !_cacheRutas.restaurante) {
+            // Primera vez — precalcular AMBAS rutas en paralelo
+            await precalcularRutas(latDomi, lonDomi);
+          } else {
+            // Posteriores — solo recalcular si se movió significativamente
+            await recalcularRutaSiNecesario(latDomi, lonDomi);
+          }
         }
 
       } catch (error) {
@@ -1424,6 +1495,7 @@ function calcularTotalesPedido(pedido) {
       if (navigator.geolocation) {
         watchIdMapa = navigator.geolocation.watchPosition(
           (position) => {
+            if (_mapaSessionId !== sesionMapa) return;
             if (window.unifiedGeoService) {
               window.unifiedGeoService.lastPosition = {
                 latitude: position.coords.latitude,
@@ -1447,7 +1519,7 @@ function calcularTotalesPedido(pedido) {
 
     // ✅ Actualización RÁPIDA del marcador local cada 3 segundos
     intervaloPosicionLocal = setInterval(() => {
-      if (!mapaDomiActivo) return;
+      if (!mapaDomiActivo || _mapaSessionId !== sesionMapa) return;
       actualizarMarcadorLocal();
       
       // Recalcular ruta cada 3 ciclos (~9 seg) si se movió bastante
@@ -1470,17 +1542,16 @@ function calcularTotalesPedido(pedido) {
     if (btnRest) btnRest.classList.toggle('active', destino === 'restaurante');
     if (btnCli) btnCli.classList.toggle('active', destino === 'cliente');
 
-    // ✅ Forzar recálculo inmediato de ruta (resetear posición de referencia)
-    _ultimaLatRuta = null;
-    _ultimaLonRuta = null;
+    // ✅ Actualizar botón de navegación externa
+    actualizarBotonNavegacion();
 
-    // Remover ruta actual
+    // ✅ Limpiar polyline anterior
     if (rutaPolylineDomi && mapaDomiActivo) {
       mapaDomiActivo.removeLayer(rutaPolylineDomi);
       rutaPolylineDomi = null;
     }
 
-    // ✅ Obtener posición local y recalcular ruta
+    // ✅ Obtener posición del domiciliario
     let latDomi = null, lonDomi = null;
     if (window.unifiedGeoService && window.unifiedGeoService.lastPosition) {
       latDomi = window.unifiedGeoService.lastPosition.latitude;
@@ -1492,58 +1563,61 @@ function calcularTotalesPedido(pedido) {
       lonDomi = pos.lng;
     }
 
-    let coordsDestino = null;
-    let labelDestino = '';
-    if (destino === 'restaurante' && coordsRestauranteMapa) {
-      coordsDestino = coordsRestauranteMapa;
-      labelDestino = 'restaurante';
-    } else if (destino === 'cliente' && coordsClienteMapa) {
-      coordsDestino = coordsClienteMapa;
-      labelDestino = 'cliente';
-    }
+    // ✅ USAR CACHE — si ya se precalculó, dibujar instantáneamente sin API
+    const cached = _cacheRutas[destino];
+    const colorRuta = destino === 'restaurante' ? '#f59e0b' : '#3b82f6';
+    const iconRuta = destino === 'restaurante' ? '🍔' : '🏠';
 
-    if (latDomi && lonDomi && coordsDestino) {
-      // Recalcular ruta de forma asíncrona
-      (async () => {
-        const rutaData = await calcularRutaRealDomi(latDomi, lonDomi, coordsDestino.lat, coordsDestino.lon);
+    if (cached && cached.latLngs && mapaDomiActivo) {
+      rutaPolylineDomi = L.polyline(cached.latLngs, {
+        color: colorRuta,
+        weight: cached.esFallback ? 4 : 5,
+        opacity: cached.esFallback ? 0.7 : 0.8,
+        dashArray: cached.esFallback ? '10, 10' : null
+      }).addTo(mapaDomiActivo);
 
-        if (rutaData && mapaDomiActivo) {
-          rutaPolylineDomi = L.polyline(rutaData.latLngs, {
-            color: labelDestino === 'restaurante' ? '#f59e0b' : '#3b82f6',
-            weight: 5,
-            opacity: 0.8
-          }).addTo(mapaDomiActivo);
+      const distEl = document.getElementById('distanciaMapaDomi');
+      if (distEl) {
+        distEl.textContent = `${iconRuta} A ${cached.distancia} km del ${destino} (~${cached.duracion} min)`;
+      }
+    } else if (latDomi && lonDomi) {
+      // ✅ No hay cache — calcular ahora (solo para este destino)
+      let coordsDestino = null;
+      if (destino === 'restaurante' && coordsRestauranteMapa) coordsDestino = coordsRestauranteMapa;
+      else if (destino === 'cliente' && coordsClienteMapa) coordsDestino = coordsClienteMapa;
 
-          const distEl = document.getElementById('distanciaMapaDomi');
-          if (distEl) {
-            const icon = labelDestino === 'restaurante' ? '🍔' : '🏠';
-            distEl.textContent = `${icon} A ${rutaData.distancia} km del ${labelDestino} (~${rutaData.duracion} min)`;
+      if (coordsDestino) {
+        const distEl = document.getElementById('distanciaMapaDomi');
+        if (distEl) distEl.innerHTML = `<div class="spinner-mini"></div> Calculando ruta al ${destino}...`;
+
+        // Calcular asíncronamente y dibujar cuando esté listo
+        (async () => {
+          const rutaData = await calcularRutaRealDomi(latDomi, lonDomi, coordsDestino.lat, coordsDestino.lon);
+          if (rutaData) {
+            _cacheRutas[destino] = rutaData;
+          } else {
+            const dist = calcularDistanciaEntrePuntosDomi(latDomi, lonDomi, coordsDestino.lat, coordsDestino.lon);
+            _cacheRutas[destino] = {
+              latLngs: [[latDomi, lonDomi], [coordsDestino.lat, coordsDestino.lon]],
+              distancia: dist.toFixed(2),
+              duracion: Math.round(dist * 3),
+              esFallback: true
+            };
           }
-
-          _ultimaLatRuta = latDomi;
-          _ultimaLonRuta = lonDomi;
-        } else if (mapaDomiActivo) {
-          rutaPolylineDomi = L.polyline([
-            [latDomi, lonDomi],
-            [coordsDestino.lat, coordsDestino.lon]
-          ], {
-            color: labelDestino === 'restaurante' ? '#f59e0b' : '#3b82f6',
-            weight: 4,
-            opacity: 0.7,
-            dashArray: '10, 10'
-          }).addTo(mapaDomiActivo);
-
-          const dist = calcularDistanciaEntrePuntosDomi(latDomi, lonDomi, coordsDestino.lat, coordsDestino.lon);
-          const distEl = document.getElementById('distanciaMapaDomi');
-          if (distEl) {
-            const icon = labelDestino === 'restaurante' ? '🍔' : '🏠';
-            distEl.textContent = `${icon} A ${dist.toFixed(2)} km del ${labelDestino} (linea recta)`;
+          // Solo dibujar si el toggle sigue en este destino
+          if (rutaDestino === destino && mapaDomiActivo) {
+            if (rutaPolylineDomi) mapaDomiActivo.removeLayer(rutaPolylineDomi);
+            const c = _cacheRutas[destino];
+            rutaPolylineDomi = L.polyline(c.latLngs, {
+              color: colorRuta,
+              weight: c.esFallback ? 4 : 5,
+              opacity: c.esFallback ? 0.7 : 0.8,
+              dashArray: c.esFallback ? '10, 10' : null
+            }).addTo(mapaDomiActivo);
+            if (distEl) distEl.textContent = `${iconRuta} A ${c.distancia} km del ${destino} (~${c.duracion} min)`;
           }
-
-          _ultimaLatRuta = latDomi;
-          _ultimaLonRuta = lonDomi;
-        }
-      })();
+        })();
+      }
     }
   }
 
@@ -1551,6 +1625,76 @@ function calcularTotalesPedido(pedido) {
     limpiarMapaDomi();
     const modal = document.getElementById('modalMapaDomiciliario');
     if (modal) modal.style.display = 'none';
+  }
+
+  // ✅ NUEVO: Abrir navegación externa (Google Maps / Waze) para la ruta seleccionada
+  function abrirNavegacionExterna() {
+    let coordsDestino = null;
+
+    if (rutaDestino === 'restaurante' && coordsRestauranteMapa) {
+      coordsDestino = coordsRestauranteMapa;
+    } else if (rutaDestino === 'cliente' && coordsClienteMapa) {
+      coordsDestino = coordsClienteMapa;
+    } else if (coordsRestauranteMapa) {
+      coordsDestino = coordsRestauranteMapa;
+    } else if (coordsClienteMapa) {
+      coordsDestino = coordsClienteMapa;
+    }
+
+    if (!coordsDestino) {
+      if (typeof mostrarMensaje === 'function') mostrarMensaje('No hay coordenadas del destino', 'error');
+      return;
+    }
+
+    const lat = coordsDestino.lat;
+    const lon = coordsDestino.lon;
+
+    // En Capacitor (APK), intentar abrir Google Maps app directamente
+    const isCapacitor = !!window.Capacitor;
+
+    if (isCapacitor) {
+      // Intent para Google Maps en Android
+      const googleMapsUrl = `google.navigation:q=${lat},${lon}&mode=d`;
+      const fallbackUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`;
+
+      try {
+        // Intentar abrir con App Launcher plugin si existe
+        if (window.Capacitor?.Plugins?.AppLauncher) {
+          window.Capacitor.Plugins.AppLauncher.openUrl({ url: `geo:${lat},${lon}?q=${lat},${lon}` })
+            .catch(() => {
+              // Fallback: abrir en navegador interno
+              window.open(fallbackUrl, '_system');
+            });
+        } else {
+          // Fallback: usar window.open con intent scheme
+          window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`, '_system');
+        }
+      } catch (e) {
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`, '_system');
+      }
+    } else {
+      // En web, abrir Google Maps en nueva pestaña
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lon}&travelmode=driving`, '_blank');
+    }
+  }
+
+  // ✅ Mostrar/ocultar botón de navegación según si hay coordenadas de destino
+  function actualizarBotonNavegacion() {
+    const btn = document.getElementById('btnNavegarExterno');
+    if (!btn) return;
+
+    let hayDestino = false;
+    if (rutaDestino === 'restaurante' && coordsRestauranteMapa) hayDestino = true;
+    else if (rutaDestino === 'cliente' && coordsClienteMapa) hayDestino = true;
+    else if (coordsRestauranteMapa || coordsClienteMapa) hayDestino = true;
+
+    btn.style.display = hayDestino ? 'flex' : 'none';
+
+    // Actualizar texto del botón con el destino actual
+    if (hayDestino) {
+      const label = rutaDestino === 'cliente' ? 'Navegar al Cliente' : 'Navegar al Restaurante';
+      btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg> ${label}`;
+    }
   }
 
   // ========== EXPORTAR FUNCIONES GLOBALES ==========
@@ -1573,6 +1717,7 @@ function calcularTotalesPedido(pedido) {
   window.abrirMapaDomiciliario = abrirMapaDomiciliario;
   window.cerrarMapaDomiciliario = cerrarMapaDomiciliario;
   window.cambiarRutaMapa = cambiarRutaMapa;
+  window.abrirNavegacionExterna = abrirNavegacionExterna;
   window.cargarPedidos = cargarPedidos;
 
 })();
