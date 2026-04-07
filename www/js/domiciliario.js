@@ -530,45 +530,27 @@ function calcularTotalesPedido(pedido) {
     const radios = document.querySelectorAll('input[name="metodo_pago"]');
     radios.forEach(radio => {
       radio.checked = false;
+      radio.addEventListener('change', habilitarBotonConfirmar);
     });
     
     const btnConfirmar = document.getElementById('btnConfirmarEntrega');
     btnConfirmar.disabled = true;
-    btnConfirmar.innerHTML = 'Confirmar Entrega';
-    
-    // ✅ FIX: Usar un único listener en el contenedor, no acumular por apertura
-    const metodoContainer = document.querySelector('.metodos-pago');
-    if (metodoContainer._radioHandler) {
-      metodoContainer.removeEventListener('change', metodoContainer._radioHandler);
-    }
-    metodoContainer._radioHandler = function() {
-      const checked = document.querySelector('input[name="metodo_pago"]:checked');
-      document.getElementById('btnConfirmarEntrega').disabled = !checked;
-    };
-    metodoContainer.addEventListener('change', metodoContainer._radioHandler);
     
     document.getElementById('modalMetodoPago').style.display = 'flex';
+  }
+
+  function habilitarBotonConfirmar() {
+    const radioSeleccionado = document.querySelector('input[name="metodo_pago"]:checked');
+    const btnConfirmar = document.getElementById('btnConfirmarEntrega');
+    btnConfirmar.disabled = !radioSeleccionado;
   }
 
   function cerrarModalPago() {
     document.getElementById('modalMetodoPago').style.display = 'none';
     window.pedidoSeleccionado = null;
     
-    // ✅ FIX: Limpiar radios y restaurar botón completamente
     const radios = document.querySelectorAll('input[name="metodo_pago"]');
-    radios.forEach(radio => { radio.checked = false; });
-    
-    const btnConfirmar = document.getElementById('btnConfirmarEntrega');
-    if (btnConfirmar) {
-      btnConfirmar.disabled = true;
-      btnConfirmar.innerHTML = 'Confirmar Entrega';
-    }
-    
-    const metodoContainer = document.querySelector('.metodos-pago');
-    if (metodoContainer && metodoContainer._radioHandler) {
-      metodoContainer.removeEventListener('change', metodoContainer._radioHandler);
-      metodoContainer._radioHandler = null;
-    }
+    radios.forEach(radio => radio.removeEventListener('change', habilitarBotonConfirmar));
   }
 
   async function confirmarEntrega() {
@@ -580,6 +562,7 @@ function calcularTotalesPedido(pedido) {
     }
   
     const btnConfirmar = document.getElementById('btnConfirmarEntrega');
+    const textoOriginal = btnConfirmar.innerHTML;
     btnConfirmar.disabled = true;
     btnConfirmar.innerHTML = '⏳ Confirmando...';
   
@@ -596,38 +579,41 @@ function calcularTotalesPedido(pedido) {
         const metodoPagoTexto = metodo.value === 'efectivo' ? 'efectivo' : metodo.value === 'pagado al restaurante' ? 'pagado al restaurante' : 'pago por App';
         mostrarMensaje(`✅ Pedido entregado exitosamente con ${metodoPagoTexto}`);
         
-        // ✅ Verificar si hay más pedidos activos
-        try {
-          const usuarioResponse = await window.apiRequest('/api/usuario-actual');
-          const usuarioData = await usuarioResponse.json();
-          const pedidosActivosResponse = await window.apiRequest(`/api/pedidos-activos-domiciliario/${usuarioData.id}`);
-          const pedidosActivosData = await pedidosActivosResponse.json();
-          const pedidosActivos = pedidosActivosData.pedidos || [];
+        // ✅ VERIFICAR SI HAY MÁS PEDIDOS ACTIVOS
+        const usuarioResponse = await window.apiRequest('/api/usuario-actual');
+        const usuarioData = await usuarioResponse.json();
+
+        const pedidosActivosResponse = await window.apiRequest(
+          `/api/pedidos-activos-domiciliario/${usuarioData.id}`
+        );
+        const pedidosActivosData = await pedidosActivosResponse.json();
+        const pedidosActivos = pedidosActivosData.pedidos || [];
+        
+        if (!pedidosActivos || pedidosActivos.length === 0) {
+          console.log('🛑 No hay más pedidos activos - deteniendo servicio');
+          localStorage.removeItem('domiciliario_pedido_activo');
+          localStorage.removeItem('domiciliario_pedido_id');
           
-          if (!pedidosActivos || pedidosActivos.length === 0) {
-            localStorage.removeItem('domiciliario_pedido_activo');
-            localStorage.removeItem('domiciliario_pedido_id');
-            if (window.unifiedGeoService) await window.unifiedGeoService.stopTracking();
+          if (window.unifiedGeoService) {
+            await window.unifiedGeoService.stopTracking();
           }
-        } catch (e) { console.warn('Error verificando pedidos activos post-entrega:', e); }
+        } else {
+          console.log(`✅ Aún hay ${pedidosActivos.length} pedidos activos - manteniendo servicio`);
+        }
         
         cerrarModalPago();
+        // ✅ Recargar sin delay
         await cargarPedidos();
       } else {
         mostrarMensaje('❌ Error al marcar como entregado', 'error');
+        btnConfirmar.disabled = false;
+        btnConfirmar.innerHTML = textoOriginal;
       }
     } catch (err) {
       console.error('Error:', err);
       mostrarMensaje('❌ Error de conexión', 'error');
-    } finally {
-      // ✅ FIX CRÍTICO: Siempre restaurar el botón en finally, pase lo que pase
-      const btn = document.getElementById('btnConfirmarEntrega');
-      if (btn) {
-        btn.innerHTML = 'Confirmar Entrega';
-        // Solo re-habilitar si hay un método seleccionado (modal todavía visible)
-        const checked = document.querySelector('input[name="metodo_pago"]:checked');
-        btn.disabled = !checked;
-      }
+      btnConfirmar.disabled = false;
+      btnConfirmar.innerHTML = textoOriginal;
     }
   }
 
@@ -696,6 +682,7 @@ function calcularTotalesPedido(pedido) {
     }
   
     const btnConfirmar = document.querySelector('.modal-contenido button[onclick="confirmarNoEntregado()"]');
+    const textoOriginal = btnConfirmar.innerHTML;
     btnConfirmar.disabled = true;
     btnConfirmar.innerHTML = '⏳ Enviando reporte...';
   
@@ -714,35 +701,38 @@ function calcularTotalesPedido(pedido) {
       if (res.ok) {
         mostrarMensaje('✅ Pedido marcado como no entregado - Reporte enviado exitosamente');
         
-        try {
-          const usuarioResponse = await window.apiRequest('/api/usuario-actual');
-          const usuarioData = await usuarioResponse.json();
-          const pedidosActivosResponse = await window.apiRequest(`/api/pedidos-activos-domiciliario/${usuarioData.id}`);
-          const pedidosActivosData = await pedidosActivosResponse.json();
-          const pedidosActivos = pedidosActivosData.pedidos || [];
+        const usuarioResponse = await window.apiRequest('/api/usuario-actual');
+        const usuarioData = await usuarioResponse.json();
+
+        const pedidosActivosResponse = await window.apiRequest(
+          `/api/pedidos-activos-domiciliario/${usuarioData.id}`
+        );
+        const pedidosActivosData = await pedidosActivosResponse.json();
+        const pedidosActivos = pedidosActivosData.pedidos || [];
+        
+        if (!pedidosActivos || pedidosActivos.length === 0) {
+          console.log('🛑 No hay más pedidos activos - deteniendo servicio');
+          localStorage.removeItem('domiciliario_pedido_activo');
+          localStorage.removeItem('domiciliario_pedido_id');
           
-          if (!pedidosActivos || pedidosActivos.length === 0) {
-            localStorage.removeItem('domiciliario_pedido_activo');
-            localStorage.removeItem('domiciliario_pedido_id');
-            if (window.unifiedGeoService) await window.unifiedGeoService.stopTracking();
+          if (window.unifiedGeoService) {
+            await window.unifiedGeoService.stopTracking();
           }
-        } catch (e) { console.warn('Error verificando pedidos activos post-cancelación:', e); }
+        }
         
         cerrarModalProblema();
+        // ✅ Recargar sin delay
         await cargarPedidos();
       } else {
         mostrarMensaje(`❌ Error: ${result.error || 'No se pudo actualizar el estado del pedido'}`, 'error');
+        btnConfirmar.disabled = false;
+        btnConfirmar.innerHTML = textoOriginal;
       }
     } catch (error) {
       console.error('Error al marcar como no entregado:', error);
       mostrarMensaje('❌ Error de conexión. Por favor intenta nuevamente.', 'error');
-    } finally {
-      // ✅ FIX CRÍTICO: Siempre restaurar el botón en finally
-      const btn = document.querySelector('.modal-contenido button[onclick="confirmarNoEntregado()"]');
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = 'Confirmar No Entregado';
-      }
+      btnConfirmar.disabled = false;
+      btnConfirmar.innerHTML = textoOriginal;
     }
   }
 
