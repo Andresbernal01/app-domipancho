@@ -1,5 +1,6 @@
 // socket-mock.js - Socket.IO mock optimizado para Capacitor
 // FCM es el canal principal, este polling es el respaldo
+// ✅ v4: Cache de usuarioId — no pide /api/usuario-actual en cada poll
 (function() {
   'use strict';
   
@@ -11,6 +12,7 @@
       this.lastPedidosState = null;
       this.usuarioId = null;
       this.isPolling = false; // Evitar polls simultáneos
+      this._usuarioFetchPromise = null; // Evitar fetches duplicados del usuario
     }
 
     on(event, callback) {
@@ -47,7 +49,7 @@
     startPolling() {
       if (this.pollingInterval) return;
       
-      // ✅ Polling cada 5 segundos (antes era 10)
+      // ✅ Polling cada 5 segundos
       const POLLING_MS = 5000;
       console.log(`🔄 Iniciando polling cada ${POLLING_MS / 1000} segundos...`);
       
@@ -69,28 +71,68 @@
       }
     }
 
+    /**
+     * ✅ OPTIMIZACIÓN: Obtener usuarioId con cache
+     * 1. Si ya está en memoria → devolverlo instantáneamente
+     * 2. Si domiciliario.js lo tiene cacheado → usar ese
+     * 3. Solo como último recurso, hacer fetch
+     */
+    async getUsuarioId() {
+      if (this.usuarioId) return this.usuarioId;
+
+      // Intentar usar cache global de domiciliario.js
+      if (typeof window.__getUsuarioCache === 'function') {
+        const cached = window.__getUsuarioCache();
+        if (cached && cached.id) {
+          this.usuarioId = cached.id;
+          return this.usuarioId;
+        }
+      }
+
+      // Evitar fetches duplicados si ya hay uno en curso
+      if (this._usuarioFetchPromise) return this._usuarioFetchPromise;
+
+      this._usuarioFetchPromise = (async () => {
+        try {
+          const res = await window.apiRequest('/api/usuario-actual');
+          if (!res.ok) return null;
+          const usuario = await res.json();
+          this.usuarioId = usuario.id;
+          return usuario.id;
+        } catch (err) {
+          console.error('❌ Error obteniendo usuario:', err);
+          return null;
+        } finally {
+          this._usuarioFetchPromise = null;
+        }
+      })();
+
+      return this._usuarioFetchPromise;
+    }
+
     async checkForUpdates() {
       // ✅ Evitar polls simultáneos
       if (this.isPolling) return;
       this.isPolling = true;
 
       try {
-        const [userResponse, response] = await Promise.all([
-          window.apiRequest('/api/usuario-actual'),
-          window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias')
-        ]);
+        // ✅ OPTIMIZACIÓN: usuarioId cacheado — no se pide en cada poll
+        // (antes eran 2 requests, ahora solo 1)
+        const usuarioId = await this.getUsuarioId();
+        if (!usuarioId) {
+          console.warn('⚠️ No hay usuarioId disponible, saltando poll');
+          return;
+        }
+
+        const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
         
-        if (!userResponse.ok || !response.ok) {
+        if (!response.ok) {
           console.error('❌ Error en polling:', response.status);
           return;
         }
 
-        const [usuario, pedidos] = await Promise.all([
-          userResponse.json(),
-          response.json()
-        ]);
-        
-        this.detectarCambios(pedidos, usuario.id);
+        const pedidos = await response.json();
+        this.detectarCambios(pedidos, usuarioId);
         
       } catch (error) {
         console.error('❌ Error en checkForUpdates:', error);
@@ -197,7 +239,7 @@
       console.log('📱 Creando nueva instancia de Socket Mock');
       window.socketMockInstance = new SocketMock();
       
-      // ✅ Auto-conectar inmediatamente (antes era 500ms)
+      // ✅ Auto-conectar inmediatamente
       setTimeout(() => {
         if (window.socketMockInstance) {
           window.socketMockInstance.connect();
@@ -207,5 +249,5 @@
     return window.socketMockInstance;
   };
 
-  console.log('✅ Socket.IO mock v3 cargado (optimizado)');
+  console.log('✅ Socket.IO mock v4 cargado (cache usuarioId)');
 })();

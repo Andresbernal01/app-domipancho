@@ -1,10 +1,12 @@
-// inactividad.js - Sistema de heartbeat sin cierre de sesión
+// inactividad.js - Sistema de heartbeat optimizado
+// ✅ v2: el heartbeat periódico ya no es necesario porque /domiciliario/ubicacion
+// actualiza activo_contador y ultima_actividad en cada update de GPS.
+// Solo mantenemos el heartbeat inicial y el marcar inactivo al cerrar.
 (async () => {
-  let intervaloActividad = null;
   let tipoUsuario = null;
   let usuarioId = null;
 
-  async function enviarHeartbeat() {
+  async function enviarHeartbeatInicial() {
     if (tipoUsuario !== 'domiciliario') return;
     
     try {
@@ -12,9 +14,9 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
-      console.log('✓ Heartbeat enviado');
+      console.log('✓ Heartbeat inicial enviado');
     } catch (error) {
-      console.error('Error en heartbeat:', error);
+      console.error('Error en heartbeat inicial:', error);
     }
   }
 
@@ -30,21 +32,24 @@
   }
 
   try {
-    const res = await window.apiRequest('/api/usuario-actual');
-    if (!res.ok) return;
-    
-    const usuario = await res.json();
+    // ✅ OPTIMIZACIÓN: usar cache del usuario si ya lo cargó domiciliario.js
+    let usuario = null;
+    if (typeof window.__getUsuarioCache === 'function') {
+      usuario = window.__getUsuarioCache();
+    }
+    if (!usuario) {
+      const res = await window.apiRequest('/api/usuario-actual');
+      if (!res.ok) return;
+      usuario = await res.json();
+    }
+
     tipoUsuario = usuario.tipo;
     usuarioId = usuario.id;
     
     if (tipoUsuario === 'domiciliario') {
-      // Enviar heartbeat inicial
-      await enviarHeartbeat();
-      
-      // Heartbeat cada 60 segundos
-      intervaloActividad = setInterval(enviarHeartbeat, 60000);
-      
-      console.log('Sistema de heartbeat activo para domiciliario');
+      // ✅ Solo heartbeat inicial — el tracking de ubicación mantiene activo_contador actualizado
+      await enviarHeartbeatInicial();
+      console.log('Sistema de actividad activo (heartbeat via ubicación)');
     } else if (tipoUsuario === 'restaurante') {
       console.log('Restaurante: sesión persistente sin control de inactividad');
     }
@@ -55,9 +60,6 @@
 
   // Limpiar al cerrar/recargar página
   window.addEventListener('beforeunload', () => {
-    if (intervaloActividad) {
-      clearInterval(intervaloActividad);
-    }
     marcarInactivo();
   });
 
@@ -65,21 +67,15 @@
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && tipoUsuario === 'domiciliario') {
       console.log('App restaurada - enviando heartbeat');
-      enviarHeartbeat();
+      enviarHeartbeatInicial();
     }
   });
 
-  // Detectar pérdida de conexión
-  window.addEventListener('offline', () => {
-    console.warn('Sin conexión - pausando heartbeat');
-    if (intervaloActividad) clearInterval(intervaloActividad);
-  });
-
+  // Reconexión
   window.addEventListener('online', () => {
-    console.log('Conexión restaurada - reiniciando heartbeat');
-    if (tipoUsuario === 'domiciliario' && !intervaloActividad) {
-      enviarHeartbeat();
-      intervaloActividad = setInterval(enviarHeartbeat, 60000);
+    console.log('Conexión restaurada - enviando heartbeat');
+    if (tipoUsuario === 'domiciliario') {
+      enviarHeartbeatInicial();
     }
   });
 

@@ -156,22 +156,45 @@ function calcularTotalesPedido(pedido) {
     }
   }
 
-  async function cargarUsuario() {
-    try {
-      const response = await window.apiRequest('/api/usuario-actual');
-      if (response.ok) {
-        const usuario = await response.json();
-        const userEl = document.getElementById('restaurantName');
-        if (userEl) {
-          userEl.textContent = `${usuario.usuario || 'Usuario'}`;
-        }
-        return usuario;
-      }
-    } catch (error) {
-      console.error('Error al cargar usuario:', error);
+  // ✅ OPTIMIZACIÓN: Cache del usuario — no cambia durante la sesión
+  let _usuarioCache = null;
+  let _usuarioCachePromise = null;
+
+  async function cargarUsuario(forzar = false) {
+    // Si ya tenemos el usuario cacheado, devolverlo instantáneamente
+    if (!forzar && _usuarioCache) {
+      return _usuarioCache;
     }
-    return null;
+    // Si hay una petición en curso, esperar a esa misma (evita duplicados)
+    if (!forzar && _usuarioCachePromise) {
+      return _usuarioCachePromise;
+    }
+
+    _usuarioCachePromise = (async () => {
+      try {
+        const response = await window.apiRequest('/api/usuario-actual');
+        if (response.ok) {
+          const usuario = await response.json();
+          const userEl = document.getElementById('restaurantName');
+          if (userEl) {
+            userEl.textContent = `${usuario.usuario || 'Usuario'}`;
+          }
+          _usuarioCache = usuario;
+          return usuario;
+        }
+      } catch (error) {
+        console.error('Error al cargar usuario:', error);
+      } finally {
+        _usuarioCachePromise = null;
+      }
+      return null;
+    })();
+
+    return _usuarioCachePromise;
   }
+  // Exponer para que otros módulos puedan usarlo sin pedir otra vez
+  window.__getUsuarioCache = () => _usuarioCache;
+  window.__invalidarUsuarioCache = () => { _usuarioCache = null; };
 
   // ========== GESTIÓN DE PEDIDOS ==========
   // ✅ Debounce para evitar múltiples cargas simultáneas
@@ -187,22 +210,25 @@ function calcularTotalesPedido(pedido) {
     cargandoPedidos = true;
 
     try {
-      // 1. VERIFICAR ESTADO DE DISPONIBILIDAD
-      let disponible = true;
-      try {
-        const dispResponse = await window.apiRequest('/api/domiciliarios/domiciliario/estado-disponibilidad');
-        if (dispResponse.ok) {
-          const dispData = await dispResponse.json();
-          disponible = dispData.disponible !== false;
-        }
-      } catch (error) {
-        console.warn('Error verificando disponibilidad:', error);
-      }
-  
-      // 2. OBTENER PEDIDOS
-      const res = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
-      let pedidos = await res.json();
-      
+      // ✅ OPTIMIZACIÓN: Disponibilidad + pedidos + usuario EN PARALELO
+      // (antes eran secuenciales: ~3 round-trips → ahora 1)
+      const [dispResult, pedidosResult, usuario] = await Promise.all([
+        window.apiRequest('/api/domiciliarios/domiciliario/estado-disponibilidad')
+          .then(r => r.ok ? r.json() : { disponible: true })
+          .catch(err => {
+            console.warn('Error verificando disponibilidad:', err);
+            return { disponible: true };
+          }),
+        window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias')
+          .then(async r => ({ ok: r.ok, data: await r.json() }))
+          .catch(err => ({ ok: false, data: null, error: err })),
+        cargarUsuario() // usa cache — solo hace request la primera vez
+      ]);
+
+      const disponible = dispResult.disponible !== false;
+      const res = { ok: pedidosResult.ok };
+      let pedidos = pedidosResult.data;
+
       if (!res.ok && pedidos?.error === 'bloqueado') {
         document.getElementById('listaPedidos').innerHTML = `
           <div class="bloqueado">
@@ -212,8 +238,7 @@ function calcularTotalesPedido(pedido) {
         `;
         return;
       }
-  
-      const usuario = await cargarUsuario();
+
       if (!usuario) return;
 
       // ✅ Actualizar cache para que abrirDetallesPedido sea instantáneo
@@ -235,8 +260,9 @@ function calcularTotalesPedido(pedido) {
       // ✅ Solo mostrar disponibles en esta sección; los activos van en su propio tab
       renderizarPedidos(disponiblesArr, misActivos, [], disponible);
 
-    // ✅ Actualizar tab de Activos también
-    cargarPedidosActivos();
+    // ✅ OPTIMIZACIÓN: reusar los pedidos ya cargados para el tab Activos
+    // (antes hacía 2 requests adicionales duplicados)
+    renderizarPedidosActivosDesdeCache(misActivos);
 
     } catch (err) {
       console.error('Error al cargar pedidos:', err);
@@ -530,27 +556,45 @@ function calcularTotalesPedido(pedido) {
     const radios = document.querySelectorAll('input[name="metodo_pago"]');
     radios.forEach(radio => {
       radio.checked = false;
-      radio.addEventListener('change', habilitarBotonConfirmar);
     });
     
     const btnConfirmar = document.getElementById('btnConfirmarEntrega');
     btnConfirmar.disabled = true;
+    btnConfirmar.innerHTML = 'Confirmar Entrega';
+    
+    // ✅ FIX: Usar un único listener en el contenedor, no acumular por apertura
+    const metodoContainer = document.querySelector('.metodos-pago');
+    if (metodoContainer._radioHandler) {
+      metodoContainer.removeEventListener('change', metodoContainer._radioHandler);
+    }
+    metodoContainer._radioHandler = function() {
+      const checked = document.querySelector('input[name="metodo_pago"]:checked');
+      document.getElementById('btnConfirmarEntrega').disabled = !checked;
+    };
+    metodoContainer.addEventListener('change', metodoContainer._radioHandler);
     
     document.getElementById('modalMetodoPago').style.display = 'flex';
-  }
-
-  function habilitarBotonConfirmar() {
-    const radioSeleccionado = document.querySelector('input[name="metodo_pago"]:checked');
-    const btnConfirmar = document.getElementById('btnConfirmarEntrega');
-    btnConfirmar.disabled = !radioSeleccionado;
   }
 
   function cerrarModalPago() {
     document.getElementById('modalMetodoPago').style.display = 'none';
     window.pedidoSeleccionado = null;
     
+    // ✅ FIX: Limpiar radios y restaurar botón completamente
     const radios = document.querySelectorAll('input[name="metodo_pago"]');
-    radios.forEach(radio => radio.removeEventListener('change', habilitarBotonConfirmar));
+    radios.forEach(radio => { radio.checked = false; });
+    
+    const btnConfirmar = document.getElementById('btnConfirmarEntrega');
+    if (btnConfirmar) {
+      btnConfirmar.disabled = true;
+      btnConfirmar.innerHTML = 'Confirmar Entrega';
+    }
+    
+    const metodoContainer = document.querySelector('.metodos-pago');
+    if (metodoContainer && metodoContainer._radioHandler) {
+      metodoContainer.removeEventListener('change', metodoContainer._radioHandler);
+      metodoContainer._radioHandler = null;
+    }
   }
 
   async function confirmarEntrega() {
@@ -562,7 +606,6 @@ function calcularTotalesPedido(pedido) {
     }
   
     const btnConfirmar = document.getElementById('btnConfirmarEntrega');
-    const textoOriginal = btnConfirmar.innerHTML;
     btnConfirmar.disabled = true;
     btnConfirmar.innerHTML = '⏳ Confirmando...';
   
@@ -579,41 +622,38 @@ function calcularTotalesPedido(pedido) {
         const metodoPagoTexto = metodo.value === 'efectivo' ? 'efectivo' : metodo.value === 'pagado al restaurante' ? 'pagado al restaurante' : 'pago por App';
         mostrarMensaje(`✅ Pedido entregado exitosamente con ${metodoPagoTexto}`);
         
-        // ✅ VERIFICAR SI HAY MÁS PEDIDOS ACTIVOS
-        const usuarioResponse = await window.apiRequest('/api/usuario-actual');
-        const usuarioData = await usuarioResponse.json();
-
-        const pedidosActivosResponse = await window.apiRequest(
-          `/api/pedidos-activos-domiciliario/${usuarioData.id}`
-        );
-        const pedidosActivosData = await pedidosActivosResponse.json();
-        const pedidosActivos = pedidosActivosData.pedidos || [];
-        
-        if (!pedidosActivos || pedidosActivos.length === 0) {
-          console.log('🛑 No hay más pedidos activos - deteniendo servicio');
-          localStorage.removeItem('domiciliario_pedido_activo');
-          localStorage.removeItem('domiciliario_pedido_id');
+        // ✅ Verificar si hay más pedidos activos
+        try {
+          const usuarioResponse = await window.apiRequest('/api/usuario-actual');
+          const usuarioData = await usuarioResponse.json();
+          const pedidosActivosResponse = await window.apiRequest(`/api/pedidos-activos-domiciliario/${usuarioData.id}`);
+          const pedidosActivosData = await pedidosActivosResponse.json();
+          const pedidosActivos = pedidosActivosData.pedidos || [];
           
-          if (window.unifiedGeoService) {
-            await window.unifiedGeoService.stopTracking();
+          if (!pedidosActivos || pedidosActivos.length === 0) {
+            localStorage.removeItem('domiciliario_pedido_activo');
+            localStorage.removeItem('domiciliario_pedido_id');
+            if (window.unifiedGeoService) await window.unifiedGeoService.stopTracking();
           }
-        } else {
-          console.log(`✅ Aún hay ${pedidosActivos.length} pedidos activos - manteniendo servicio`);
-        }
+        } catch (e) { console.warn('Error verificando pedidos activos post-entrega:', e); }
         
         cerrarModalPago();
-        // ✅ Recargar sin delay
         await cargarPedidos();
       } else {
         mostrarMensaje('❌ Error al marcar como entregado', 'error');
-        btnConfirmar.disabled = false;
-        btnConfirmar.innerHTML = textoOriginal;
       }
     } catch (err) {
       console.error('Error:', err);
       mostrarMensaje('❌ Error de conexión', 'error');
-      btnConfirmar.disabled = false;
-      btnConfirmar.innerHTML = textoOriginal;
+    } finally {
+      // ✅ FIX CRÍTICO: Siempre restaurar el botón en finally, pase lo que pase
+      const btn = document.getElementById('btnConfirmarEntrega');
+      if (btn) {
+        btn.innerHTML = 'Confirmar Entrega';
+        // Solo re-habilitar si hay un método seleccionado (modal todavía visible)
+        const checked = document.querySelector('input[name="metodo_pago"]:checked');
+        btn.disabled = !checked;
+      }
     }
   }
 
@@ -682,7 +722,6 @@ function calcularTotalesPedido(pedido) {
     }
   
     const btnConfirmar = document.querySelector('.modal-contenido button[onclick="confirmarNoEntregado()"]');
-    const textoOriginal = btnConfirmar.innerHTML;
     btnConfirmar.disabled = true;
     btnConfirmar.innerHTML = '⏳ Enviando reporte...';
   
@@ -701,38 +740,35 @@ function calcularTotalesPedido(pedido) {
       if (res.ok) {
         mostrarMensaje('✅ Pedido marcado como no entregado - Reporte enviado exitosamente');
         
-        const usuarioResponse = await window.apiRequest('/api/usuario-actual');
-        const usuarioData = await usuarioResponse.json();
-
-        const pedidosActivosResponse = await window.apiRequest(
-          `/api/pedidos-activos-domiciliario/${usuarioData.id}`
-        );
-        const pedidosActivosData = await pedidosActivosResponse.json();
-        const pedidosActivos = pedidosActivosData.pedidos || [];
-        
-        if (!pedidosActivos || pedidosActivos.length === 0) {
-          console.log('🛑 No hay más pedidos activos - deteniendo servicio');
-          localStorage.removeItem('domiciliario_pedido_activo');
-          localStorage.removeItem('domiciliario_pedido_id');
+        try {
+          const usuarioResponse = await window.apiRequest('/api/usuario-actual');
+          const usuarioData = await usuarioResponse.json();
+          const pedidosActivosResponse = await window.apiRequest(`/api/pedidos-activos-domiciliario/${usuarioData.id}`);
+          const pedidosActivosData = await pedidosActivosResponse.json();
+          const pedidosActivos = pedidosActivosData.pedidos || [];
           
-          if (window.unifiedGeoService) {
-            await window.unifiedGeoService.stopTracking();
+          if (!pedidosActivos || pedidosActivos.length === 0) {
+            localStorage.removeItem('domiciliario_pedido_activo');
+            localStorage.removeItem('domiciliario_pedido_id');
+            if (window.unifiedGeoService) await window.unifiedGeoService.stopTracking();
           }
-        }
+        } catch (e) { console.warn('Error verificando pedidos activos post-cancelación:', e); }
         
         cerrarModalProblema();
-        // ✅ Recargar sin delay
         await cargarPedidos();
       } else {
         mostrarMensaje(`❌ Error: ${result.error || 'No se pudo actualizar el estado del pedido'}`, 'error');
-        btnConfirmar.disabled = false;
-        btnConfirmar.innerHTML = textoOriginal;
       }
     } catch (error) {
       console.error('Error al marcar como no entregado:', error);
       mostrarMensaje('❌ Error de conexión. Por favor intenta nuevamente.', 'error');
-      btnConfirmar.disabled = false;
-      btnConfirmar.innerHTML = textoOriginal;
+    } finally {
+      // ✅ FIX CRÍTICO: Siempre restaurar el botón en finally
+      const btn = document.querySelector('.modal-contenido button[onclick="confirmarNoEntregado()"]');
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = 'Confirmar No Entregado';
+      }
     }
   }
 
@@ -1018,19 +1054,45 @@ function calcularTotalesPedido(pedido) {
   }
 
   // ========== CARGAR PEDIDOS ACTIVOS (tab Activos) ==========
+
+  // ✅ Helper: renderizar activos directamente (sin hacer requests)
+  // Se usa cuando cargarPedidos() ya trajo los datos
+  function renderizarPedidosActivosDesdeCache(activos) {
+    const destino = document.getElementById('listaPedidosActivos');
+    if (!destino) return;
+
+    if (!activos || activos.length === 0) {
+      destino.innerHTML = `
+        <div class="no-pedidos">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:48px;height:48px;margin:0 auto 16px;display:block;color:var(--text-muted)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
+          <h3>Sin pedidos activos</h3>
+          <p>Tus pedidos en camino aparecerán aquí</p>
+        </div>`;
+      return;
+    }
+
+    let html = '<div class="pedidos-grid">';
+    activos.forEach(p => {
+      html += generarHtmlPedido(p, true, [], activos.length, true);
+    });
+    html += '</div>';
+    destino.innerHTML = html;
+  }
+
   async function cargarPedidosActivos() {
     const destino = document.getElementById('listaPedidosActivos');
     if (!destino) return;
 
     try {
-      const [resUser, resPedidos] = await Promise.all([
-        window.apiRequest('/api/usuario-actual'),
+      // ✅ OPTIMIZACIÓN: usar cache del usuario + una sola request de pedidos
+      const [usuario, resPedidos] = await Promise.all([
+        cargarUsuario(),
         window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias')
       ]);
 
-      if (!resUser.ok || !resPedidos.ok) throw new Error('Error de API');
+      if (!usuario || !resPedidos.ok) throw new Error('Error de API');
 
-      const [usuario, pedidos] = await Promise.all([resUser.json(), resPedidos.json()]);
+      const pedidos = await resPedidos.json();
 
       // ✅ Actualizar cache para modal instantáneo
       _actualizarCache(pedidos, usuario.id);
@@ -1039,21 +1101,7 @@ function calcularTotalesPedido(pedido) {
         p.estado?.toLowerCase() === 'camino a tu casa' && p.domiciliario_id === usuario.id
       );
 
-      if (activos.length === 0) {
-        destino.innerHTML = `
-          <div class="no-pedidos">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:48px;height:48px;margin:0 auto 16px;display:block;color:var(--text-muted)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
-            <h3>Sin pedidos activos</h3>
-            <p>Tus pedidos en camino aparecerán aquí</p>
-          </div>`;
-      } else {
-        let html = '<div class="pedidos-grid">';
-        activos.forEach(p => {
-          html += generarHtmlPedido(p, true, [], activos.length, true);
-        });
-        html += '</div>';
-        destino.innerHTML = html;
-      }
+      renderizarPedidosActivosDesdeCache(activos);
     } catch (err) {
       console.error('Error cargando pedidos activos:', err);
       destino.innerHTML = `<div class="no-pedidos"><h3>Error al cargar</h3><p>Toca aquí para recargar</p></div>`;
@@ -1232,8 +1280,7 @@ function calcularTotalesPedido(pedido) {
       zoomControl: false
     }).setView([5.0689, -73.8217], 13);
 
-    // ✅ Zoom control a la derecha (no se tapa con controles)
-    L.control.zoom({ position: 'topright' }).addTo(mapaDomiActivo);
+    // ✅ Zoom con dedos (pinch-to-zoom) — botones eliminados en móvil
 
     // ✅ Tile OSM detallado (mismo que mapa_admin)
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
