@@ -1277,7 +1277,12 @@ function calcularTotalesPedido(pedido) {
     // Crear mapa fullscreen con OSM tiles (como mapa_admin)
     mapaDomiActivo = L.map('mapaContainerDomi', {
       attributionControl: false,
-      zoomControl: false
+      zoomControl: false,
+      // ✅ Rotación tipo Google Maps (gesto de 2 dedos)
+      rotate: true,
+      touchRotate: true,
+      rotateMarkers: false,  // los iconos NO rotan, solo el mapa
+      bearing: 0
     }).setView([5.0689, -73.8217], 13);
 
     // ✅ Zoom con dedos (pinch-to-zoom) — botones eliminados en móvil
@@ -1314,7 +1319,11 @@ function calcularTotalesPedido(pedido) {
       if (markerDomi) {
         markerDomi.setLatLng([pos.lat, pos.lon]);
       } else {
-        markerDomi = L.marker([pos.lat, pos.lon], { icon: iconoDomiMapa() }).addTo(mapaDomiActivo);
+        markerDomi = L.marker([pos.lat, pos.lon], {
+          icon: iconoDomiMapa(),
+          rotation: 0,
+          rotateWithView: false  // ✅ no rota con el mapa
+        }).addTo(mapaDomiActivo);
         markerDomi.bindPopup('Tu posicion');
       }
     }
@@ -1434,7 +1443,11 @@ function calcularTotalesPedido(pedido) {
           const lonR = parseFloat(data.ubicacion_restaurante.longitud);
           if (latR && lonR && !isNaN(latR) && !isNaN(lonR) && Math.abs(latR) <= 90 && Math.abs(lonR) <= 180) {
             coordsRestauranteMapa = { lat: latR, lon: lonR };
-            markerRestauranteDomi = L.marker([latR, lonR], { icon: iconoRestauranteMapa() }).addTo(mapaDomiActivo);
+            markerRestauranteDomi = L.marker([latR, lonR], {
+              icon: iconoRestauranteMapa(),
+              rotation: 0,
+              rotateWithView: false  // ✅ no rota con el mapa
+            }).addTo(mapaDomiActivo);
             markerRestauranteDomi.bindPopup(data.nombre_restaurante || 'Restaurante');
           } else {
             // Marcar como intentado para no reintentar
@@ -1450,7 +1463,11 @@ function calcularTotalesPedido(pedido) {
 
           if (latC && lonC && !isNaN(latC) && !isNaN(lonC) && Math.abs(latC) <= 90 && Math.abs(lonC) <= 180) {
             coordsClienteMapa = { lat: latC, lon: lonC };
-            markerClienteDomi = L.marker([latC, lonC], { icon: iconoClienteMapa() }).addTo(mapaDomiActivo);
+            markerClienteDomi = L.marker([latC, lonC], {
+              icon: iconoClienteMapa(),
+              rotation: 0,
+              rotateWithView: false  // ✅ no rota con el mapa
+            }).addTo(mapaDomiActivo);
             markerClienteDomi.bindPopup('Destino del cliente');
           } else {
             // ✅ NO hay coords de cliente (pedido especial o por_zona)
@@ -1500,7 +1517,11 @@ function calcularTotalesPedido(pedido) {
           if (markerDomi) {
             markerDomi.setLatLng([latDomi, lonDomi]);
           } else {
-            markerDomi = L.marker([latDomi, lonDomi], { icon: iconoDomiMapa() }).addTo(mapaDomiActivo);
+            markerDomi = L.marker([latDomi, lonDomi], {
+              icon: iconoDomiMapa(),
+              rotation: 0,
+              rotateWithView: false  // ✅ no rota con el mapa
+            }).addTo(mapaDomiActivo);
             markerDomi.bindPopup('Tu posicion');
           }
         }
