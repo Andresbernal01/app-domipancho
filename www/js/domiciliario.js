@@ -401,11 +401,14 @@ function calcularTotalesPedido(pedido) {
       ? `<span class="card-envio">Envío $${costoEnvioTotal.toLocaleString('es-CO')} (${p.distancia_km} km)</span>`
       : `<span class="card-envio">Envío $${costoEnvioTotal.toLocaleString('es-CO')}</span>`;
    
-    const estadoTexto = esMiPedido ? 'En camino' : 'Disponible';
+    const estadoTexto = esMiPedido 
+      ? (p.pedido_listo_en ? '✅ ¡Listo!' : 'En camino') 
+      : (p.pedido_listo_en ? '🟢 Listo' : '🟡 En preparación');
    
     // Botones
     const botonesHtml = esMiPedido
       ? `<div class="card-btns mi-pedido-btns">
+           ${p.pedido_listo_en ? `<div style="background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; padding:10px 16px; border-radius:10px; font-size:0.9rem; font-weight:700; text-align:center; margin-bottom:8px; animation:pulseGlow 1.5s ease-in-out infinite;">✅ ¡PEDIDO LISTO PARA RECOGER!</div>` : `<div style="background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#fff; padding:8px 16px; border-radius:10px; font-size:0.85rem; font-weight:600; text-align:center; margin-bottom:8px;">🟡 Restaurante preparando pedido...</div>`}
            <button class="cbtn cbtn-det" onclick="abrirDetallesPedido(${p.id}, true)">Ver detalles</button>
            <button class="cbtn cbtn-mapa" onclick="abrirMapaDomiciliario(${p.id})">Ver mapa</button>
            <div class="card-btns-acciones">
@@ -461,6 +464,7 @@ function calcularTotalesPedido(pedido) {
           ${envioHtml}
           ${cuponHtml}
           ${distanciaStr}
+          ${esMiPedido && p.metodo_pago ? `<span class="card-metodo-pago" style="font-size:0.73rem;font-weight:600;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:3px;margin-top:2px;${p.metodo_pago === 'efectivo' ? 'background:rgba(16,185,129,0.1);color:#10b981;' : p.metodo_pago === 'nequi' ? 'background:rgba(139,92,246,0.1);color:#8b5cf6;' : p.metodo_pago === 'transferencia' ? 'background:rgba(59,130,246,0.1);color:#3b82f6;' : 'background:rgba(245,158,11,0.1);color:#f59e0b;'}">${p.metodo_pago === 'efectivo' ? '💵' : p.metodo_pago === 'nequi' ? '📱' : p.metodo_pago === 'transferencia' ? '🏦' : '📲'} Pago: ${p.metodo_pago === 'nequi' ? 'Nequi/Daviplata' : p.metodo_pago === 'pagado al restaurante' ? 'Pagado al restaurante' : p.metodo_pago.charAt(0).toUpperCase() + p.metodo_pago.slice(1)}</span>` : ''}
         </div>
    
         ${botonesHtml}
@@ -561,6 +565,60 @@ function calcularTotalesPedido(pedido) {
     const btnConfirmar = document.getElementById('btnConfirmarEntrega');
     btnConfirmar.disabled = true;
     btnConfirmar.innerHTML = 'Confirmar Entrega';
+    
+    // ✅ PRE-SELECCIONAR el método de pago que eligió el cliente
+    const pedido = _cachePedidos.find(p => p.id === pedidoId);
+    const infoClienteMetodo = document.getElementById('info-metodo-pago-cliente');
+    
+    if (pedido && pedido.metodo_pago) {
+      const metodoCliente = pedido.metodo_pago;
+      const nombresMetodo = {
+        efectivo: '💵 Efectivo',
+        nequi: '📱 Nequi / Daviplata',
+        transferencia: '🏦 Transferencia bancaria',
+        app: '📲 Pago por App',
+        'pagado al restaurante': '🏪 Pagado al restaurante'
+      };
+      
+      // Mostrar banner con lo que eligió el cliente
+      if (infoClienteMetodo) {
+        infoClienteMetodo.style.display = 'block';
+        infoClienteMetodo.innerHTML = `
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:1.1rem;">👤</span>
+            <div>
+              <div style="font-weight:700;font-size:0.82rem;color:#1e293b;">El cliente eligió: ${nombresMetodo[metodoCliente] || metodoCliente}</div>
+              <div style="font-size:0.72rem;color:#94a3b8;">Puedes confirmar o cambiar si el cliente pagó diferente</div>
+            </div>
+          </div>
+        `;
+      }
+      
+      // Mapear método del cliente a las opciones del domiciliario
+      let valorPreseleccionar = null;
+      if (metodoCliente === 'efectivo') {
+        valorPreseleccionar = 'efectivo';
+      } else if (metodoCliente === 'nequi' || metodoCliente === 'transferencia') {
+        valorPreseleccionar = 'app'; // Nequi/Transferencia = Pago por App para el domiciliario
+      } else if (metodoCliente === 'app') {
+        valorPreseleccionar = 'app';
+      } else if (metodoCliente === 'pagado al restaurante') {
+        valorPreseleccionar = 'pagado al restaurante';
+      }
+      
+      if (valorPreseleccionar) {
+        const radioTarget = document.querySelector(`input[name="metodo_pago"][value="${valorPreseleccionar}"]`);
+        if (radioTarget) {
+          radioTarget.checked = true;
+          btnConfirmar.disabled = false;
+        }
+      }
+    } else {
+      // Sin método de pago del cliente (pedido especial, ver_pedidos, etc.)
+      if (infoClienteMetodo) {
+        infoClienteMetodo.style.display = 'none';
+      }
+    }
     
     // ✅ FIX: Usar un único listener en el contenedor, no acumular por apertura
     const metodoContainer = document.querySelector('.metodos-pago');
@@ -924,6 +982,7 @@ function calcularTotalesPedido(pedido) {
 
         <div class="detalle-section">
           <h4>Resumen de pago</h4>
+          ${pedido.metodo_pago ? `<p><strong>Método de pago:</strong> <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;font-size:0.85rem;font-weight:600;background:${pedido.metodo_pago === 'efectivo' ? 'rgba(16,185,129,0.1);color:#10b981' : pedido.metodo_pago === 'nequi' ? 'rgba(139,92,246,0.1);color:#8b5cf6' : pedido.metodo_pago === 'transferencia' ? 'rgba(59,130,246,0.1);color:#3b82f6' : 'rgba(245,158,11,0.1);color:#f59e0b'};">${pedido.metodo_pago === 'efectivo' ? '💵' : pedido.metodo_pago === 'nequi' ? '📱' : pedido.metodo_pago === 'transferencia' ? '🏦' : '📲'} ${pedido.metodo_pago === 'nequi' ? 'Nequi/Daviplata' : pedido.metodo_pago === 'pagado al restaurante' ? 'Pagado al restaurante' : pedido.metodo_pago.charAt(0).toUpperCase() + pedido.metodo_pago.slice(1)}</span></p>` : '<p><strong>Método de pago:</strong> <span style="color:#94a3b8;font-size:0.85rem;">No especificado</span></p>'}
           <p>Subtotal productos: $${totales.subtotalProductos.toLocaleString('es-CO')}</p>
           ${generarDesgloseEnvio(pedido, totales)}
           ${totales.tieneCupon ? `
@@ -1005,8 +1064,14 @@ function calcularTotalesPedido(pedido) {
     });
 
     socketInstance.on('pedido-liberado', () => {
-      // ✅ Sin delay
       cargarPedidos();
+    });
+
+    // ✅ NUEVO: Pedido marcado como listo por restaurante
+    socketInstance.on('pedido-listo-domiciliario', (data) => {
+      console.log('✅ Pedido LISTO:', data);
+      cargarPedidos();
+      mostrarMensaje(`✅ ¡Pedido #${data.pedidoId} de ${data.restaurante || 'Restaurante'} está LISTO para recoger!`);
     });
   }
 

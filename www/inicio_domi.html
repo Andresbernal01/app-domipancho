@@ -56,6 +56,11 @@
       cursor: pointer;
     }
 
+    @keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 5px rgba(34,197,94,0.4); }
+  50% { box-shadow: 0 0 20px rgba(34,197,94,0.8); }
+}
+
     /* ✅ MAPA FULLSCREEN */
     .modal-mapa-fullscreen {
       position: fixed;
@@ -334,8 +339,11 @@
           <li><strong>Total Efectivo:</strong> Dinero cobrado en efectivo por entregas</li>
           <li><strong>Total App:</strong> Pagos digitales procesados por la plataforma</li>
           <li><strong>Pagado al Restaurante:</strong> El cliente ya pagó directamente en el restaurante</li>
-          <li><strong>Comisión DomiPancho (20%):</strong> Porcentaje que se le cobra al domiciliario sobre el costo del domicilio</li>
+          <li><strong>Plataforma vs Directo:</strong> Los pedidos "plataforma" (domipancho.com) cobran tarifa DomiPancho. Los pedidos "directo" (link del restaurante) no la cobran</li>
+          <li><strong>Tarifa DomiPancho:</strong> Monto cobrado al cliente en pedidos de plataforma. Esta plata es de DomiPancho, no del domiciliario</li>
+          <li><strong>Comisión DomiPancho (20%):</strong> Porcentaje que se cobra sobre el costo del domicilio</li>
           <li><strong>Tu Ganancia:</strong> Costo del domicilio menos la comisión de DomiPancho</li>
+          <li><strong>Debes a DomiPancho:</strong> Comisión 20% + tarifa DomiPancho recaudada. Es el total que debes entregar</li>
         </ul>
       </div>
     </div>
@@ -499,8 +507,9 @@
     <div class="modal-contenido">
       <h2 style="display:flex;align-items:center;gap:8px;">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:18px;height:18px;color:var(--accent)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-        Método de Pago
+        Confirmar Método de Pago
       </h2>
+      <div id="info-metodo-pago-cliente" style="display:none;background:linear-gradient(135deg,rgba(59,130,246,0.08),rgba(139,92,246,0.06));border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;"></div>
       <div class="metodos-pago">
         <label><input type="radio" name="metodo_pago" value="efectivo"><span>Efectivo</span></label>
         <label><input type="radio" name="metodo_pago" value="app"><span>Pago por App (QR)</span></label>
@@ -810,10 +819,18 @@
     const html = pedidos.map(p => {
       const t = calcularTotalesHist(p);
       const ok = p.estado === 'entregado';
+      const origenPedido = p.origen_pedido || (p.tipo_pedido_especial ? 'especial' : (t.tarifaDomiPancho > 0 ? 'plataforma' : 'directo'));
+      const BADGES = {
+        directo: '<span style="font-size:0.7em;background:#6366f1;color:#fff;padding:2px 6px;border-radius:4px;margin-left:6px;">Directo</span>',
+        plataforma: '<span style="font-size:0.7em;background:#f59e0b;color:#fff;padding:2px 6px;border-radius:4px;margin-left:6px;">Plataforma</span>',
+        especial: '<span style="font-size:0.7em;background:#ec4899;color:#fff;padding:2px 6px;border-radius:4px;margin-left:6px;">Especial</span>',
+        manual: '<span style="font-size:0.7em;background:#14b8a6;color:#fff;padding:2px 6px;border-radius:4px;margin-left:6px;">Manual</span>'
+      };
+      const origenBadge = BADGES[origenPedido] || BADGES.plataforma;
       return `
         <div class="historial-card ${ok ? '' : 'cancelado'}">
           <div class="pedido-header-compacto ${ok ? 'entregado' : 'cancelado'}">
-            <h3>${p.nombre} ${p.apellido}</h3>
+            <h3>${p.nombre} ${p.apellido}${origenBadge}</h3>
             <div class="estado-compacto">${ok ? 'Entregado' : 'No Entregado'}</div>
           </div>
           <div class="info-esencial">
@@ -918,10 +935,12 @@
           <div class="contab-item app"><h4>App</h4><div class="valor">$${d.total_app.toLocaleString('es-CO')}</div><div class="descripcion">Pagos digitales</div></div>
           ${d.total_pagado_restaurante > 0 ? `<div class="contab-item" style="border-left:3px solid #8b5cf6;"><h4>Pagado Rest.</h4><div class="valor" style="color:#8b5cf6;">$${d.total_pagado_restaurante.toLocaleString('es-CO')}</div><div class="descripcion">Cliente pagó en restaurante</div></div>` : ''}
           <div class="contab-item total"><h4>Total Recaudado</h4><div class="valor">$${d.total.toLocaleString('es-CO')}</div><div class="descripcion">${d.total_pedidos} entregas del día</div></div>
-          <div class="contab-item pedidos"><h4>Pedidos</h4><div class="valor">${d.total_pedidos}</div><div class="descripcion">Entregas del día</div></div>
+          <div class="contab-item pedidos"><h4>Pedidos</h4><div class="valor">${d.total_pedidos}</div><div class="descripcion">${d.pedidos_con_tarifa || 0} plataforma · ${d.pedidos_sin_tarifa || 0} directo${(d.pedidos_especial || 0) > 0 ? ` · ${d.pedidos_especial} especial` : ''}${(d.pedidos_manual || 0) > 0 ? ` · ${d.pedidos_manual} manual` : ''}</div></div>
           <div class="contab-item" style="border-left:3px solid var(--accent);"><h4>Domicilios Ganados</h4><div class="valor" style="color:var(--accent);">$${d.total_domicilios.toLocaleString('es-CO')}</div><div class="descripcion">Total en costos de domicilio</div></div>
           <div class="contab-item pago" style="border-left:3px solid var(--danger);"><h4>Comisión DomiPancho</h4><div class="valor" style="color:var(--danger);">$${d.comision_domipancho.toLocaleString('es-CO')}</div><div class="descripcion">20% de los domicilios</div></div>
+          ${(d.total_tarifa_domipancho || 0) > 0 ? `<div class="contab-item" style="border-left:3px solid #f59e0b;"><h4>Tarifa DomiPancho</h4><div class="valor" style="color:#f59e0b;">$${d.total_tarifa_domipancho.toLocaleString('es-CO')}</div><div class="descripcion">Recaudada de ${d.pedidos_con_tarifa || 0} pedidos plataforma · $${(d.tarifa_recaudada_efectivo || 0).toLocaleString('es-CO')} a devolver</div></div>` : ''}
           <div class="contab-item sueldo"><h4>Tu Ganancia</h4><div class="valor">$${d.ganancia_domiciliario.toLocaleString('es-CO')}</div><div class="descripcion">80% de $${d.total_domicilios.toLocaleString('es-CO')} en domicilios</div></div>
+          <div class="contab-item" style="border-left:3px solid #ef4444; background:rgba(239,68,68,0.06);"><h4>Debes a DomiPancho</h4><div class="valor" style="color:#ef4444; font-size:1.3em;">$${(d.deuda_domipancho || d.comision_domipancho).toLocaleString('es-CO')}</div><div class="descripcion">Comisión${(d.tarifa_recaudada_efectivo || 0) > 0 ? ` ($${d.comision_domipancho.toLocaleString('es-CO')}) + Tarifa ($${d.tarifa_recaudada_efectivo.toLocaleString('es-CO')})` : ` 20% domicilios`}</div></div>
         </div>`;
     } catch (err) {
       document.getElementById('resumenContabilidad').innerHTML = '<div class="error"><h3>Error al cargar datos</h3><p>No se pudieron cargar los datos contables.</p></div>';

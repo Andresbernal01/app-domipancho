@@ -158,8 +158,8 @@
 
       // Detectar nuevos pedidos disponibles
       const disponiblesNuevos = pedidosNuevos.filter(p => 
-        p.estado === 'esperando repartidor' &&
-        !this.lastPedidosState.some(old => old.id === p.id && old.estado === 'esperando repartidor')
+        (p.estado === 'esperando repartidor' || p.estado === 'pedido_listo') &&
+        !this.lastPedidosState.some(old => old.id === p.id && (old.estado === 'esperando repartidor' || old.estado === 'pedido_listo'))
       );
 
       // Detectar pedidos que cambiaron de estado
@@ -194,7 +194,7 @@
         
         if (!pedidoNuevo) return true;
         
-        if (viejo.estado === 'esperando repartidor' && pedidoNuevo.estado !== 'esperando repartidor') {
+        if (viejo.estado === 'esperando repartidor' && pedidoNuevo.estado !== 'esperando repartidor' && pedidoNuevo.estado !== 'pedido_listo') {
           if (pedidoNuevo.domiciliario_id === usuarioId) {
             console.log(`✋ Pedido ${pedidoNuevo.id} es mío, NO remover`);
             return false;

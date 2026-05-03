@@ -230,29 +230,38 @@ class FCMNotificationService {
       if (data.tipo === 'nuevo_pedido') {
         console.log('⚡ Nuevo pedido via FCM');
         
-        // ✅ Recargar lista inmediatamente
-        if (window.socketMockInstance) {
-          window.socketMockInstance.forceCheck();
-        }
-        if (typeof window.cargarPedidos === 'function') {
-          window.cargarPedidos();
-        }
+        if (window.socketMockInstance) window.socketMockInstance.forceCheck();
+        if (typeof window.cargarPedidos === 'function') window.cargarPedidos();
 
-        // ✅ LÓGICA DE SONIDO SEGÚN DISPONIBILIDAD
         if (this.disponible) {
-          // DISPONIBLE: Alarma persistente (repetida) para no perder el pedido
           this.reproducirAlarma();
           console.log('🔔 Alarma persistente activada (domiciliario disponible)');
         } else {
-          // NO DISPONIBLE: Solo sonido suave informativo (1 vez)
           if (this.notificacionesActivas) {
             this.reproducirSonidoSuave();
             console.log('🔕 Sonido suave (domiciliario no disponible)');
           }
         }
         
-        // ✅ Mostrar banner en la app
         this.mostrarNotificacionEnApp(notification, this.disponible);
+        return;
+      }
+
+      // ✅ PEDIDO LISTO - Restaurante marcó pedido como listo para recoger
+      if (data.tipo === 'pedido_listo') {
+        console.log('✅ Pedido listo via FCM:', data.pedidoId);
+        
+        if (window.socketMockInstance) window.socketMockInstance.forceCheck();
+        if (typeof window.cargarPedidos === 'function') window.cargarPedidos();
+
+        // Alarma persistente
+        this.reproducirAlarma();
+        
+        this.mostrarNotificacionEnApp({
+          title: '✅ ¡Pedido Listo!',
+          body: `Pedido #${data.pedidoId} de ${data.restaurante || 'Restaurante'} está listo para recoger`,
+          data: data
+        }, true);
         return;
       }
       
