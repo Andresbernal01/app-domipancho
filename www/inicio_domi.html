@@ -18,6 +18,37 @@
   <script src="js/inactividad.js"></script>
   <link rel="stylesheet" href="css/inicio.css">
   <style>
+    /* ✅ Card status banners — compact */
+    .card-estado-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: 0.01em;
+    }
+    .card-estado-listo {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff;
+      animation: pulseGlow 1.5s ease-in-out infinite;
+    }
+    .card-estado-preparando {
+      background: rgba(245,158,11,0.12);
+      color: #f59e0b;
+      border: 1px solid rgba(245,158,11,0.3);
+    }
+    /* ✅ Fila de botones info (Ver detalles + Ver mapa) */
+    .card-btns-info {
+      display: flex;
+      gap: 5px;
+      width: 100%;
+      margin-bottom: 5px;
+    }
+    .card-btns-info .cbtn { flex: 1 1 0; min-width: 0; }
     /* ✅ Animación para banner de notificación */
     @keyframes slideDown {
       from { opacity: 0; transform: translateY(-30px); }
@@ -302,10 +333,18 @@
 
     <!-- Sub-page: Historial -->
     <div id="subpage-historial" class="finanzas-subpage active">
-      <div class="filtro-fecha-row" style="margin-top:12px;">
-        <label>Fecha:</label>
-        <input type="date" id="fechaFiltro" onchange="filtrarPorFecha()">
+      <div class="fecha-controls" style="margin-top:12px;">
+        <button class="btn-fecha" onclick="cambiarDiaHistorial(-1)">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;display:inline;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          Anterior
+        </button>
+        <div class="fecha-actual" id="fechaHistorialTexto">Hoy</div>
+        <button class="btn-fecha" id="btnSiguienteHistorial" onclick="cambiarDiaHistorial(1)">
+          Siguiente
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;display:inline;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
       </div>
+      <input type="date" id="fechaFiltro" style="display:none;" onchange="filtrarPorFecha()">
       <div id="tituloFecha" class="titulo-fecha"></div>
       <div id="resumenHoy" class="resumen-grid"></div>
       <div id="listaEntregas" class="loading">
@@ -749,15 +788,44 @@
   // ============================================================
   let pedidosHistorialGlobal = [];
   let historialCargado = false;
+  let fechaHistorialActual = null; // tracks current date for arrow nav
 
   function initHistorial() {
     const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+    fechaHistorialActual = hoy;
     document.getElementById('fechaFiltro').value = hoy;
+    _actualizarBtnSiguienteHistorial();
     cargarHistorial(hoy);
+  }
+
+  function _actualizarBtnSiguienteHistorial() {
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+    const btn = document.getElementById('btnSiguienteHistorial');
+    if (btn) {
+      btn.disabled = fechaHistorialActual >= hoy;
+      btn.style.opacity = fechaHistorialActual >= hoy ? '0.4' : '1';
+      btn.style.pointerEvents = fechaHistorialActual >= hoy ? 'none' : 'auto';
+    }
+  }
+
+  function cambiarDiaHistorial(delta) {
+    if (!fechaHistorialActual) return;
+    const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+    const [a, m, d] = fechaHistorialActual.split('-');
+    const date = new Date(`${a}-${m}-${d}T12:00:00-05:00`);
+    date.setDate(date.getDate() + delta);
+    const nueva = date.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+    if (delta > 0 && nueva > hoy) return;
+    fechaHistorialActual = nueva;
+    document.getElementById('fechaFiltro').value = nueva;
+    _actualizarBtnSiguienteHistorial();
+    cargarHistorial(nueva);
   }
 
   function filtrarPorFecha() {
     const filtro = document.getElementById('fechaFiltro').value;
+    fechaHistorialActual = filtro;
+    _actualizarBtnSiguienteHistorial();
     cargarHistorial(filtro);
   }
 
@@ -796,15 +864,19 @@
       renderizarHistorial(pedidos);
       mostrarResumenHist(pedidos);
 
+      const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
       let titulo = 'Historial de Entregas';
+      let fechaNavTexto = 'Hoy';
       if (fechaFiltro) {
         const [a, m, d] = fechaFiltro.split('-');
         const fecha = new Date(`${a}-${m}-${d}T00:00:00-05:00`);
         const local = fecha.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
         titulo = (fechaFiltro === hoy) ? `Pedidos Hoy — ${local}` : `Pedidos del ${local}`;
+        fechaNavTexto = fechaFiltro === hoy ? 'Hoy' : fecha.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
       }
       document.getElementById('tituloFecha').textContent = titulo;
+      const fechaNavEl = document.getElementById('fechaHistorialTexto');
+      if (fechaNavEl) fechaNavEl.textContent = fechaNavTexto;
     } catch (err) {
       console.error('Error historial:', err);
       document.getElementById('listaEntregas').innerHTML = '<div class="error"><h3>Error al cargar historial</h3><p>Intenta recargar.</p></div>';

@@ -27,10 +27,16 @@
   };
 
 
+  const TIPO_ESPECIAL_ICONS = {
+    restaurante_externo: `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>`,
+    encomienda:          `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>`,
+    compra_encargo:      `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/></svg>`
+  };
+
   const TIPO_ESPECIAL_CONFIG = {
-    restaurante_externo: { emoji: '🍔', label: 'Rest. Externo', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-    encomienda:          { emoji: '📦', label: 'Encomienda',    color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
-    compra_encargo:      { emoji: '🛒', label: 'Compra Encargo', color: '#06b6d4', bg: 'rgba(6,182,212,0.12)'  }
+    restaurante_externo: { icon: TIPO_ESPECIAL_ICONS.restaurante_externo, label: 'Rest. Externo', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
+    encomienda:          { icon: TIPO_ESPECIAL_ICONS.encomienda,          label: 'Encomienda',    color: '#8b5cf6', bg: 'rgba(139,92,246,0.12)' },
+    compra_encargo:      { icon: TIPO_ESPECIAL_ICONS.compra_encargo,      label: 'Compra Encargo', color: '#06b6d4', bg: 'rgba(6,182,212,0.12)'  }
   };
 
   // ========== UTILIDADES ==========
@@ -356,8 +362,8 @@ function calcularTotalesPedido(pedido) {
    
     // Badge de pedido especial
     const badgeEspecial = configEsp
-      ? `<div class="badge-especial" style="background:${configEsp.bg}; color:${configEsp.color}; padding:3px 10px; border-radius:8px; font-size:0.72rem; font-weight:700; display:inline-flex; align-items:center; gap:4px; margin-bottom:6px; border:1px solid ${configEsp.color}30;">
-           ${configEsp.emoji} ${configEsp.label}
+      ? `<div class="badge-especial" style="background:${configEsp.bg}; color:${configEsp.color}; padding:2px 8px; border-radius:6px; font-size:0.7rem; font-weight:700; display:inline-flex; align-items:center; gap:3px; margin-bottom:6px; border:1px solid ${configEsp.color}30;">
+           ${configEsp.icon} ${configEsp.label}
          </div>`
       : '';
    
@@ -402,15 +408,25 @@ function calcularTotalesPedido(pedido) {
       : `<span class="card-envio">Envío $${costoEnvioTotal.toLocaleString('es-CO')}</span>`;
    
     const estadoTexto = esMiPedido 
-      ? (p.pedido_listo_en ? '✅ ¡Listo!' : 'En camino') 
-      : (p.pedido_listo_en ? '🟢 Listo' : '🟡 En preparación');
+      ? (p.pedido_listo_en 
+          ? `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:10px;height:10px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> ¡Listo!` 
+          : `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:10px;height:10px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg> En camino`) 
+      : (p.pedido_listo_en 
+          ? `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:10px;height:10px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg> Listo` 
+          : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:10px;height:10px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Preparando`);
    
     // Botones
+    const ICON_CHECK = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>`;
+    const ICON_CLOCK = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
     const botonesHtml = esMiPedido
       ? `<div class="card-btns mi-pedido-btns">
-           ${p.pedido_listo_en ? `<div style="background:linear-gradient(135deg,#22c55e,#16a34a); color:#fff; padding:10px 16px; border-radius:10px; font-size:0.9rem; font-weight:700; text-align:center; margin-bottom:8px; animation:pulseGlow 1.5s ease-in-out infinite;">✅ ¡PEDIDO LISTO PARA RECOGER!</div>` : `<div style="background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#fff; padding:8px 16px; border-radius:10px; font-size:0.85rem; font-weight:600; text-align:center; margin-bottom:8px;">🟡 Restaurante preparando pedido...</div>`}
-           <button class="cbtn cbtn-det" onclick="abrirDetallesPedido(${p.id}, true)">Ver detalles</button>
-           <button class="cbtn cbtn-mapa" onclick="abrirMapaDomiciliario(${p.id})">Ver mapa</button>
+           ${p.pedido_listo_en 
+             ? `<div class="card-estado-banner card-estado-listo">${ICON_CHECK} ¡Listo para recoger!</div>` 
+             : `<div class="card-estado-banner card-estado-preparando">${ICON_CLOCK} Restaurante preparando...</div>`}
+           <div class="card-btns-info">
+             <button class="cbtn cbtn-det" onclick="abrirDetallesPedido(${p.id}, true)">Ver detalles</button>
+             <button class="cbtn cbtn-mapa" onclick="abrirMapaDomiciliario(${p.id})">Ver mapa</button>
+           </div>
            <div class="card-btns-acciones">
              <button class="cbtn cbtn-lib"  onclick="abrirModalLiberar(${p.id})">Liberar</button>
              <button class="cbtn cbtn-ok"   onclick="abrirModalPago(${p.id})">Entregar</button>
@@ -464,7 +480,7 @@ function calcularTotalesPedido(pedido) {
           ${envioHtml}
           ${cuponHtml}
           ${distanciaStr}
-          ${esMiPedido && p.metodo_pago ? `<span class="card-metodo-pago" style="font-size:0.73rem;font-weight:600;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:3px;margin-top:2px;${p.metodo_pago === 'efectivo' ? 'background:rgba(16,185,129,0.1);color:#10b981;' : p.metodo_pago === 'nequi' ? 'background:rgba(139,92,246,0.1);color:#8b5cf6;' : p.metodo_pago === 'transferencia' ? 'background:rgba(59,130,246,0.1);color:#3b82f6;' : 'background:rgba(245,158,11,0.1);color:#f59e0b;'}">${p.metodo_pago === 'efectivo' ? '💵' : p.metodo_pago === 'nequi' ? '📱' : p.metodo_pago === 'transferencia' ? '🏦' : '📲'} Pago: ${p.metodo_pago === 'nequi' ? 'Nequi/Daviplata' : p.metodo_pago === 'pagado al restaurante' ? 'Pagado al restaurante' : p.metodo_pago.charAt(0).toUpperCase() + p.metodo_pago.slice(1)}</span>` : ''}
+          ${esMiPedido && p.metodo_pago ? `<span class="card-metodo-pago" style="font-size:0.73rem;font-weight:600;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;margin-top:2px;${p.metodo_pago === 'efectivo' ? 'background:rgba(16,185,129,0.1);color:#10b981;' : p.metodo_pago === 'nequi' ? 'background:rgba(139,92,246,0.1);color:#8b5cf6;' : p.metodo_pago === 'transferencia' ? 'background:rgba(59,130,246,0.1);color:#3b82f6;' : 'background:rgba(245,158,11,0.1);color:#f59e0b;'}">${p.metodo_pago === 'efectivo' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' : p.metodo_pago === 'nequi' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>' : p.metodo_pago === 'transferencia' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>'} ${p.metodo_pago === 'nequi' ? 'Nequi/Daviplata' : p.metodo_pago === 'pagado al restaurante' ? 'Pagado al rest.' : p.metodo_pago.charAt(0).toUpperCase() + p.metodo_pago.slice(1)}</span>` : ''}
         </div>
    
         ${botonesHtml}
@@ -573,11 +589,11 @@ function calcularTotalesPedido(pedido) {
     if (pedido && pedido.metodo_pago) {
       const metodoCliente = pedido.metodo_pago;
       const nombresMetodo = {
-        efectivo: '💵 Efectivo',
-        nequi: '📱 Nequi / Daviplata',
-        transferencia: '🏦 Transferencia bancaria',
-        app: '📲 Pago por App',
-        'pagado al restaurante': '🏪 Pagado al restaurante'
+        efectivo: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg> Efectivo',
+        nequi: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg> Nequi / Daviplata',
+        transferencia: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg> Transferencia bancaria',
+        app: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg> Pago por App',
+        'pagado al restaurante': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg> Pagado al restaurante'
       };
       
       // Mostrar banner con lo que eligió el cliente
@@ -963,10 +979,10 @@ function calcularTotalesPedido(pedido) {
         <div class="detalle-section">
           <h4>Origen — ${pedido.tipo_pedido_especial ? (pedido.origen_especial || 'Origen especial') : (pedido.restaurantes?.nombre || 'Restaurante')}</h4>
           <p>${pedido.tipo_pedido_especial ? (pedido.origen_especial || 'Sin dirección') : (pedido.restaurantes?.direccion || 'Sin direccion registrada')}</p>
-          ${pedido.tipo_pedido_especial && pedido.telefono_origen_especial ? `<p>📞 Tel: <a href="tel:${pedido.telefono_origen_especial}" style="color:#f59e0b;text-decoration:none;">${pedido.telefono_origen_especial}</a></p>` : ''}
+          ${pedido.tipo_pedido_especial && pedido.telefono_origen_especial ? `<p><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;color:#f59e0b;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg> Tel: <a href="tel:${pedido.telefono_origen_especial}" style="color:#f59e0b;text-decoration:none;">${pedido.telefono_origen_especial}</a></p>` : ''}
           ${!pedido.tipo_pedido_especial && pedido.restaurantes?.telefono ? `<p>Tel: ${pedido.restaurantes.telefono}</p>` : ''}
-          ${pedido.tipo_pedido_especial && pedido.descripcion_especial ? `<p style="margin-top:6px;color:#94a3b8;font-size:0.85rem;">📋 ${pedido.descripcion_especial}</p>` : ''}
-          ${pedido.tipo_pedido_especial && pedido.notas_especial ? `<p style="font-style:italic;color:#64748b;font-size:0.82rem;">📝 ${pedido.notas_especial}</p>` : ''}
+          ${pedido.tipo_pedido_especial && pedido.descripcion_especial ? `<p style="margin-top:6px;color:#94a3b8;font-size:0.85rem;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> ${pedido.descripcion_especial}</p>` : ''}
+          ${pedido.tipo_pedido_especial && pedido.notas_especial ? `<p style="font-style:italic;color:#64748b;font-size:0.82rem;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> ${pedido.notas_especial}</p>` : ''}
         </div>
 
         <div class="detalle-section">
@@ -982,7 +998,7 @@ function calcularTotalesPedido(pedido) {
 
         <div class="detalle-section">
           <h4>Resumen de pago</h4>
-          ${pedido.metodo_pago ? `<p><strong>Método de pago:</strong> <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;font-size:0.85rem;font-weight:600;background:${pedido.metodo_pago === 'efectivo' ? 'rgba(16,185,129,0.1);color:#10b981' : pedido.metodo_pago === 'nequi' ? 'rgba(139,92,246,0.1);color:#8b5cf6' : pedido.metodo_pago === 'transferencia' ? 'rgba(59,130,246,0.1);color:#3b82f6' : 'rgba(245,158,11,0.1);color:#f59e0b'};">${pedido.metodo_pago === 'efectivo' ? '💵' : pedido.metodo_pago === 'nequi' ? '📱' : pedido.metodo_pago === 'transferencia' ? '🏦' : '📲'} ${pedido.metodo_pago === 'nequi' ? 'Nequi/Daviplata' : pedido.metodo_pago === 'pagado al restaurante' ? 'Pagado al restaurante' : pedido.metodo_pago.charAt(0).toUpperCase() + pedido.metodo_pago.slice(1)}</span></p>` : '<p><strong>Método de pago:</strong> <span style="color:#94a3b8;font-size:0.85rem;">No especificado</span></p>'}
+          ${pedido.metodo_pago ? `<p><strong>Método de pago:</strong> <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;font-size:0.85rem;font-weight:600;background:${pedido.metodo_pago === 'efectivo' ? 'rgba(16,185,129,0.1);color:#10b981' : pedido.metodo_pago === 'nequi' ? 'rgba(139,92,246,0.1);color:#8b5cf6' : pedido.metodo_pago === 'transferencia' ? 'rgba(59,130,246,0.1);color:#3b82f6' : 'rgba(245,158,11,0.1);color:#f59e0b'};">${pedido.metodo_pago === 'efectivo' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' : pedido.metodo_pago === 'nequi' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>' : pedido.metodo_pago === 'transferencia' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>'} ${pedido.metodo_pago === 'nequi' ? 'Nequi/Daviplata' : pedido.metodo_pago === 'pagado al restaurante' ? 'Pagado al restaurante' : pedido.metodo_pago.charAt(0).toUpperCase() + pedido.metodo_pago.slice(1)}</span></p>` : '<p><strong>Método de pago:</strong> <span style="color:#94a3b8;font-size:0.85rem;">No especificado</span></p>'}
           <p>Subtotal productos: $${totales.subtotalProductos.toLocaleString('es-CO')}</p>
           ${generarDesgloseEnvio(pedido, totales)}
           ${totales.tieneCupon ? `
