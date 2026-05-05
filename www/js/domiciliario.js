@@ -67,7 +67,7 @@
     if (contadorEl) contadorEl.textContent = cantidad;
     if (contadorContainer) {
       contadorContainer.className = 'pedidos-activos-contador';
-      if (cantidad >= 2) contadorContainer.classList.add('limite-alcanzado');
+      if (cantidad >= 3) contadorContainer.classList.add('limite-alcanzado');
       else if (cantidad === 1) contadorContainer.classList.add('limite-cerca');
     }
   }
@@ -300,8 +300,8 @@ function calcularTotalesPedido(pedido) {
     
     if (!Array.isArray(pedidosDisponibles) || pedidosDisponibles.length === 0) {
       if (disponible) {
-        contenedor.innerHTML = misActivos.length >= 2 
-          ? '<div class="no-pedidos"><h3>🚛 Tienes el máximo de pedidos (2/2)</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>'
+        contenedor.innerHTML = misActivos.length >= 3 
+          ? '<div class="no-pedidos"><h3>🚛 Tienes el máximo de pedidos (3/3)</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>'
           : '<div class="no-pedidos"><h3>🎯 No hay pedidos disponibles</h3><p>Actualmente no hay pedidos disponibles en tu ciudad. ¡Mantente atento!</p></div>';
       } else {
         contenedor.innerHTML = '<div class="no-pedidos"><h3>🔴 No Disponible</h3><p>No hay pedidos esperando repartidor en tu ciudad actualmente.</p><p><strong>Activa "Disponible"</strong> para empezar a recibir pedidos.</p></div>';
@@ -318,10 +318,11 @@ function calcularTotalesPedido(pedido) {
           <p>Estás viendo todos los pedidos de tu ciudad. <strong>Activa "Disponible"</strong> en el inicio para poder tomarlos.</p>
         </div>
       `;
-    } else if (misActivos.length >= 2) {
-      htmlContent += '<div class="alerta limite-alcanzado"><h3>🚛 Máximo de pedidos alcanzado (2/2)</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>';
-    } else if (misActivos.length === 1) {
-      htmlContent += '<div class="alerta advertencia-limite"><h3>⚠️ Puedes tomar 1 pedido más (1/2)</h3><p>Tienes espacio para un pedido adicional.</p></div>';
+    } else if (misActivos.length >= 3) {
+      htmlContent += '<div class="alerta limite-alcanzado"><h3>🚛 Máximo de pedidos alcanzado (3/3)</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>';
+    } else if (misActivos.length >= 1) {
+      const restantes = 3 - misActivos.length;
+      htmlContent += `<div class="alerta advertencia-limite"><h3>⚠️ Puedes tomar ${restantes} pedido${restantes > 1 ? 's' : ''} más (${misActivos.length}/3)</h3><p>Tienes espacio para ${restantes > 1 ? 'pedidos adicionales' : 'un pedido adicional'}.</p></div>`;
     }
   
     const pedidosOrdenados = [...pedidosDisponibles].sort((a, b) =>
@@ -495,7 +496,7 @@ function calcularTotalesPedido(pedido) {
       if (!disponible) {
         return `<button class="cbtn cbtn-nd" disabled>No disponible</button>`;
       }
-      const off = cantidadActivos >= 2;
+      const off = cantidadActivos >= 3;
       return `<button class="cbtn cbtn-tomar" onclick="tomarPedido(${pedido.id})" ${off ? 'disabled' : ''}>${off ? 'Limite alcanzado' : 'Tomar pedido'}</button>`;
     }
     return '';
@@ -521,8 +522,8 @@ function calcularTotalesPedido(pedido) {
       console.error('Error verificando disponibilidad:', error);
     }
     
-    if (pedidosActivosGlobal >= 2) {
-      mostrarMensaje('❌No puedes tomar más pedidos. Máximo 2 pedidos activos permitidos.', 'error');
+    if (pedidosActivosGlobal >= 3) {
+      mostrarMensaje('❌No puedes tomar más pedidos. Máximo 3 pedidos activos permitidos.', 'error');
       return;
     }
   
@@ -585,14 +586,14 @@ function calcularTotalesPedido(pedido) {
     // ✅ PRE-SELECCIONAR el método de pago que eligió el cliente
     const pedido = _cachePedidos.find(p => p.id === pedidoId);
     const infoClienteMetodo = document.getElementById('info-metodo-pago-cliente');
-    
+
     if (pedido && pedido.metodo_pago) {
       const metodoCliente = pedido.metodo_pago;
       const nombresMetodo = {
         efectivo: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg> Efectivo',
         nequi: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg> Nequi / Daviplata',
         transferencia: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg> Transferencia bancaria',
-        app: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg> Pago por App',
+        datafono: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Datáfono (tarjeta)',
         'pagado al restaurante': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg> Pagado al restaurante'
       };
       
@@ -610,17 +611,16 @@ function calcularTotalesPedido(pedido) {
         `;
       }
       
-      // Mapear método del cliente a las opciones del domiciliario
-      let valorPreseleccionar = null;
-      if (metodoCliente === 'efectivo') {
-        valorPreseleccionar = 'efectivo';
-      } else if (metodoCliente === 'nequi' || metodoCliente === 'transferencia') {
-        valorPreseleccionar = 'app'; // Nequi/Transferencia = Pago por App para el domiciliario
-      } else if (metodoCliente === 'app') {
-        valorPreseleccionar = 'app';
-      } else if (metodoCliente === 'pagado al restaurante') {
-        valorPreseleccionar = 'pagado al restaurante';
-      }
+      // ✅ Mapeo directo 1-a-1 — cada método del cliente corresponde al mismo en el domiciliario
+      const mapeoMetodos = {
+        efectivo: 'efectivo',
+        nequi: 'nequi',
+        transferencia: 'transferencia',
+        datafono: 'datafono',
+        app: 'nequi', // legado: "app" antiguo → nequi
+        'pagado al restaurante': 'pagado al restaurante'
+      };
+      const valorPreseleccionar = mapeoMetodos[metodoCliente] || null;
       
       if (valorPreseleccionar) {
         const radioTarget = document.querySelector(`input[name="metodo_pago"][value="${valorPreseleccionar}"]`);
@@ -693,7 +693,14 @@ function calcularTotalesPedido(pedido) {
       const result = await res.json();
       
       if (res.ok) {
-        const metodoPagoTexto = metodo.value === 'efectivo' ? 'efectivo' : metodo.value === 'pagado al restaurante' ? 'pagado al restaurante' : 'pago por App';
+        const textoMetodo = {
+          efectivo: 'efectivo',
+          nequi: 'Nequi / Daviplata',
+          transferencia: 'transferencia bancaria',
+          datafono: 'datáfono',
+          'pagado al restaurante': 'pagado al restaurante'
+        };
+        const metodoPagoTexto = textoMetodo[metodo.value] || metodo.value;
         mostrarMensaje(`✅ Pedido entregado exitosamente con ${metodoPagoTexto}`);
         
         // ✅ Verificar si hay más pedidos activos
@@ -1152,8 +1159,11 @@ function calcularTotalesPedido(pedido) {
       return;
     }
 
+    // ✅ Ordenar: el pedido que se tomó primero va arriba
+    const activosOrdenados = [...activos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+
     let html = '<div class="pedidos-grid">';
-    activos.forEach(p => {
+    activosOrdenados.forEach(p => {
       html += generarHtmlPedido(p, true, [], activos.length, true);
     });
     html += '</div>';
