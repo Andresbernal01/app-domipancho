@@ -21,6 +21,7 @@
     'pendiente': 'pendiente',
     'en preparacion': 'en-preparacion',
     'esperando repartidor': 'esperando-repartidor',
+    'preparando pedido': 'preparando-pedido',
     'camino a tu casa': 'camino',
     'entregado': 'entregado',
     'cancelado': 'cancelado'
@@ -252,14 +253,14 @@ function calcularTotalesPedido(pedido) {
 
       // 3. FILTRAR PEDIDOS
       let pedidosFiltrados = pedidos.filter(pedido => {
-        if (pedido.estado?.toLowerCase() === 'camino a tu casa' && pedido.domiciliario_id === usuario.id) {
+        if (['camino a tu casa', 'preparando pedido'].includes(pedido.estado?.toLowerCase()) && pedido.domiciliario_id === usuario.id) {
           return true;
         }
         return pedido.estado?.toLowerCase() === 'esperando repartidor';
       });
   
       const disponiblesArr = pedidosFiltrados.filter(p => p.estado?.toLowerCase() === 'esperando repartidor');
-      const misActivos = pedidosFiltrados.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
+      const misActivos = pedidosFiltrados.filter(p => ['camino a tu casa', 'preparando pedido'].includes(p.estado?.toLowerCase()));
       
       actualizarContadorPedidos(misActivos.length);
   
@@ -336,6 +337,9 @@ function calcularTotalesPedido(pedido) {
     htmlContent += '</div>';
   
     contenedor.innerHTML = htmlContent;
+
+    // ✅ Guardar hash para anti-parpadeo de disponibles
+    _lastDisponiblesHash = _calcHash(pedidosDisponibles);
   }
 
   // ========== UTILIDADES DE PROTECCIÓN DE DATOS ==========
@@ -419,20 +423,48 @@ function calcularTotalesPedido(pedido) {
     // Botones
     const ICON_CHECK = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>`;
     const ICON_CLOCK = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+    const ICON_PICKUP = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>`;
+    
+    const esPreparando = p.estado?.toLowerCase() === 'preparando pedido';
+    
+    let bannerHtml = '';
+    let accionesHtml = '';
+    
+    if (esPreparando) {
+      // ✅ PREPARANDO PEDIDO: solo banner + botón recoger prominente + liberar
+      bannerHtml = p.pedido_listo_en 
+        ? `<div class="card-estado-banner card-estado-listo">${ICON_CHECK} ¡Listo para recoger!</div>` 
+        : `<div class="card-estado-banner card-estado-preparando">${ICON_CLOCK} Restaurante preparando...</div>`;
+      accionesHtml = `
+        <div class="card-btns-info">
+          <button class="cbtn cbtn-det" onclick="abrirDetallesPedido(${p.id}, true)">Ver detalles</button>
+          <button class="cbtn cbtn-mapa" onclick="abrirMapaDomiciliario(${p.id})">Ver mapa</button>
+        </div>
+        <div class="card-btns-acciones">
+          <button class="cbtn cbtn-lib" onclick="abrirModalLiberar(${p.id})">Liberar</button>
+          <button class="cbtn cbtn-recoger" onclick="recogerPedido(${p.id})" style="background:#10b981;color:white;font-weight:700;flex:2;">${ICON_PICKUP} Ya recogí el pedido</button>
+        </div>`;
+    } else {
+      // ✅ CAMINO A TU CASA: banner listo/preparando + acciones completas
+      bannerHtml = p.pedido_listo_en 
+        ? `<div class="card-estado-banner card-estado-listo">${ICON_CHECK} ¡Listo para recoger!</div>` 
+        : `<div class="card-estado-banner card-estado-preparando">${ICON_CLOCK} Restaurante preparando...</div>`;
+      accionesHtml = `
+        <div class="card-btns-info">
+          <button class="cbtn cbtn-det" onclick="abrirDetallesPedido(${p.id}, true)">Ver detalles</button>
+          <button class="cbtn cbtn-mapa" onclick="abrirMapaDomiciliario(${p.id})">Ver mapa</button>
+        </div>
+        <div class="card-btns-acciones">
+          <button class="cbtn cbtn-lib"  onclick="abrirModalLiberar(${p.id})">Liberar</button>
+          <button class="cbtn cbtn-ok"   onclick="abrirModalPago(${p.id})">Entregar</button>
+          <button class="cbtn cbtn-prob" onclick="abrirModalProblema(${p.id})">Problema</button>
+        </div>`;
+    }
+    
     const botonesHtml = esMiPedido
       ? `<div class="card-btns mi-pedido-btns">
-           ${p.pedido_listo_en 
-             ? `<div class="card-estado-banner card-estado-listo">${ICON_CHECK} ¡Listo para recoger!</div>` 
-             : `<div class="card-estado-banner card-estado-preparando">${ICON_CLOCK} Restaurante preparando...</div>`}
-           <div class="card-btns-info">
-             <button class="cbtn cbtn-det" onclick="abrirDetallesPedido(${p.id}, true)">Ver detalles</button>
-             <button class="cbtn cbtn-mapa" onclick="abrirMapaDomiciliario(${p.id})">Ver mapa</button>
-           </div>
-           <div class="card-btns-acciones">
-             <button class="cbtn cbtn-lib"  onclick="abrirModalLiberar(${p.id})">Liberar</button>
-             <button class="cbtn cbtn-ok"   onclick="abrirModalPago(${p.id})">Entregar</button>
-             <button class="cbtn cbtn-prob" onclick="abrirModalProblema(${p.id})">Problema</button>
-           </div>
+           ${bannerHtml}
+           ${accionesHtml}
          </div>`
       : `<div class="card-btns">
            <button class="cbtn cbtn-det" onclick="abrirDetallesPedido(${p.id}, false)">Ver detalles</button>
@@ -565,6 +597,42 @@ function calcularTotalesPedido(pedido) {
       if (btnTomar) {
         btnTomar.disabled = false;
         btnTomar.textContent = 'Tomar';
+      }
+      mostrarMensaje('❌ Error de conexión', 'error');
+    }
+  }
+
+  // ========== RECOGER PEDIDO (preparando pedido → camino a tu casa) ==========
+  async function recogerPedido(pedidoId) {
+    if (!confirm('¿Confirmas que ya recogiste el pedido del restaurante?')) return;
+
+    const tarjeta = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
+    const btnRecoger = tarjeta?.querySelector('.cbtn-recoger');
+    
+    if (btnRecoger) {
+      btnRecoger.disabled = true;
+      btnRecoger.innerHTML = '⏳ Actualizando...';
+    }
+
+    try {
+      const res = await window.apiRequest(`/api/pedidos/${pedidoId}/recoger`, { method: 'POST' });
+      const result = await res.json();
+
+      if (res.ok) {
+        mostrarMensaje('✅ Pedido recogido — ahora estás en camino al cliente');
+        await cargarPedidos();
+      } else {
+        if (btnRecoger) {
+          btnRecoger.disabled = false;
+          btnRecoger.innerHTML = 'Ya recogí el pedido';
+        }
+        mostrarMensaje(`❌ ${result.error || 'No se pudo actualizar'}`, 'error');
+      }
+    } catch (error) {
+      console.error('Error al recoger pedido:', error);
+      if (btnRecoger) {
+        btnRecoger.disabled = false;
+        btnRecoger.innerHTML = 'Ya recogí el pedido';
       }
       mostrarMensaje('❌ Error de conexión', 'error');
     }
@@ -1078,11 +1146,18 @@ function calcularTotalesPedido(pedido) {
     });
 
     socketInstance.on('estado-pedido-actualizado', (data) => {
+      // ✅ Si es un pedido de la lista de disponibles (no mío), removerlo
       if (data.nuevoEstado !== 'esperando repartidor') {
         const pedidoCard = document.querySelector(`[data-pedido-id="${data.pedidoId}"]`);
         if (pedidoCard && !pedidoCard.classList.contains('mi-pedido')) {
           setTimeout(() => pedidoCard.remove(), 500);
         }
+      }
+      // ✅ Si es mi pedido y cambió de estado, recargar para actualizar botones/UI
+      const pedidoCardMio = document.querySelector(`[data-pedido-id="${data.pedidoId}"].mi-pedido`);
+      if (pedidoCardMio) {
+        console.log(`🔄 Mi pedido #${data.pedidoId} cambió a '${data.nuevoEstado}' — recargando`);
+        cargarPedidos();
       }
     });
 
@@ -1145,9 +1220,21 @@ function calcularTotalesPedido(pedido) {
 
   // ✅ Helper: renderizar activos directamente (sin hacer requests)
   // Se usa cuando cargarPedidos() ya trajo los datos
+  // ✅ Anti-parpadeo: solo re-renderizar si los datos cambiaron
+  let _lastActivosHash = '';
+  let _lastDisponiblesHash = '';
+
+  function _calcHash(pedidos) {
+    return pedidos.map(p => `${p.id}:${p.estado}:${p.pedido_listo_en || ''}`).join('|');
+  }
+
   function renderizarPedidosActivosDesdeCache(activos) {
     const destino = document.getElementById('listaPedidosActivos');
     if (!destino) return;
+
+    const hash = _calcHash(activos);
+    if (hash === _lastActivosHash) return; // ✅ No cambió, no re-renderizar
+    _lastActivosHash = hash;
 
     if (!activos || activos.length === 0) {
       destino.innerHTML = `
@@ -1189,7 +1276,7 @@ function calcularTotalesPedido(pedido) {
       _actualizarCache(pedidos, usuario.id);
 
       const activos = pedidos.filter(p =>
-        p.estado?.toLowerCase() === 'camino a tu casa' && p.domiciliario_id === usuario.id
+        ['camino a tu casa', 'preparando pedido'].includes(p.estado?.toLowerCase()) && p.domiciliario_id === usuario.id
       );
 
       renderizarPedidosActivosDesdeCache(activos);
@@ -1859,6 +1946,7 @@ function calcularTotalesPedido(pedido) {
   // ========== EXPORTAR FUNCIONES GLOBALES ==========
   window.logout = logout;
   window.tomarPedido = tomarPedido;
+  window.recogerPedido = recogerPedido;
   window.abrirModalPago = abrirModalPago;
   window.cerrarModalPago = cerrarModalPago;
   window.confirmarEntrega = confirmarEntrega;

@@ -175,6 +175,16 @@
             nuevoEstado: pedidoNuevo.estado
           });
         }
+
+        // ✅ Detectar cuando pedido_listo_en cambia (restaurante marcó listo)
+        if (pedidoViejo && !pedidoViejo.pedido_listo_en && pedidoNuevo.pedido_listo_en) {
+          console.log(`✅ Pedido ${pedidoNuevo.id} marcado como LISTO por restaurante`);
+          this.triggerEvent('pedido-listo-domiciliario', {
+            pedidoId: pedidoNuevo.id,
+            restaurante: pedidoNuevo.restaurantes?.nombre || 'Restaurante',
+            timestamp: pedidoNuevo.pedido_listo_en
+          });
+        }
       });
 
       // Notificar nuevos pedidos disponibles
