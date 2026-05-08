@@ -1290,11 +1290,17 @@
   document.addEventListener('DOMContentLoaded', async () => {
     console.log('🎯 Inicializando SPA DomiPancho...');
     
-    // 1. Cargar usuario
+    // 1. Cargar usuario — usar cache compartido con domiciliario.js para evitar request duplicado
     try {
-      const response = await window.apiRequest('/api/usuario-actual');
-      if (!response.ok) throw new Error('No auth');
-      const usuario = await response.json();
+      let usuario = null;
+      if (typeof window.__getUsuarioCache === 'function') {
+        usuario = window.__getUsuarioCache();
+      }
+      if (!usuario) {
+        const response = await window.apiRequest('/api/usuario-actual');
+        if (!response.ok) throw new Error('No auth');
+        usuario = await response.json();
+      }
       document.getElementById('restaurantName').textContent = usuario.restaurante_nombre || 'DomiPancho';
       const nombre = usuario.usuario || '-';
       document.getElementById('userName').textContent = nombre.length > 4 ? nombre.slice(0, -4) + '****' : nombre;
@@ -1324,44 +1330,17 @@
       } catch (e) {}
     }
     
-    // 5. Contadores
-    await actualizarContadores();
-    setInterval(actualizarContadores, 10000);
+    // 5. Contadores — cargarPedidos ya actualizó los contadores, solo iniciar intervalo periódico
+    setInterval(actualizarContadores, 15000);
     
-    // 6. Socket
-    if (typeof io !== 'undefined') {
-      const socket = io();
-      socket.on('connect', async () => {
-        try {
-          const r = await window.apiRequest('/api/usuario-actual');
-          if (r.ok) { const u = await r.json(); socket.emit('join-domiciliario', u.id); }
-        } catch (e) {}
-      });
-      ['nuevo-pedido-geografico', 'estado-pedido-actualizado', 'pedido-removido', 'pedido-tomado', 'pedido-liberado'].forEach(ev => {
-        socket.on(ev, () => actualizarContadores());
-      });    }
+    // 6. Socket — domiciliario.js ya configura el socket con cargarPedidos().
+    // No necesitamos duplicar listeners aquí. Los contadores se actualizan
+    // automáticamente cuando cargarPedidos() corre.
     
     console.log('✅ SPA completamente inicializado');
 
-    // Bridge: cuando cargarPedidos corra, sincronizar la lista de activos
-    const _origCargar = window.cargarPedidos;
-    if (_origCargar) {
-      window.cargarPedidos = async function() {
-        await _origCargar();
-        // cargarPedidosActivos ya se llama dentro de _origCargar
-      };
-    }
-    // Observe listaPedidos for mutations to sync activos - using cargarPedidosActivos directly
-    const listaObs = document.getElementById('listaPedidos');
-    if (listaObs) {
-      new MutationObserver(() => {
-        if (typeof window.cargarPedidosActivos === 'function') {
-          // Debounce para no llamar múltiples veces
-          clearTimeout(window._syncActivosTimer);
-          window._syncActivosTimer = setTimeout(window.cargarPedidosActivos, 200);
-        }
-      }).observe(listaObs, { childList: true, subtree: false });
-    }
+    // cargarPedidos ya renderiza activos internamente via renderizarPedidosActivosDesdeCache
+    // No necesitamos MutationObserver ni wrapper adicional
   });
 
   // Visibility change

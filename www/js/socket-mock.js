@@ -53,8 +53,12 @@
       const POLLING_MS = 5000;
       console.log(`🔄 Iniciando polling cada ${POLLING_MS / 1000} segundos...`);
       
-      // Poll inmediato
-      this.checkForUpdates();
+      // ✅ FIX: Delay primer poll 3s para no colisionar con cargarPedidos() inicial
+      setTimeout(() => {
+        if (this.connected) {
+          this.checkForUpdates();
+        }
+      }, 3000);
       
       // Polling regular
       this.pollingInterval = setInterval(() => {
@@ -153,6 +157,21 @@
     detectarCambios(pedidosNuevos, usuarioId) {
       if (!this.lastPedidosState) {
         this.lastPedidosState = pedidosNuevos;
+        
+        // ✅ FIX: En el primer poll, si ya hay pedidos disponibles, emitir evento
+        // para que la UI se entere inmediatamente en vez de esperar al 2do poll
+        const disponiblesInicial = pedidosNuevos.filter(p => 
+          p.estado === 'esperando repartidor' || p.estado === 'pedido_listo'
+        );
+        if (disponiblesInicial.length > 0) {
+          console.log(`📦 Primer poll: ${disponiblesInicial.length} pedidos disponibles detectados`);
+          // Emitir un solo evento genérico para forzar recarga (no uno por pedido)
+          this.triggerEvent('nuevo-pedido', {
+            pedidoId: disponiblesInicial[0].id,
+            mensaje: 'Pedidos disponibles detectados',
+            timestamp: new Date().toISOString()
+          });
+        }
         return;
       }
 

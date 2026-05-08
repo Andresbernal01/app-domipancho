@@ -73,6 +73,23 @@
     }
   }
 
+  // ✅ NUEVO: Actualizar badges de navegación sin request extra
+  function _actualizarBadgesNav(numActivos, numDisponibles) {
+    const numDisp = document.getElementById('numPedidosDisponibles');
+    if (numDisp) numDisp.textContent = numDisponibles;
+
+    const badgeActivos = document.getElementById('navBadgeActivos');
+    if (badgeActivos) {
+      if (numActivos > 0) { badgeActivos.textContent = numActivos; badgeActivos.classList.add('show'); }
+      else badgeActivos.classList.remove('show');
+    }
+    const badgeDisp = document.getElementById('navBadgePedidos');
+    if (badgeDisp) {
+      if (numDisponibles > 0) { badgeDisp.textContent = numDisponibles; badgeDisp.classList.add('show'); }
+      else badgeDisp.classList.remove('show');
+    }
+  }
+
   function mostrarMensaje(texto, tipo = 'success') {
     const box = document.getElementById('mensajeSistema');
     if (!box) return;
@@ -270,6 +287,9 @@ function calcularTotalesPedido(pedido) {
     // ✅ OPTIMIZACIÓN: reusar los pedidos ya cargados para el tab Activos
     // (antes hacía 2 requests adicionales duplicados)
     renderizarPedidosActivosDesdeCache(misActivos);
+
+    // ✅ NUEVO: Actualizar badges de navegación directamente (sin request extra)
+    _actualizarBadgesNav(misActivos.length, disponiblesArr.length);
 
     } catch (err) {
       console.error('Error al cargar pedidos:', err);
@@ -1178,11 +1198,8 @@ function calcularTotalesPedido(pedido) {
     const usuario = await cargarUsuario();
     if (!usuario) return;
     
-    // ✅ Cargar activos Y disponibles en paralelo para máxima velocidad
-    await Promise.all([
-      cargarPedidos(),
-      cargarPedidosActivos()
-    ]);
+    // ✅ Cargar pedidos (renderiza disponibles Y activos desde la misma request)
+    await cargarPedidos();
     
     console.log('✅ Sistema FCM disponible desde fcm-notifications.js');
     
@@ -1221,7 +1238,7 @@ function calcularTotalesPedido(pedido) {
   // ✅ Helper: renderizar activos directamente (sin hacer requests)
   // Se usa cuando cargarPedidos() ya trajo los datos
   // ✅ Anti-parpadeo: solo re-renderizar si los datos cambiaron
-  let _lastActivosHash = '';
+  let _lastActivosHash = null; // null = nunca renderizado, fuerza primera renderización
   let _lastDisponiblesHash = '';
 
   function _calcHash(pedidos) {
@@ -1261,8 +1278,17 @@ function calcularTotalesPedido(pedido) {
     const destino = document.getElementById('listaPedidosActivos');
     if (!destino) return;
 
+    // ✅ OPTIMIZACIÓN: Si ya hay cache de pedidos (de cargarPedidos), usarlo directamente
+    if (_cachePedidos.length > 0 && _cacheUsuarioId) {
+      const activos = _cachePedidos.filter(p =>
+        ['camino a tu casa', 'preparando pedido'].includes(p.estado?.toLowerCase()) && p.domiciliario_id === _cacheUsuarioId
+      );
+      renderizarPedidosActivosDesdeCache(activos);
+      return;
+    }
+
+    // Solo hacer request si no hay cache (primera vez o datos perdidos)
     try {
-      // ✅ OPTIMIZACIÓN: usar cache del usuario + una sola request de pedidos
       const [usuario, resPedidos] = await Promise.all([
         cargarUsuario(),
         window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias')
@@ -1271,8 +1297,6 @@ function calcularTotalesPedido(pedido) {
       if (!usuario || !resPedidos.ok) throw new Error('Error de API');
 
       const pedidos = await resPedidos.json();
-
-      // ✅ Actualizar cache para modal instantáneo
       _actualizarCache(pedidos, usuario.id);
 
       const activos = pedidos.filter(p =>
