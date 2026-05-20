@@ -9,6 +9,19 @@
   let socketInstance = null;
   let mobileNotif = null;
 
+  // ========== UTILIDAD DE FECHAS ==========
+  // Supabase puede devolver "2026-05-09 15:06:37" sin zona horaria.
+  // Sin Z el navegador lo trata como hora local → 5h de desfase.
+  // Esta función normaliza a UTC agregando Z si no tiene zona explícita.
+  function normalizarFechaUTC(fechaStr) {
+    if (!fechaStr) return fechaStr;
+    const s = String(fechaStr);
+    if (!s.endsWith('Z') && !s.includes('+') && !/[+-]\d{2}:\d{2}$/.test(s)) {
+      return s.replace(' ', 'T') + 'Z';
+    }
+    return s;
+  }
+
   // ========== CONFIGURACIÓN ==========
   const TARIFAS_POR_CIUDAD = {
     'chiquinquira': 4000,
@@ -68,7 +81,7 @@
     if (contadorEl) contadorEl.textContent = cantidad;
     if (contadorContainer) {
       contadorContainer.className = 'pedidos-activos-contador';
-      if (cantidad >= 3) contadorContainer.classList.add('limite-alcanzado');
+      if (cantidad >= 2) contadorContainer.classList.add('limite-alcanzado');
       else if (cantidad === 1) contadorContainer.classList.add('limite-cerca');
     }
   }
@@ -321,8 +334,8 @@ function calcularTotalesPedido(pedido) {
     
     if (!Array.isArray(pedidosDisponibles) || pedidosDisponibles.length === 0) {
       if (disponible) {
-        contenedor.innerHTML = misActivos.length >= 3 
-          ? '<div class="no-pedidos"><h3>🚛 Tienes el máximo de pedidos (3/3)</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>'
+        contenedor.innerHTML = misActivos.length >= 2 
+          ? '<div class="no-pedidos"><h3>🚛 Tienes el máximo de pedidos (2/2)</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>'
           : '<div class="no-pedidos"><h3>🎯 No hay pedidos disponibles</h3><p>Actualmente no hay pedidos disponibles en tu ciudad. ¡Mantente atento!</p></div>';
       } else {
         contenedor.innerHTML = '<div class="no-pedidos"><h3>🔴 No Disponible</h3><p>No hay pedidos esperando repartidor en tu ciudad actualmente.</p><p><strong>Activa "Disponible"</strong> para empezar a recibir pedidos.</p></div>';
@@ -339,15 +352,15 @@ function calcularTotalesPedido(pedido) {
           <p>Estás viendo todos los pedidos de tu ciudad. <strong>Activa "Disponible"</strong> en el inicio para poder tomarlos.</p>
         </div>
       `;
-    } else if (misActivos.length >= 3) {
-      htmlContent += '<div class="alerta limite-alcanzado"><h3>🚛 Máximo de pedidos alcanzado (3/3)</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>';
+    } else if (misActivos.length >= 2) {
+      htmlContent += '<div class="alerta limite-alcanzado"><h3>🚛 Máximo de pedidos alcanzado (2/2)</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>';
     } else if (misActivos.length >= 1) {
-      const restantes = 3 - misActivos.length;
-      htmlContent += `<div class="alerta advertencia-limite"><h3>⚠️ Puedes tomar ${restantes} pedido${restantes > 1 ? 's' : ''} más (${misActivos.length}/3)</h3><p>Tienes espacio para ${restantes > 1 ? 'pedidos adicionales' : 'un pedido adicional'}.</p></div>`;
+      const restantes = 2 - misActivos.length;
+      htmlContent += `<div class="alerta advertencia-limite"><h3>⚠️ Puedes tomar ${restantes} pedido${restantes > 1 ? 's' : ''} más (${misActivos.length}/2)</h3><p>Tienes espacio para ${restantes > 1 ? 'pedidos adicionales' : 'un pedido adicional'}.</p></div>`;
     }
   
     const pedidosOrdenados = [...pedidosDisponibles].sort((a, b) =>
-      new Date(a.fecha) - new Date(b.fecha)
+      new Date(normalizarFechaUTC(a.fecha)) - new Date(normalizarFechaUTC(b.fecha))
     );
   
     htmlContent += '<div class="pedidos-grid">';
@@ -377,7 +390,7 @@ function calcularTotalesPedido(pedido) {
   function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, disponible) {
     const estadoClase = ESTADOS_CLASES[p.estado?.toLowerCase()] || 'pendiente';
     const totales     = calcularTotalesPedido(p);
-    const horaStr     = new Date(p.fecha).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    const horaStr     = new Date(normalizarFechaUTC(p.fecha)).toLocaleTimeString('es-CO', { timeZone: 'America/Bogota', hour: '2-digit', minute: '2-digit' });
     const cardClass   = esMiPedido ? 'mi-pedido' : 'disponible';
     const previewClass = (!disponible && !esMiPedido) ? ' pedido-preview' : '';
    
@@ -533,7 +546,7 @@ function calcularTotalesPedido(pedido) {
           ${envioHtml}
           ${cuponHtml}
           ${distanciaStr}
-          ${esMiPedido && p.metodo_pago ? `<span class="card-metodo-pago" style="font-size:0.73rem;font-weight:600;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;margin-top:2px;${p.metodo_pago === 'efectivo' ? 'background:rgba(16,185,129,0.1);color:#10b981;' : p.metodo_pago === 'nequi' ? 'background:rgba(139,92,246,0.1);color:#8b5cf6;' : p.metodo_pago === 'transferencia' ? 'background:rgba(59,130,246,0.1);color:#3b82f6;' : 'background:rgba(245,158,11,0.1);color:#f59e0b;'}">${p.metodo_pago === 'efectivo' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' : p.metodo_pago === 'nequi' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>' : p.metodo_pago === 'transferencia' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>'} ${p.metodo_pago === 'nequi' ? 'Nequi/Daviplata' : p.metodo_pago === 'pagado al restaurante' ? 'Pagado al rest.' : p.metodo_pago.charAt(0).toUpperCase() + p.metodo_pago.slice(1)}</span>` : ''}
+          ${esMiPedido && p.metodo_pago ? `<span class="card-metodo-pago" style="font-size:0.73rem;font-weight:600;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;margin-top:2px;${p.metodo_pago === 'efectivo' ? 'background:rgba(16,185,129,0.1);color:#10b981;' : p.metodo_pago === 'nequi' ? 'background:rgba(139,92,246,0.1);color:#8b5cf6;' : p.metodo_pago === 'daviplata' ? 'background:rgba(239,68,68,0.1);color:#ef4444;' : p.metodo_pago === 'transferencia' ? 'background:rgba(59,130,246,0.1);color:#3b82f6;' : p.metodo_pago === 'datafono' ? 'background:rgba(245,158,11,0.1);color:#f59e0b;' : 'background:rgba(100,116,139,0.1);color:#64748b;'}">${p.metodo_pago === 'efectivo' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' : (p.metodo_pago === 'nequi' || p.metodo_pago === 'daviplata') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>' : p.metodo_pago === 'transferencia' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>'} ${p.metodo_pago === 'pagado al restaurante' ? 'Pagado al rest.' : p.metodo_pago.charAt(0).toUpperCase() + p.metodo_pago.slice(1)}</span>` : ''}
         </div>
    
         ${botonesHtml}
@@ -548,7 +561,7 @@ function calcularTotalesPedido(pedido) {
       if (!disponible) {
         return `<button class="cbtn cbtn-nd" disabled>No disponible</button>`;
       }
-      const off = cantidadActivos >= 3;
+      const off = cantidadActivos >= 2;
       return `<button class="cbtn cbtn-tomar" onclick="tomarPedido(${pedido.id})" ${off ? 'disabled' : ''}>${off ? 'Limite alcanzado' : 'Tomar pedido'}</button>`;
     }
     return '';
@@ -574,12 +587,10 @@ function calcularTotalesPedido(pedido) {
       console.error('Error verificando disponibilidad:', error);
     }
     
-    if (pedidosActivosGlobal >= 3) {
-      mostrarMensaje('❌No puedes tomar más pedidos. Máximo 3 pedidos activos permitidos.', 'error');
+    if (pedidosActivosGlobal >= 2) {
+      mostrarMensaje('❌No puedes tomar más pedidos. Máximo 2 pedidos activos permitidos.', 'error');
       return;
     }
-  
-    if (!confirm('¿Quieres tomar este pedido?')) return;
   
     const tarjeta = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
     const btnTomar = tarjeta?.querySelector('.btn-tomar');
@@ -679,7 +690,8 @@ function calcularTotalesPedido(pedido) {
       const metodoCliente = pedido.metodo_pago;
       const nombresMetodo = {
         efectivo: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg> Efectivo',
-        nequi: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg> Nequi / Daviplata',
+        nequi: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg> Nequi',
+        daviplata: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="11" r="3"/><path d="M9 18h6"/></svg> Daviplata',
         transferencia: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg> Transferencia bancaria',
         datafono: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg> Datáfono (tarjeta)',
         'pagado al restaurante': '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg> Pagado al restaurante'
@@ -703,6 +715,7 @@ function calcularTotalesPedido(pedido) {
       const mapeoMetodos = {
         efectivo: 'efectivo',
         nequi: 'nequi',
+        daviplata: 'daviplata',
         transferencia: 'transferencia',
         datafono: 'datafono',
         app: 'nequi', // legado: "app" antiguo → nequi
@@ -783,7 +796,8 @@ function calcularTotalesPedido(pedido) {
       if (res.ok) {
         const textoMetodo = {
           efectivo: 'efectivo',
-          nequi: 'Nequi / Daviplata',
+          nequi: 'Nequi',
+          daviplata: 'Daviplata',
           transferencia: 'transferencia bancaria',
           datafono: 'datáfono',
           'pagado al restaurante': 'pagado al restaurante'
@@ -1053,7 +1067,7 @@ function calcularTotalesPedido(pedido) {
 
     const totales = calcularTotalesPedido(pedido);
 
-    const fechaStr = new Date(pedido.fecha).toLocaleString('es-CO', {
+    const fechaStr = new Date(normalizarFechaUTC(pedido.fecha)).toLocaleString('es-CO', {
       timeZone: 'America/Bogota', year: 'numeric', month: 'long',
       day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
     });
@@ -1093,7 +1107,7 @@ function calcularTotalesPedido(pedido) {
 
         <div class="detalle-section">
           <h4>Resumen de pago</h4>
-          ${pedido.metodo_pago ? `<p><strong>Método de pago:</strong> <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;font-size:0.85rem;font-weight:600;background:${pedido.metodo_pago === 'efectivo' ? 'rgba(16,185,129,0.1);color:#10b981' : pedido.metodo_pago === 'nequi' ? 'rgba(139,92,246,0.1);color:#8b5cf6' : pedido.metodo_pago === 'transferencia' ? 'rgba(59,130,246,0.1);color:#3b82f6' : 'rgba(245,158,11,0.1);color:#f59e0b'};">${pedido.metodo_pago === 'efectivo' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' : pedido.metodo_pago === 'nequi' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>' : pedido.metodo_pago === 'transferencia' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>'} ${pedido.metodo_pago === 'nequi' ? 'Nequi/Daviplata' : pedido.metodo_pago === 'pagado al restaurante' ? 'Pagado al restaurante' : pedido.metodo_pago.charAt(0).toUpperCase() + pedido.metodo_pago.slice(1)}</span></p>` : '<p><strong>Método de pago:</strong> <span style="color:#94a3b8;font-size:0.85rem;">No especificado</span></p>'}
+          ${pedido.metodo_pago ? `<p><strong>Método de pago:</strong> <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;font-size:0.85rem;font-weight:600;background:${pedido.metodo_pago === 'efectivo' ? 'rgba(16,185,129,0.1);color:#10b981' : pedido.metodo_pago === 'nequi' ? 'rgba(139,92,246,0.1);color:#8b5cf6' : pedido.metodo_pago === 'daviplata' ? 'rgba(239,68,68,0.1);color:#ef4444' : pedido.metodo_pago === 'transferencia' ? 'rgba(59,130,246,0.1);color:#3b82f6' : pedido.metodo_pago === 'datafono' ? 'rgba(245,158,11,0.1);color:#f59e0b' : 'rgba(100,116,139,0.1);color:#64748b'};">${pedido.metodo_pago === 'efectivo' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' : (pedido.metodo_pago === 'nequi' || pedido.metodo_pago === 'daviplata') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>' : pedido.metodo_pago === 'transferencia' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>'} ${pedido.metodo_pago === 'pagado al restaurante' ? 'Pagado al restaurante' : pedido.metodo_pago.charAt(0).toUpperCase() + pedido.metodo_pago.slice(1)}</span></p>` : '<p><strong>Método de pago:</strong> <span style="color:#94a3b8;font-size:0.85rem;">No especificado</span></p>'}
           <p>Subtotal productos: $${totales.subtotalProductos.toLocaleString('es-CO')}</p>
           ${generarDesgloseEnvio(pedido, totales)}
           ${totales.tieneCupon ? `
@@ -1166,19 +1180,10 @@ function calcularTotalesPedido(pedido) {
     });
 
     socketInstance.on('estado-pedido-actualizado', (data) => {
-      // ✅ Si es un pedido de la lista de disponibles (no mío), removerlo
-      if (data.nuevoEstado !== 'esperando repartidor') {
-        const pedidoCard = document.querySelector(`[data-pedido-id="${data.pedidoId}"]`);
-        if (pedidoCard && !pedidoCard.classList.contains('mi-pedido')) {
-          setTimeout(() => pedidoCard.remove(), 500);
-        }
-      }
-      // ✅ Si es mi pedido y cambió de estado, recargar para actualizar botones/UI
-      const pedidoCardMio = document.querySelector(`[data-pedido-id="${data.pedidoId}"].mi-pedido`);
-      if (pedidoCardMio) {
-        console.log(`🔄 Mi pedido #${data.pedidoId} cambió a '${data.nuevoEstado}' — recargando`);
-        cargarPedidos();
-      }
+      console.log(`🔄 Estado pedido #${data.pedidoId} cambió a '${data.nuevoEstado}' — recargando`);
+      // ✅ FIX: Siempre recargar la lista completa para evitar que pedidos
+      // activos desaparezcan por race conditions al remover tarjetas del DOM manualmente
+      cargarPedidos();
     });
 
     socketInstance.on('pedido-liberado', () => {
@@ -1264,7 +1269,7 @@ function calcularTotalesPedido(pedido) {
     }
 
     // ✅ Ordenar: el pedido que se tomó primero va arriba
-    const activosOrdenados = [...activos].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    const activosOrdenados = [...activos].sort((a, b) => new Date(normalizarFechaUTC(a.fecha)) - new Date(normalizarFechaUTC(b.fecha)));
 
     let html = '<div class="pedidos-grid">';
     activosOrdenados.forEach(p => {

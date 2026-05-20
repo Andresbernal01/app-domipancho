@@ -561,7 +561,14 @@
           <input type="radio" name="metodo_pago" value="nequi">
           <span>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#8b5cf6" style="width:15px;height:15px;vertical-align:middle;margin-right:5px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-            Nequi / Daviplata
+            Nequi
+          </span>
+        </label>
+        <label>
+          <input type="radio" name="metodo_pago" value="daviplata">
+          <span>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#ef4444" style="width:15px;height:15px;vertical-align:middle;margin-right:5px;"><rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="11" r="3"/><path d="M9 18h6"/></svg>
+            Daviplata
           </span>
         </label>
         <label>
@@ -818,6 +825,18 @@
   // ============================================================
   //  HISTORIAL
   // ============================================================
+  // Supabase devuelve fechas sin zona horaria ("2026-05-09 15:06:37").
+  // Sin 'Z' el navegador las interpreta como hora local → 5h de desfase.
+  // Esta función las normaliza a UTC antes de construir el objeto Date.
+  function normalizarFechaUTC(fechaStr) {
+    if (!fechaStr) return fechaStr;
+    const s = String(fechaStr);
+    if (!s.endsWith('Z') && !s.includes('+') && !/[+-]\d{2}:\d{2}$/.test(s)) {
+      return s.replace(' ', 'T') + 'Z';
+    }
+    return s;
+  }
+
   let pedidosHistorialGlobal = [];
   let historialCargado = false;
   let fechaHistorialActual = null; // tracks current date for arrow nav
@@ -890,7 +909,14 @@
       const res = await window.apiRequest('/api/historial-domiciliario');
       let pedidos = await res.json();
       pedidos = pedidos.filter(p => ['entregado', 'cancelado'].includes(p.estado?.toLowerCase()));
-      if (fechaFiltro) pedidos = pedidos.filter(p => p.fecha.startsWith(fechaFiltro));
+      if (fechaFiltro) pedidos = pedidos.filter(p => {
+        // ✅ FIX: Convertir fecha UTC a fecha Colombia antes de comparar
+        // Supabase guarda en UTC → un pedido de 8PM COL es 1AM UTC del día siguiente
+        // Sin esta conversión, pedidos nocturnos no aparecen en el día correcto
+        const fechaColombia = new Date(normalizarFechaUTC(p.fecha))
+          .toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
+        return fechaColombia === fechaFiltro;
+      });
       
       pedidosHistorialGlobal = pedidos;
       renderizarHistorial(pedidos);
@@ -946,8 +972,8 @@
             <div class="metodo-pago">${p.metodo_pago ? p.metodo_pago.toUpperCase() : 'N/A'}</div>
           </div>
           <div class="fechas-compactas">
-            <p>${new Date(p.fecha).toLocaleString('es-CO', { timeZone: 'America/Bogota', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</p>
-            ${ok && p.fecha_entrega ? `<p>Entregado: ${new Date(p.fecha_entrega).toLocaleString('es-CO', { timeZone: 'America/Bogota', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</p>` : ''}
+            <p>${new Date(normalizarFechaUTC(p.fecha)).toLocaleString('es-CO', { timeZone: 'America/Bogota', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+            ${ok && p.fecha_entrega ? `<p>Entregado: ${new Date(normalizarFechaUTC(p.fecha_entrega)).toLocaleString('es-CO', { timeZone: 'America/Bogota', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</p>` : ''}
           </div>
           <button class="btn-ver-detalles-hist" onclick="abrirDetallesHistorial(${p.id})">Ver Detalles</button>
         </div>`;
@@ -995,8 +1021,8 @@
         <p>Método: <strong>${pedido.metodo_pago ? pedido.metodo_pago.toUpperCase() : 'N/A'}</strong></p>
       </div>
       <div class="detalle-section"><h4>Fechas</h4>
-        <p>Pedido: ${new Date(pedido.fecha).toLocaleString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</p>
-        ${ok && pedido.fecha_entrega ? `<p>Entrega: ${new Date(pedido.fecha_entrega).toLocaleString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</p>` : ''}
+        <p>Pedido: ${new Date(normalizarFechaUTC(pedido.fecha)).toLocaleString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</p>
+        ${ok && pedido.fecha_entrega ? `<p>Entrega: ${new Date(normalizarFechaUTC(pedido.fecha_entrega)).toLocaleString('es-CO', { timeZone: 'America/Bogota', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true })}</p>` : ''}
       </div>
       ${!ok && pedido.comentario_domiciliario ? `<div class="comentario-cancelado"><strong>Motivo:</strong><br>${pedido.comentario_domiciliario.replace(/\n/g, '<br>')}</div>` : ''}
       <button class="btn-cerrar-modal" onclick="cerrarDetallesPedido()">Cerrar</button>
