@@ -41,7 +41,9 @@ public class LocationForegroundService extends Service implements LocationListen
     private String serverUrl = "https://domipancho.com";
     private long lastUpdateTime = 0;
     private static final long UPDATE_INTERVAL = 10000; // 10 segundos
-    private boolean tienePedidosActivos = false; // ✅ NUEVO
+    private boolean tienePedidosActivos = false;
+    private long lastNotificationUpdate = 0;
+    private static final long NOTIFICATION_UPDATE_INTERVAL = 30000; // ✅ Actualizar notificación max cada 30s
     
     @Override
     public void onCreate() {
@@ -160,8 +162,13 @@ public class LocationForegroundService extends Service implements LocationListen
             Log.d(TAG, "📍 Nueva ubicación: " + location.getLatitude() + ", " + location.getLongitude() 
                 + " - Precisión: " + location.getAccuracy() + "m");
             
-            // ✅ Actualizar notificación
-            updateNotificationWithLocation(location);
+            // ✅ THROTTLE: Solo actualizar notificación cada 30s para no ser agresivo
+            // La ubicación SÍ se sigue enviando al servidor cada 10s normalmente
+            long ahora = System.currentTimeMillis();
+            if (ahora - lastNotificationUpdate >= NOTIFICATION_UPDATE_INTERVAL) {
+                lastNotificationUpdate = ahora;
+                updateNotificationWithLocation(location);
+            }
         }
     }
     
@@ -343,7 +350,9 @@ public class LocationForegroundService extends Service implements LocationListen
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setOnlyAlertOnce(true)  // ✅ No alertar en cada actualización
+            .setSilent(true)         // ✅ Completamente silencioso
+            .setPriority(NotificationCompat.PRIORITY_LOW)  // ✅ LOW: sin heads-up
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE);
@@ -365,20 +374,16 @@ public class LocationForegroundService extends Service implements LocationListen
             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT
         );
         
-        // ✅ CAMBIAR TEXTO SEGÚN TENGA PEDIDOS ACTIVOS O NO
+        // ✅ Texto simple sin coordenadas (menos "técnico" para el usuario)
         String titulo;
         String contentText;
         
         if (tienePedidosActivos) {
             titulo = "DomiPancho - Entrega Activa";
-            contentText = String.format("Última ubicación: %.5f, %.5f (%.0fm)",
-                location.getLatitude(), 
-                location.getLongitude(),
-                location.getAccuracy());
+            contentText = "Realizando entrega • GPS activo";
         } else {
-            titulo = "DomiPancho - Rastreando Ubicación";
-            contentText = String.format("Buscando pedidos cercanos (%.0fm precisión)",
-                location.getAccuracy());
+            titulo = "DomiPancho";
+            contentText = "Disponible • Buscando pedidos cercanos";
         }
         
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
@@ -387,7 +392,9 @@ public class LocationForegroundService extends Service implements LocationListen
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
-            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setOnlyAlertOnce(true)  // ✅ No alertar en cada actualización
+            .setSilent(true)         // ✅ Completamente silencioso
+            .setPriority(NotificationCompat.PRIORITY_LOW)  // ✅ LOW: sin heads-up
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE);
@@ -400,10 +407,10 @@ public class LocationForegroundService extends Service implements LocationListen
             NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
                 "Rastreo de Ubicación Activo",
-                NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_LOW  // ✅ LOW: se muestra en barra pero NO como heads-up
             );
             channel.setDescription("Rastreo continuo de ubicación para entregas activas");
-            channel.setShowBadge(true);
+            channel.setShowBadge(false);  // ✅ Sin badge en el ícono de la app
             channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             channel.enableLights(false);
             channel.enableVibration(false);
@@ -411,7 +418,7 @@ public class LocationForegroundService extends Service implements LocationListen
             
             NotificationManager manager = getSystemService(NotificationManager.class);
             manager.createNotificationChannel(channel);
-            Log.d(TAG, "✅ Canal de notificación creado");
+            Log.d(TAG, "✅ Canal de notificación creado (IMPORTANCE_LOW)");
         }
     }
     

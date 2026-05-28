@@ -283,7 +283,7 @@
         Pedidos Activos
       </h2>
       <div class="orders-count" id="contadorPedidos">
-        <span class="num" id="numPedidosActivos">0</span><span>/2</span>
+        <span class="num" id="numPedidosActivos">0</span><span>/<span id="maxPedidosLabel">2</span></span>
       </div>
     </div>
     <div id="listaPedidosActivos" class="loading">
@@ -756,6 +756,25 @@
         if (!disponible) {
           strip.classList.add('no-disponible');
           label.textContent = 'No disponible';
+        }
+        // ✅ Actualizar ciudad en el header
+        if (data.ciudad) {
+          const headerName = document.getElementById('restaurantName');
+          if (headerName) {
+            // Capitalizar primera letra de la ciudad
+            const ciudadCap = data.ciudad.charAt(0).toUpperCase() + data.ciudad.slice(1).toLowerCase();
+            headerName.textContent = `DomiPancho - ${ciudadCap}`;
+          }
+        }
+        // ✅ Actualizar max_pedidos global y denominador
+        if (data.max_pedidos) {
+          if (typeof maxPedidosGlobal !== 'undefined') {
+            maxPedidosGlobal = data.max_pedidos;
+          }
+          // Exponer para que inicio_domi.html lo use en actualizarContadores
+          window._maxPedidosDomi = data.max_pedidos;
+          const maxLabel = document.getElementById('maxPedidosLabel');
+          if (maxLabel) maxLabel.textContent = data.max_pedidos;
         }
       }
     } catch (e) { console.error('Error disp:', e); }
@@ -1270,7 +1289,7 @@
       if (!response.ok) return;
       const pedidos = await response.json();
       
-      const activos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
+      const activos = pedidos.filter(p => ['camino a tu casa', 'preparando pedido'].includes(p.estado?.toLowerCase()));
       const disponibles = pedidos.filter(p => p.estado?.toLowerCase() === 'esperando repartidor');
       
       // Update header counter (activos)
@@ -1279,9 +1298,19 @@
       const cont = document.getElementById('contadorPedidos');
       if (el) el.textContent = numActivos;
       if (cont) {
+        // ✅ FIX: Usar la clase base correcta del CSS (orders-count)
         cont.className = 'orders-count';
-        if (numActivos >= 3) cont.classList.add('limite-alcanzado');
-        else if (numActivos === 2) cont.classList.add('limite-cerca');
+        // ✅ FIX: Usar límite dinámico (window._maxPedidosDomi viene de initDisponibilidad)
+        const maxP = window._maxPedidosDomi || 2;
+        if (numActivos >= maxP) cont.classList.add('limite-alcanzado');
+        else if (numActivos >= maxP - 1 && numActivos > 0) cont.classList.add('limite-cerca');
+      }
+
+      // ✅ FIX: Actualizar el denominador del contador
+      const maxLabel = document.getElementById('maxPedidosLabel');
+      if (maxLabel) {
+        const maxP = window._maxPedidosDomi || 2;
+        maxLabel.textContent = maxP;
       }
 
       // Update disponibles counter

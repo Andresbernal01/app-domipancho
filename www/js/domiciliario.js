@@ -4,6 +4,7 @@
 
   // ========== VARIABLES GLOBALES ==========
   let pedidosActivosGlobal = 0;
+  let maxPedidosGlobal = 2; // ✅ Límite dinámico (se actualiza desde el backend)
   let pedidoProblemaId = null;
   let pedidoALiberarId = null;
   let socketInstance = null;
@@ -80,10 +81,14 @@
     
     if (contadorEl) contadorEl.textContent = cantidad;
     if (contadorContainer) {
-      contadorContainer.className = 'pedidos-activos-contador';
-      if (cantidad >= 2) contadorContainer.classList.add('limite-alcanzado');
-      else if (cantidad === 1) contadorContainer.classList.add('limite-cerca');
+      // ✅ FIX: Usar la clase base correcta del CSS (orders-count, NO pedidos-activos-contador)
+      contadorContainer.className = 'orders-count';
+      if (cantidad >= maxPedidosGlobal) contadorContainer.classList.add('limite-alcanzado');
+      else if (cantidad >= maxPedidosGlobal - 1 && cantidad > 0) contadorContainer.classList.add('limite-cerca');
     }
+    // ✅ Actualizar denominador dinámico
+    const maxLabel = document.getElementById('maxPedidosLabel');
+    if (maxLabel) maxLabel.textContent = maxPedidosGlobal;
   }
 
   // ✅ NUEVO: Actualizar badges de navegación sin request extra
@@ -263,6 +268,11 @@ function calcularTotalesPedido(pedido) {
       ]);
 
       const disponible = dispResult.disponible !== false;
+      // ✅ Actualizar límite dinámico desde el backend
+      if (dispResult.max_pedidos) {
+        maxPedidosGlobal = dispResult.max_pedidos;
+        window._maxPedidosDomi = dispResult.max_pedidos; // Sincronizar con inicio_domi.html
+      }
       const res = { ok: pedidosResult.ok };
       let pedidos = pedidosResult.data;
 
@@ -334,8 +344,8 @@ function calcularTotalesPedido(pedido) {
     
     if (!Array.isArray(pedidosDisponibles) || pedidosDisponibles.length === 0) {
       if (disponible) {
-        contenedor.innerHTML = misActivos.length >= 2 
-          ? '<div class="no-pedidos"><h3>🚛 Tienes el máximo de pedidos (2/2)</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>'
+        contenedor.innerHTML = misActivos.length >= maxPedidosGlobal 
+          ? `<div class="no-pedidos"><h3>🚛 Tienes el máximo de pedidos (${misActivos.length}/${maxPedidosGlobal})</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>`
           : '<div class="no-pedidos"><h3>🎯 No hay pedidos disponibles</h3><p>Actualmente no hay pedidos disponibles en tu ciudad. ¡Mantente atento!</p></div>';
       } else {
         contenedor.innerHTML = '<div class="no-pedidos"><h3>🔴 No Disponible</h3><p>No hay pedidos esperando repartidor en tu ciudad actualmente.</p><p><strong>Activa "Disponible"</strong> para empezar a recibir pedidos.</p></div>';
@@ -352,11 +362,11 @@ function calcularTotalesPedido(pedido) {
           <p>Estás viendo todos los pedidos de tu ciudad. <strong>Activa "Disponible"</strong> en el inicio para poder tomarlos.</p>
         </div>
       `;
-    } else if (misActivos.length >= 2) {
-      htmlContent += '<div class="alerta limite-alcanzado"><h3>🚛 Máximo de pedidos alcanzado (2/2)</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>';
+    } else if (misActivos.length >= maxPedidosGlobal) {
+      htmlContent += `<div class="alerta limite-alcanzado"><h3>🚛 Máximo de pedidos alcanzado (${misActivos.length}/${maxPedidosGlobal})</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>`;
     } else if (misActivos.length >= 1) {
-      const restantes = 2 - misActivos.length;
-      htmlContent += `<div class="alerta advertencia-limite"><h3>⚠️ Puedes tomar ${restantes} pedido${restantes > 1 ? 's' : ''} más (${misActivos.length}/2)</h3><p>Tienes espacio para ${restantes > 1 ? 'pedidos adicionales' : 'un pedido adicional'}.</p></div>`;
+      const restantes = maxPedidosGlobal - misActivos.length;
+      htmlContent += `<div class="alerta advertencia-limite"><h3>⚠️ Puedes tomar ${restantes} pedido${restantes > 1 ? 's' : ''} más (${misActivos.length}/${maxPedidosGlobal})</h3><p>Tienes espacio para ${restantes > 1 ? 'pedidos adicionales' : 'un pedido adicional'}.</p></div>`;
     }
   
     const pedidosOrdenados = [...pedidosDisponibles].sort((a, b) =>
@@ -561,7 +571,7 @@ function calcularTotalesPedido(pedido) {
       if (!disponible) {
         return `<button class="cbtn cbtn-nd" disabled>No disponible</button>`;
       }
-      const off = cantidadActivos >= 2;
+      const off = cantidadActivos >= maxPedidosGlobal;
       return `<button class="cbtn cbtn-tomar" onclick="tomarPedido(${pedido.id})" ${off ? 'disabled' : ''}>${off ? 'Limite alcanzado' : 'Tomar pedido'}</button>`;
     }
     return '';
@@ -587,8 +597,8 @@ function calcularTotalesPedido(pedido) {
       console.error('Error verificando disponibilidad:', error);
     }
     
-    if (pedidosActivosGlobal >= 2) {
-      mostrarMensaje('❌No puedes tomar más pedidos. Máximo 2 pedidos activos permitidos.', 'error');
+    if (pedidosActivosGlobal >= maxPedidosGlobal) {
+      mostrarMensaje(`❌No puedes tomar más pedidos. Máximo ${maxPedidosGlobal} pedidos activos permitidos.`, 'error');
       return;
     }
   
@@ -612,7 +622,7 @@ function calcularTotalesPedido(pedido) {
           await window.unifiedGeoService.startTracking();
         }
         
-        mostrarMensaje(`Pedido asignado (${result.pedidosActivos || 1}/2 activos)`);
+        mostrarMensaje(`Pedido asignado (${result.pedidosActivos || 1}/${result.maxPedidos || maxPedidosGlobal} activos)`);
         actualizarContadorPedidos(result.pedidosActivos || 1);
         // ✅ Recargar inmediatamente sin delay
         await cargarPedidos();
