@@ -7,10 +7,12 @@ class FCMNotificationService {
     this.notificacionesActivas = true;
     this.disponible = true; // ✅ NUEVO: Estado de disponibilidad
     
-    // ✅ SONIDO PERSISTENTE: Múltiples reproducciones para no perder pedidos
+    // ✅ SONIDO PERSISTENTE EN BUCLE: suena hasta que el pedido se tome o se silencie
     this.audio = null;
     this.alarmInterval = null;
     this.alarmTimeout = null;
+    this.pedidosSilenciados = new Set(); // IDs que el usuario ya atendió (Ver/cerrar/tomar)
+    this._ultimosPendientes = [];        // últimos IDs en "esperando repartidor"
     this._initAudio();
   }
 
@@ -33,12 +35,13 @@ class FCMNotificationService {
    * Así el domiciliario NO pierde ningún pedido
    */
   reproducirAlarma() {
-    // Limpiar alarma anterior si existe
-    this.detenerAlarma();
-
     if (!this.notificacionesActivas || !this.audio) return;
 
-    console.log('🔔 Iniciando alarma de nuevo pedido...');
+    // ✅ BUCLE: si ya está sonando, NO reiniciar (evita solapar sonidos).
+    // La alarma sigue hasta que el pedido se tome o el usuario la silencie.
+    if (this.alarmInterval) return;
+
+    console.log('🔔 Iniciando alarma de nuevo pedido (bucle)...');
 
     const reproducirSonido = () => {
       try {
@@ -56,22 +59,19 @@ class FCMNotificationService {
       }
     };
 
-    // Reproducir inmediatamente
+    // Reproducir inmediatamente + vibrar
     reproducirSonido();
-    // ✅ También vibrar para reforzar
     this._vibrar();
 
-    // ✅ Repetir cada 4 segundos
+    // ✅ Repetir cada 4 segundos EN BUCLE mientras la app esté visible.
+    // En segundo plano JS se suspende y, si sigue vivo, NO debe repetir el sonido:
+    // el aviso de fondo lo da la notificación FCM (una sola vez). Así no queda
+    // "pitando cada 4s" después de salir de la app.
     this.alarmInterval = setInterval(() => {
+      if (document.hidden) return; // segundo plano → silencio (lo maneja FCM)
       reproducirSonido();
       this._vibrar();
     }, 4000);
-
-    // ✅ Auto-detener después de 30 segundos para no molestar infinitamente
-    this.alarmTimeout = setTimeout(() => {
-      this.detenerAlarma();
-      console.log('🔕 Alarma auto-detenida después de 30s');
-    }, 30000);
   }
 
   /**
@@ -97,6 +97,78 @@ class FCMNotificationService {
     if (this.alarmTimeout) {
       clearTimeout(this.alarmTimeout);
       this.alarmTimeout = null;
+    }
+  }
+
+  /**
+   * ✅ NUEVO: Decide si la alarma debe sonar según los pedidos pendientes.
+   * Se llama desde cargarPedidos() en cada actualización/poll, por lo que funciona
+   * IGUAL estando dentro de la app (vía socket-mock) o con la app cerrada (vía FCM).
+   * - Suena en bucle mientras haya pedidos pendientes SIN atender y el domiciliario
+   *   pueda recibirlos (disponible y bajo el máximo).
+   * - Se detiene sola cuando ya no quedan pedidos pendientes (p.ej. otro domiciliario
+   *   lo tomó) o cuando el usuario la silencia (Ver / cerrar / tomar).
+   * @param {Array<number>} idsPendientes IDs en estado 'esperando repartidor'
+   * @param {boolean} puedeRecibir disponible y por debajo del máximo de pedidos
+   */
+  evaluarAlarma(idsPendientes = [], puedeRecibir = true) {
+    this._ultimosPendientes = idsPendientes;
+
+    // Limpiar silenciados que ya no están pendientes (para volver a sonar si reaparecen)
+    this.pedidosSilenciados.forEach(id => {
+      if (!idsPendientes.includes(id)) this.pedidosSilenciados.delete(id);
+    });
+
+    // Ocupado / al límite, o sin pedidos → detener alarma.
+    // ✅ FIX: NO usar clear(). Si limpiábamos la memoria, al entregar un pedido y
+    // recuperar cupo, los pedidos que YA estaban esperando se trataban como nuevos
+    // y la alarma sonaba sin haber llegado nada nuevo.
+    // En su lugar, marcamos los pendientes ACTUALES como "ya conocidos": así, al
+    // liberar cupo NO suenan; solo sonará por pedidos que lleguen DESPUÉS.
+    if (!puedeRecibir || idsPendientes.length === 0) {
+      this.detenerAlarma();
+      this.ocultarNotificacionEnApp();
+      idsPendientes.forEach(id => this.pedidosSilenciados.add(id));
+      return;
+    }
+
+    // ¿Hay algún pedido pendiente que el usuario aún NO haya atendido?
+    const hayPendienteSinAtender = idsPendientes.some(id => !this.pedidosSilenciados.has(id));
+
+    if (hayPendienteSinAtender) {
+      this.reproducirAlarma(); // el guard interno evita reiniciar si ya suena
+      // Mostrar el banner flotante solo si aún no está visible (evita parpadeo en cada poll)
+      if (!document.getElementById('fcm-notification-banner')) {
+        this.mostrarNotificacionEnApp({
+          title: 'Nuevo pedido disponible',
+          body: 'Tienes un pedido esperando repartidor.'
+        }, true, true);
+      }
+    }
+  }
+
+  /**
+   * ✅ NUEVO: Silenciar la alarma de los pedidos actuales.
+   * Marca los pedidos pendientes como atendidos para que NO vuelva a sonar por ellos,
+   * pero seguirá sonando si llega un pedido NUEVO (con otro id).
+   * Se llama al pulsar "Ver pedido", cerrar el banner o tomar un pedido.
+   */
+  silenciarAlarma() {
+    (this._ultimosPendientes || []).forEach(id => this.pedidosSilenciados.add(id));
+    this.detenerAlarma();
+    this.ocultarNotificacionEnApp();
+  }
+
+  /**
+   * ✅ NUEVO: Ocultar el banner flotante en-app si está visible.
+   */
+  ocultarNotificacionEnApp() {
+    const banner = document.getElementById('fcm-notification-banner');
+    if (banner) {
+      banner.style.transition = 'all 0.25s ease';
+      banner.style.opacity = '0';
+      banner.style.transform = 'translateY(-20px)';
+      setTimeout(() => { if (banner.parentElement) banner.remove(); }, 250);
     }
   }
 
@@ -229,21 +301,35 @@ class FCMNotificationService {
       // ✅ NUEVO PEDIDO
       if (data.tipo === 'nuevo_pedido') {
         console.log('⚡ Nuevo pedido via FCM');
-        
+
         if (window.socketMockInstance) window.socketMockInstance.forceCheck();
         if (typeof window.cargarPedidos === 'function') window.cargarPedidos();
 
-        if (this.disponible) {
-          this.reproducirAlarma();
-          console.log('🔔 Alarma persistente activada (domiciliario disponible)');
-        } else {
-          if (this.notificacionesActivas) {
-            this.reproducirSonidoSuave();
-            console.log('🔕 Sonido suave (domiciliario no disponible)');
-          }
+        // ❌ NO arrancar la alarma a ciegas aquí.
+        // cargarPedidos() → evaluarAlarma() decide: la alarma SOLO suena si el
+        // pedido SIGUE en 'esperando repartidor' al recargar. Si otro domiciliario
+        // ya lo tomó, evaluarAlarma([]) la detiene → se evita el clásico
+        // "suena y al ir a ver no está el pedido".
+        // (Para no disponibles, evaluarAlarma tampoco sonará: puedeRecibir=false.)
+
+        this.mostrarNotificacionEnApp(notification, this.disponible, true);
+        return;
+      }
+
+      // ✅ PEDIDO TOMADO POR OTRO / CANCELADO → apagar la alarma de ESE pedido.
+      // El backend (cancelarNotificacionPedido) envía este push data-only cuando
+      // alguien toma el pedido o se cancela. Sin esto, la alarma quedaba colgada
+      // y el domiciliario "iba a ver y no estaba el pedido".
+      if (data.tipo === 'cancelar_pedido') {
+        console.log('🛑 cancelar_pedido recibido:', data.pedidoId);
+        if (data.pedidoId) {
+          const idNum = parseInt(data.pedidoId);
+          if (!Number.isNaN(idNum)) this.pedidosSilenciados.add(idNum);
         }
-        
-        this.mostrarNotificacionEnApp(notification, this.disponible);
+        this.detenerAlarma();
+        this.ocultarNotificacionEnApp();
+        if (window.socketMockInstance) window.socketMockInstance.forceCheck();
+        if (typeof window.cargarPedidos === 'function') window.cargarPedidos();
         return;
       }
 
@@ -261,7 +347,7 @@ class FCMNotificationService {
           title: '✅ ¡Pedido Listo!',
           body: `Pedido #${data.pedidoId} de ${data.restaurante || 'Restaurante'} está listo para recoger`,
           data: data
-        }, true);
+        }, true, true);
         return;
       }
       
@@ -291,8 +377,8 @@ class FCMNotificationService {
         return;
       }
       
-      // ✅ DETENER ALARMA al tocar la notificación
-      this.detenerAlarma();
+      // ✅ SILENCIAR ALARMA al tocar la notificación (marca pedidos como atendidos)
+      this.silenciarAlarma();
       
       // ✅ DEEP LINK CORRECTO: Navegar a la página de pedidos
       if (data.tipo === 'nuevo_pedido' || data.pedidoId) {
@@ -323,59 +409,107 @@ class FCMNotificationService {
   }
 
   /**
-   * ✅ MEJORADO: Banner en-app con botón para detener alarma
+   * ✅ MEJORADO: Banner flotante en-app, profesional con iconos SVG.
+   * @param {object} notification {title, body}
+   * @param {boolean} esDisponible muestra botón "Ver" si es true
+   * @param {boolean} persistente si true, NO se auto-cierra (se cierra al Ver/cerrar/tomar
+   *                  o cuando la alarma se detiene). Usado para alarmas de nuevo pedido.
    */
-  mostrarNotificacionEnApp(notification, esDisponible) {
+  mostrarNotificacionEnApp(notification, esDisponible, persistente = false) {
     const existente = document.getElementById('fcm-notification-banner');
     if (existente) existente.remove();
-    
+
+    // Inyectar estilos una sola vez
+    if (!document.getElementById('fcm-banner-styles')) {
+      const st = document.createElement('style');
+      st.id = 'fcm-banner-styles';
+      st.textContent = `
+        #fcm-notification-banner{
+          position:fixed;top:12px;left:12px;right:12px;z-index:10001;
+          display:flex;align-items:center;gap:12px;
+          background:#ffffff;padding:12px 14px;border-radius:16px;
+          border:1px solid #e2e8f0;box-shadow:0 12px 38px rgba(15,23,42,0.22);
+          animation:fcmSlideDown .32s cubic-bezier(.2,.8,.2,1);
+        }
+        @keyframes fcmSlideDown{from{opacity:0;transform:translateY(-28px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes fcmPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+        #fcm-notification-banner .fcm-ic{
+          width:44px;height:44px;border-radius:13px;flex-shrink:0;
+          display:flex;align-items:center;justify-content:center;color:#fff;
+          animation:fcmPulse 1.3s ease-in-out infinite;
+        }
+        #fcm-notification-banner .fcm-txt{flex:1;min-width:0;}
+        #fcm-notification-banner .fcm-txt h4{margin:0 0 2px;font-size:.95rem;font-weight:700;color:#0f172a;}
+        #fcm-notification-banner .fcm-txt p{margin:0;font-size:.82rem;color:#64748b;line-height:1.3;
+          overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+        #fcm-notification-banner .fcm-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+        #fcm-notification-banner .fcm-ver{
+          display:flex;align-items:center;gap:5px;background:#22c55e;color:#fff;border:none;
+          padding:9px 14px;border-radius:11px;font-size:.82rem;font-weight:700;cursor:pointer;
+          box-shadow:0 3px 10px rgba(34,197,94,.4);transition:transform .1s ease;
+        }
+        #fcm-notification-banner .fcm-ver:active{transform:scale(.95);}
+        #fcm-notification-banner .fcm-close{
+          display:flex;align-items:center;justify-content:center;background:#f1f5f9;color:#64748b;
+          border:none;width:34px;height:34px;border-radius:11px;cursor:pointer;transition:transform .1s ease;
+        }
+        #fcm-notification-banner .fcm-close:active{transform:scale(.95);}
+      `;
+      document.head.appendChild(st);
+    }
+
+    const acento = esDisponible ? '#22c55e' : '#94a3b8';
+    const titulo = notification.title || (esDisponible ? 'Nuevo pedido cercano' : 'Nuevo pedido');
+    const cuerpo = notification.body || (esDisponible
+      ? 'NUEVOOO!'
+      : 'Hay un nuevo pedido. Actívate para tomarlo.');
+
+    // Iconos SVG (inline, sin dependencias externas)
+    const iconBell = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>`;
+    const iconEye = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>`;
+    const iconClose = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>`;
+
     const notifDiv = document.createElement('div');
     notifDiv.id = 'fcm-notification-banner';
-    
-    const bgColor = esDisponible ? '#ffffff' : '#f1f5f9';
-    const borderColor = esDisponible ? '#22c55e' : '#94a3b8';
-    const titulo = notification.title || (esDisponible ? '📦 Nuevo pedido cercano' : '📦 Nuevo pedido (informativo)');
-    const cuerpo = notification.body || (esDisponible ? '¡Tienes un nuevo pedido disponible!' : 'Hay un nuevo pedido. Activa tu disponibilidad para tomarlo.');
-    
+    notifDiv.style.borderLeft = `5px solid ${acento}`;
     notifDiv.innerHTML = `
-      <div style="flex:1;min-width:0;">
-        <h4 style="margin:0 0 4px 0;font-size:0.95rem;font-weight:700;color:#1e293b;">${titulo}</h4>
-        <p style="margin:0;font-size:0.85rem;color:#64748b;line-height:1.3;">${cuerpo}</p>
+      <div class="fcm-ic" style="background:${acento};">${iconBell}</div>
+      <div class="fcm-txt">
+        <h4>${titulo}</h4>
+        <p>${cuerpo}</p>
       </div>
-      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0;">
-        ${esDisponible ? `<button onclick="window.fcmNotificationService.detenerAlarma();if(typeof navigateTo==='function')navigateTo('pedidos');this.closest('#fcm-notification-banner').remove();" style="background:#22c55e;color:white;border:none;padding:8px 14px;border-radius:8px;font-size:0.8rem;font-weight:600;cursor:pointer;">Ver pedido</button>` : ''}
-        <button onclick="window.fcmNotificationService.detenerAlarma();this.closest('#fcm-notification-banner').remove();" style="background:none;border:none;color:#94a3b8;font-size:1.2rem;cursor:pointer;padding:4px;">✕</button>
+      <div class="fcm-actions">
+        ${esDisponible ? `<button class="fcm-ver" type="button">${iconEye}<span>Ver</span></button>` : ''}
+        <button class="fcm-close" type="button" aria-label="Cerrar">${iconClose}</button>
       </div>
     `;
-    
-    notifDiv.style.cssText = `
-      position: fixed;
-      top: 12px;
-      left: 12px;
-      right: 12px;
-      background: ${bgColor};
-      padding: 14px 16px;
-      border-radius: 14px;
-      border-left: 4px solid ${borderColor};
-      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-      z-index: 10001;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      animation: slideDown 0.3s ease;
-    `;
-    
     document.body.appendChild(notifDiv);
-    
-    // Auto-remover después de 15 segundos (más tiempo para que lo vea)
-    setTimeout(() => {
-      if (notifDiv.parentElement) {
-        notifDiv.style.transition = 'all 0.3s ease';
-        notifDiv.style.opacity = '0';
-        notifDiv.style.transform = 'translateY(-20px)';
-        setTimeout(() => notifDiv.remove(), 300);
-      }
-    }, 15000);
+
+    // Handlers
+    const verBtn = notifDiv.querySelector('.fcm-ver');
+    if (verBtn) {
+      verBtn.addEventListener('click', () => {
+        this.silenciarAlarma();
+        if (typeof window.navigateTo === 'function') window.navigateTo('pedidos');
+        if (typeof window.cargarPedidos === 'function') window.cargarPedidos();
+      });
+    }
+    notifDiv.querySelector('.fcm-close').addEventListener('click', () => {
+      this.silenciarAlarma();
+    });
+
+    // Auto-cerrar solo si NO es persistente (notificaciones informativas)
+    if (!persistente) {
+      setTimeout(() => {
+        // No cerrar si mientras tanto se activó una alarma en bucle
+        if (notifDiv.parentElement && !this.alarmInterval) {
+          notifDiv.style.transition = 'all 0.3s ease';
+          notifDiv.style.opacity = '0';
+          notifDiv.style.transform = 'translateY(-20px)';
+          setTimeout(() => notifDiv.remove(), 300);
+        }
+      }, 8000);
+    }
   }
 
   /**

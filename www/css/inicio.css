@@ -366,6 +366,32 @@
         background: linear-gradient(135deg, rgba(231, 76, 60, 0.04) 0%, var(--bg-surface) 70%);
       }
       .pedido-card.pedido-preview { opacity: 0.65; }
+
+      /* ── Pedido liberado: máxima prioridad ─────────────────────────── */
+      .pedido-card.pedido-liberado {
+        border-left-color: var(--accent);
+        border-top: 1px solid rgba(231, 76, 60, 0.25);
+        background: linear-gradient(135deg, rgba(231, 76, 60, 0.05) 0%, var(--bg-surface) 60%);
+      }
+
+      .badge-liberado {
+        margin-bottom: 7px;
+      }
+
+      .badge-lib-inner {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        padding: 3px 8px;
+        border-radius: 5px;
+        line-height: 1;
+      }
+      /* ─────────────────────────────────────────────────────────────── */
   
       .card-top {
         display: flex;

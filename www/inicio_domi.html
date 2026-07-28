@@ -1222,10 +1222,12 @@
   //  LOGOUT
   // ============================================================
 
-  // ✅ NUEVO: Función global para detener alarma y navegar a pedidos
+  // ✅ Función global para silenciar alarma y navegar a pedidos
   function detenerAlarmaYVer() {
     if (window.fcmNotificationService) {
-      window.fcmNotificationService.detenerAlarma();
+      // silenciarAlarma() marca los pedidos actuales como atendidos: deja de pitar
+      // y NO vuelve a sonar por ellos (solo sonará si llega un pedido nuevo distinto)
+      window.fcmNotificationService.silenciarAlarma();
     }
     // Ocultar indicador
     const ind = document.getElementById('alarmIndicator');
@@ -1241,18 +1243,16 @@
   }
   window.detenerAlarmaYVer = detenerAlarmaYVer;
 
-  // ✅ NUEVO: Observar estado de alarma para mostrar/ocultar indicador
-  setInterval(() => {
+  // ✅ La notificación flotante de "nuevo pedido" ahora la maneja el banner
+  // superior profesional de fcm-notifications.js (mostrarNotificacionEnApp),
+  // que persiste mientras suena la alarma y se silencia al pulsar "Ver".
+  // Mantenemos oculto el indicador inferior para no duplicar el aviso.
+  (function ocultarIndicadorInferior() {
     const ind = document.getElementById('alarmIndicator');
-    if (!ind) return;
-    if (window.fcmNotificationService && window.fcmNotificationService.alarmInterval) {
-      ind.classList.add('show');
-    } else {
-      ind.classList.remove('show');
-    }
-  }, 500);
+    if (ind) ind.style.display = 'none';
+  })();
 
-  // ✅ NUEVO: Detener alarma al interactuar con cualquier cosa en la app
+  // ✅ Detener alarma al interactuar con cualquier cosa en la app
   document.addEventListener('click', () => {
     if (window.fcmNotificationService && window.fcmNotificationService.alarmInterval) {
       // No detener automáticamente - el usuario debe tocar "Ver pedido" o el banner

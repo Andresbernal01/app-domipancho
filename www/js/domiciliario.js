@@ -303,6 +303,18 @@ function calcularTotalesPedido(pedido) {
       const misActivos = pedidosFiltrados.filter(p => ['camino a tu casa', 'preparando pedido'].includes(p.estado?.toLowerCase()));
       
       actualizarContadorPedidos(misActivos.length);
+
+      // ✅ NUEVO: Evaluar alarma sonora EN BUCLE según pedidos pendientes.
+      // Funciona dentro de la app (vía socket-mock que llama a cargarPedidos)
+      // y con la app cerrada (vía FCM). Suena hasta que se tome el pedido,
+      // se silencie ("Ver"/cerrar) o ya no queden pedidos disponibles.
+      if (window.fcmNotificationService) {
+        const puedeRecibir = disponible && misActivos.length < maxPedidosGlobal;
+        window.fcmNotificationService.evaluarAlarma(
+          disponiblesArr.map(p => p.id),
+          puedeRecibir
+        );
+      }
   
       // ✅ Solo mostrar disponibles en esta sección; los activos van en su propio tab
       renderizarPedidos(disponiblesArr, misActivos, [], disponible);
@@ -341,6 +353,17 @@ function calcularTotalesPedido(pedido) {
       console.error('❌ Elemento listaPedidos no encontrado');
       return;
     }
+
+    // ✅ ANTI-PARPADEO: si la lista no cambió, NO reconstruir el HTML.
+    // Evita el flicker cada 5s, el salto de scroll y el reinicio de animaciones.
+    // El hash incluye misActivos.length, disponible y el máximo porque las
+    // alertas superiores dependen de esos valores.
+    const hashActual = _calcHash(pedidosDisponibles || [])
+      + `#a${misActivos.length}#d${disponible ? 1 : 0}#m${maxPedidosGlobal}`;
+    if (hashActual === _lastDisponiblesHash && contenedor.children.length > 0) {
+      return;
+    }
+    _lastDisponiblesHash = hashActual;
     
     if (!Array.isArray(pedidosDisponibles) || pedidosDisponibles.length === 0) {
       if (disponible) {
@@ -369,9 +392,14 @@ function calcularTotalesPedido(pedido) {
       htmlContent += `<div class="alerta advertencia-limite"><h3>⚠️ Puedes tomar ${restantes} pedido${restantes > 1 ? 's' : ''} más (${misActivos.length}/${maxPedidosGlobal})</h3><p>Tienes espacio para ${restantes > 1 ? 'pedidos adicionales' : 'un pedido adicional'}.</p></div>`;
     }
   
-    const pedidosOrdenados = [...pedidosDisponibles].sort((a, b) =>
-      new Date(normalizarFechaUTC(a.fecha)) - new Date(normalizarFechaUTC(b.fecha))
-    );
+    const pedidosOrdenados = [...pedidosDisponibles].sort((a, b) => {
+      // Pedidos liberados siempre primero
+      const aLiberado = !!a.fecha_liberacion;
+      const bLiberado = !!b.fecha_liberacion;
+      if (aLiberado !== bLiberado) return aLiberado ? -1 : 1;
+      // Dentro del mismo grupo, más antiguos primero
+      return new Date(normalizarFechaUTC(a.fecha)) - new Date(normalizarFechaUTC(b.fecha));
+    });
   
     htmlContent += '<div class="pedidos-grid">';
     pedidosOrdenados.forEach(p => {
@@ -380,9 +408,6 @@ function calcularTotalesPedido(pedido) {
     htmlContent += '</div>';
   
     contenedor.innerHTML = htmlContent;
-
-    // ✅ Guardar hash para anti-parpadeo de disponibles
-    _lastDisponiblesHash = _calcHash(pedidosDisponibles);
   }
 
   // ========== UTILIDADES DE PROTECCIÓN DE DATOS ==========
@@ -413,6 +438,13 @@ function calcularTotalesPedido(pedido) {
       ? `<div class="badge-especial" style="background:${configEsp.bg}; color:${configEsp.color}; padding:2px 8px; border-radius:6px; font-size:0.7rem; font-weight:700; display:inline-flex; align-items:center; gap:3px; margin-bottom:6px; border:1px solid ${configEsp.color}30;">
            ${configEsp.icon} ${configEsp.label}
          </div>`
+      : '';
+
+    // ✅ DETECTAR PEDIDO LIBERADO
+    const esLiberado = !esMiPedido && !!p.fecha_liberacion;
+    const ICON_LIBERADO = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>`;
+    const badgeLiberado = esLiberado
+      ? `<div class="badge-liberado"><span class="badge-lib-inner">${ICON_LIBERADO} Liberado</span></div>`
       : '';
    
     // Origen: para especiales usa origen_especial, para normales el restaurante
@@ -479,13 +511,9 @@ function calcularTotalesPedido(pedido) {
         ? `<div class="card-estado-banner card-estado-listo">${ICON_CHECK} ¡Listo para recoger!</div>` 
         : `<div class="card-estado-banner card-estado-preparando">${ICON_CLOCK} Restaurante preparando...</div>`;
       accionesHtml = `
-        <div class="card-btns-info">
-          <button class="cbtn cbtn-det" onclick="abrirDetallesPedido(${p.id}, true)">Ver detalles</button>
-          <button class="cbtn cbtn-mapa" onclick="abrirMapaDomiciliario(${p.id})">Ver mapa</button>
-        </div>
         <div class="card-btns-acciones">
           <button class="cbtn cbtn-lib" onclick="abrirModalLiberar(${p.id})">Liberar</button>
-          <button class="cbtn cbtn-recoger" onclick="recogerPedido(${p.id})" style="background:#10b981;color:white;font-weight:700;flex:2;">${ICON_PICKUP} Ya recogí el pedido</button>
+          <button class="cbtn cbtn-recoger" onclick="recogerPedido(${p.id}, ${p.pedido_listo_en ? 'false' : 'true'})" style="background:#10b981;color:white;font-weight:700;flex:2;">${ICON_PICKUP} Ya recogí el pedido</button>
         </div>`;
     } else {
       // ✅ CAMINO A TU CASA: banner listo/preparando + acciones completas
@@ -518,10 +546,12 @@ function calcularTotalesPedido(pedido) {
     const borderStyle = configEsp
       ? `border-left: 3px solid ${configEsp.color};`
       : '';
+    const liberadoClass = esLiberado ? ' pedido-liberado' : '';
    
     return `
-      <div class="pedido-card ${cardClass}${previewClass}" data-pedido-id="${p.id}" style="${borderStyle}">
+      <div class="pedido-card ${cardClass}${previewClass}${liberadoClass}" data-pedido-id="${p.id}" style="${borderStyle}">
    
+        ${badgeLiberado}
         ${badgeEspecial}
    
         <div class="card-top">
@@ -579,9 +609,9 @@ function calcularTotalesPedido(pedido) {
 
   // ========== ACCIONES DE PEDIDOS ==========
   async function tomarPedido(pedidoId) {
-    // ✅ NUEVO: Detener alarma al interactuar con un pedido
+    // ✅ Silenciar alarma al tomar el pedido (marca pedidos actuales como atendidos)
     if (window.fcmNotificationService) {
-      window.fcmNotificationService.detenerAlarma();
+      window.fcmNotificationService.silenciarAlarma();
     }
     
     try {
@@ -627,11 +657,20 @@ function calcularTotalesPedido(pedido) {
         // ✅ Recargar inmediatamente sin delay
         await cargarPedidos();
       } else {
-        if (btnTomar) {
-          btnTomar.disabled = false;
-          btnTomar.textContent = 'Tomar';
-        }
-        mostrarMensaje(`❌ ${result.error || 'No se pudo tomar el pedido'}`, 'error');
+        // ✅ Falló la toma. Si ya fue tomado por otro (409 / yaTomado) o ya no
+        //    está disponible, refrescamos la lista para que la tarjeta desaparezca
+        //    en vez de dejar el botón colgado y el pedido visible.
+        const yaTomado = res.status === 409 || result.yaTomado === true;
+        mostrarMensaje(
+          yaTomado
+            ? '⚠️ Ese pedido ya lo tomó otro domiciliario'
+            : `❌ ${result.error || 'No se pudo tomar el pedido'}`,
+          yaTomado ? 'info' : 'error'
+        );
+        // Recargar SIEMPRE: sincroniza con el estado real del servidor.
+        // - Si ya fue tomado → desaparece de la lista.
+        // - Si sigue disponible (ej. error transitorio) → vuelve a quedar tomable.
+        await cargarPedidos();
       }
     } catch (error) {
       console.error('Error al tomar pedido:', error);
@@ -644,8 +683,10 @@ function calcularTotalesPedido(pedido) {
   }
 
   // ========== RECOGER PEDIDO (preparando pedido → camino a tu casa) ==========
-  async function recogerPedido(pedidoId) {
-    if (!confirm('¿Confirmas que ya recogiste el pedido del restaurante?')) return;
+  async function recogerPedido(pedidoId, forzado = false) {
+    // ✅ Flujo normal (restaurante ya marcó listo): un solo clic, sin confirmación.
+    // Override (restaurante olvidó marcar listo): pedir confirmación consciente.
+    if (forzado && !confirm('El restaurante todavía no marcó este pedido como LISTO. ¿Confirmas que ya lo tienes en mano y vas hacia el cliente?')) return;
 
     const tarjeta = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
     const btnRecoger = tarjeta?.querySelector('.cbtn-recoger');
@@ -656,7 +697,11 @@ function calcularTotalesPedido(pedido) {
     }
 
     try {
-      const res = await window.apiRequest(`/api/pedidos/${pedidoId}/recoger`, { method: 'POST' });
+      const res = await window.apiRequest(`/api/pedidos/${pedidoId}/recoger`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forzado })
+      });
       const result = await res.json();
 
       if (res.ok) {
@@ -1035,9 +1080,9 @@ function calcularTotalesPedido(pedido) {
   }
 
   function abrirDetallesPedido(pedidoId, esMiPedido = false) {
-    // ✅ NUEVO: Detener alarma al ver detalles
+    // ✅ Silenciar alarma al ver detalles (marca pedidos actuales como atendidos)
     if (window.fcmNotificationService) {
-      window.fcmNotificationService.detenerAlarma();
+      window.fcmNotificationService.silenciarAlarma();
     }
     
     // ✅ INSTANTÁNEO: buscar en cache (ya cargado al renderizar)
@@ -1174,9 +1219,10 @@ function calcularTotalesPedido(pedido) {
     
     socketInstance.on('nuevo-pedido', async (data) => {
       console.log('⚡ Nuevo pedido disponible:', data.pedidoId);
-      // ✅ Recargar INMEDIATAMENTE sin delay
+      // ✅ Recargar INMEDIATAMENTE sin delay.
+      // cargarPedidos() llama a evaluarAlarma(), que activa el sonido en bucle
+      // y el banner flotante — también cuando estás DENTRO de la app.
       cargarPedidos();
-      // Nota: La alarma sonora la maneja FCM, no el socket mock
     });
     
     socketInstance.on('pedido-removido', (data) => {

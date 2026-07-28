@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8" ?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
@@ -7,6 +8,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -53,6 +55,37 @@
             android:name=".ServiceRestarter"
             android:enabled="true"
             android:exported="false" />
+
+        <!-- ✅ FCM nativo: recibe los push data-only y controla la alarma en
+             segundo plano. Declarado en el manifest de la app para tener prioridad
+             sobre el servicio del plugin en el merge. Extiende el MessagingService
+             de @capacitor/push-notifications, así el plugin sigue funcionando en
+             primer plano. -->
+        <service
+            android:name=".PedidosMessagingService"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- ✅ Quita el servicio FCM del plugin oficial del merge: nuestro
+             PedidosMessagingService lo extiende y llama super, así que es el ÚNICO
+             que maneja MESSAGING_EVENT (sin ambigüedad de "quién recibe el push")
+             sin perder la funcionalidad del plugin en primer plano. -->
+        <service
+            android:name="com.capacitorjs.plugins.pushnotifications.MessagingService"
+            tools:node="remove" />
+
+        <!-- ✅ Alarma sonora persistente (bucle) cuando llega un pedido con la
+             app en segundo plano o cerrada. -->
+        <service
+            android:name=".AlarmaPedidoService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback"
+            android:stopWithTask="false" />
 
         <!-- Servicio de Background Geolocation (Capacitor) -->
         <service

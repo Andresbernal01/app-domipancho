@@ -11,6 +11,11 @@ import java.util.ArrayList;
 public class MainActivity extends BridgeActivity {
     private static final int REQUEST_IGNORE_BATTERY_OPTIMIZATIONS = 1001;
 
+    // ✅ Lo lee PedidosMessagingService para saber si la app está visible.
+    //    Si está en primer plano, el JS maneja la alarma (banner + sonido) y el
+    //    servicio nativo NO suena, evitando sonido doble.
+    public static volatile boolean isAppForeground = false;
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         // ✅ REGISTRAR PLUGIN ANTES DE super.onCreate()
@@ -42,7 +47,28 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onResume() {
         super.onResume();
+        isAppForeground = true; // ✅
+        // ✅ Si había una alarma sonando en segundo plano, pararla al volver al frente
+        AlarmaPedidoService.detenerDesdeActividad(this);
         TrackingStateManager.restoreTrackingIfNeeded(this);
+    }
+
+    /**
+     * Se dispara cuando la app ya está en primer plano y el usuario toca
+     * el botón "Ver pedido" de la notificación (FLAG_ACTIVITY_SINGLE_TOP).
+     */
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        if (intent != null && AlarmaPedidoService.ACTION_VER.equals(intent.getAction())) {
+            AlarmaPedidoService.detenerDesdeActividad(this);
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        isAppForeground = false; // ✅
     }
 
     @Override

@@ -2,7 +2,7 @@ import { CapacitorConfig } from '@capacitor/core';
 
 const config: CapacitorConfig = {
   appId: 'com.domipancho.domiciliarios',
-  appName: 'DomiPancho',
+  appName: 'PanchoGo',
   webDir: 'www',
   server: {
     androidScheme: 'https',
