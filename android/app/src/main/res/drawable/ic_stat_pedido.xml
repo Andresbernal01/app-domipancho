@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Icono monocromo para la barra de estado (Android lo pinta de blanco/gris).
+     Bolsa de pedido: sustituye al ícono genérico de advertencia. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M7,7V6a5,5 0,0 1,10 0v1h2.5a1,1 0,0 1,1 0.92l1,13A1,1 0,0 1,20.5 22h-17a1,1 0,0 1,-1 -1.08l1,-13A1,1 0,0 1,4.5 7H7zM9,7h6V6a3,3 0,0 0,-6 0v1zM8,10.5a1,1 0,1 0,2 0a1,1 0,1 0,-2 0zM14,10.5a1,1 0,1 0,2 0a1,1 0,1 0,-2 0z"/>
+</vector>

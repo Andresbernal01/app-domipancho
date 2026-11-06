@@ -4,94 +4,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>DomiPancho | Domiciliario</title>
-  <link rel="icon" href="img/logo.png">
+  <link rel="icon" href="img/logo-sm.webp">
   
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#0f172a">
+  <meta name="theme-color" content="#ffffff">
   
   <script src="js/config.js"></script>
   <script src="js/socket-mock.js"></script>
   <script src="js/unified-geolocation.js"></script>
   <script src="js/fcm-notifications.js"></script>
   <script src="js/inactividad.js"></script>
+  <script src="js/pull-to-refresh.js"></script>
   <link rel="stylesheet" href="css/inicio.css">
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
   <style>
-    /* ✅ Card status banners — compact */
-    .card-estado-banner {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 7px 12px;
-      border-radius: 8px;
-      font-size: 0.82rem;
-      font-weight: 700;
-      margin-bottom: 8px;
-      letter-spacing: 0.01em;
-    }
-    .card-estado-listo {
-      background: linear-gradient(135deg, #22c55e, #16a34a);
-      color: #fff;
-      animation: pulseGlow 1.5s ease-in-out infinite;
-    }
-    .card-estado-preparando {
-      background: rgba(245,158,11,0.12);
-      color: #f59e0b;
-      border: 1px solid rgba(245,158,11,0.3);
-    }
-    /* ✅ Fila de botones info (Ver detalles + Ver mapa) */
-    .card-btns-info {
-      display: flex;
-      gap: 5px;
-      width: 100%;
-      margin-bottom: 5px;
-    }
-    .card-btns-info .cbtn { flex: 1 1 0; min-width: 0; }
-    /* ✅ Animación para banner de notificación */
-    @keyframes slideDown {
-      from { opacity: 0; transform: translateY(-30px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    /* ✅ Indicador de alarma activa en el header */
-    .alarm-active-indicator {
-      position: fixed;
-      bottom: 70px;
-      left: 12px;
-      right: 12px;
-      background: linear-gradient(135deg, #22c55e, #16a34a);
-      color: white;
-      padding: 12px 16px;
-      border-radius: 12px;
-      display: none;
-      align-items: center;
-      justify-content: space-between;
-      z-index: 9999;
-      box-shadow: 0 4px 20px rgba(34,197,94,0.4);
-      animation: pulse-alarm 1.5s ease-in-out infinite;
-    }
-    .alarm-active-indicator.show { display: flex; }
-    @keyframes pulse-alarm {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.85; transform: scale(1.02); }
-    }
-    .alarm-active-indicator button {
-      background: rgba(255,255,255,0.25);
-      border: none;
-      color: white;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 0.85rem;
-      cursor: pointer;
-    }
-
-    @keyframes pulseGlow {
-  0%, 100% { box-shadow: 0 0 5px rgba(34,197,94,0.4); }
-  50% { box-shadow: 0 0 20px rgba(34,197,94,0.8); }
-}
-
     /* ✅ MAPA FULLSCREEN */
     .modal-mapa-fullscreen {
       position: fixed;
@@ -231,10 +159,39 @@
       box-shadow: 0 2px 8px rgba(59,130,246,0.3);
     }
   </style>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Plugin de rotación (gesto 2 dedos como Google Maps) -->
-  <script src="https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js"></script>
+  <script>
+    // ✅ RENDIMIENTO: Leaflet (~150 KB + plugin de rotación) ya NO bloquea el
+    // arranque de la app. Se descarga solo al abrir el mapa, y se precarga en
+    // segundo plano cuando la app está quieta para que el mapa abra al instante.
+    (function () {
+      let promesa = null;
+      function cargarScript(src) {
+        return new Promise((ok, fail) => {
+          const sc = document.createElement('script');
+          sc.src = src; sc.async = false;
+          sc.onload = ok; sc.onerror = fail;
+          document.head.appendChild(sc);
+        });
+      }
+      window.cargarLeaflet = function () {
+        if (window.L && window.L.map) return Promise.resolve();
+        if (promesa) return promesa;
+        const css = document.createElement('link');
+        css.rel = 'stylesheet';
+        css.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        document.head.appendChild(css);
+        promesa = cargarScript('https://unpkg.com/leaflet@1.9.4/dist/leaflet.js')
+          // Plugin de rotación (gesto 2 dedos como Google Maps)
+          .then(() => cargarScript('https://unpkg.com/leaflet-rotate@0.2.8/dist/leaflet-rotate.js'))
+          .catch(err => { promesa = null; throw err; });
+        return promesa;
+      };
+      window.addEventListener('load', () => {
+        const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 4000));
+        idle(() => window.cargarLeaflet().catch(() => {}), { timeout: 8000 });
+      });
+    })();
+  </script>
 </head>
 <body>
 
@@ -242,81 +199,82 @@
   <header class="header">
     <div class="header-row">
       <div class="header-user">
-        <div class="avatar">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-          </svg>
-        </div>
+        <img class="avatar" src="img/logo-sm.webp" alt="DomiPancho" width="40" height="40">
         <div class="header-text">
-          <h1 id="restaurantName">Cargando...</h1>
-          <div class="sub" id="userName">-</div>
+          <h1><span id="restaurantName">DomiPancho</span> <span class="ciudad-chip" id="ciudadLabel" hidden></span></h1>
+          <div class="sub" id="userName">Cargando...</div>
         </div>
       </div>
       <div class="header-actions">
-        <button class="btn-icon" onclick="location.reload()" title="Recargar">
+        <button class="btn-icon" id="btnRecargar" onclick="window.pullToRefresh ? window.pullToRefresh.disparar() : location.reload()" title="Actualizar" aria-label="Actualizar">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
         </button>
-        <button class="btn-icon danger" onclick="logout()" title="Cerrar sesión">
+        <button class="btn-icon danger" onclick="logout()" title="Cerrar sesión" aria-label="Cerrar sesión">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
         </button>
       </div>
     </div>
+
+    <!-- ========== DISPONIBILIDAD ========== -->
+    <label class="disponibilidad-strip" id="dispStrip" for="switchDisponibilidad">
+      <div class="disp-left">
+        <div class="disp-dot"></div>
+        <div class="disp-textos">
+          <span class="disp-label" id="dispLabel">Disponible para pedidos</span>
+          <span class="disp-sub" id="dispSub">Recibirás alertas de pedidos nuevos</span>
+        </div>
+      </div>
+      <span class="switch">
+        <input type="checkbox" id="switchDisponibilidad" checked>
+        <span class="slider"></span>
+      </span>
+    </label>
   </header>
 
-  <!-- ========== DISPONIBILIDAD STRIP ========== -->
-  <div class="disponibilidad-strip" id="dispStrip">
-    <div class="disp-left">
-      <div class="disp-dot"></div>
-      <span class="disp-label" id="dispLabel">Disponible para pedidos</span>
-    </div>
-    <label class="switch">
-      <input type="checkbox" id="switchDisponibilidad" checked>
-      <span class="slider"></span>
-    </label>
-  </div>
+  <main class="app-main">
 
   <!-- ========== PAGE: PEDIDOS ACTIVOS (mis pedidos en curso) ========== -->
-  <div class="page-view active" id="page-pedidos-activos">
+  <section class="page-view active" id="page-pedidos-activos">
     <div class="active-orders-header">
-      <h2>
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:20px;height:20px;display:inline;vertical-align:middle;margin-right:6px;color:var(--accent)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
-        Pedidos Activos
-      </h2>
+      <div class="seccion-titulo">
+        <span class="seccion-ic ic-accent"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg></span>
+        <div><h2>Pedidos activos</h2><p class="seccion-sub">Tus entregas en curso</p></div>
+      </div>
       <div class="orders-count" id="contadorPedidos">
-        <span class="num" id="numPedidosActivos">0</span><span>/<span id="maxPedidosLabel">2</span></span>
+        <span class="num" id="numPedidosActivos">0</span><span class="den">/<span id="maxPedidosLabel">2</span></span>
       </div>
     </div>
-    <div id="listaPedidosActivos" class="loading">
-      <div class="spinner"></div>
-      <p>Cargando pedidos activos...</p>
+    <div id="listaPedidosActivos">
+      <div class="skeleton-card"><div class="sk sk-line w40"></div><div class="sk sk-block"></div><div class="sk sk-line w60"></div><div class="sk sk-btn"></div></div>
+      <div class="skeleton-card"><div class="sk sk-line w40"></div><div class="sk sk-block"></div><div class="sk sk-line w60"></div><div class="sk sk-btn"></div></div>
     </div>
-  </div>
+  </section>
 
   <!-- ========== PAGE: PEDIDOS DISPONIBLES (para tomar) ========== -->
-  <div class="page-view" id="page-pedidos">
+  <section class="page-view" id="page-pedidos">
     <div class="active-orders-header">
-      <h2>
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:20px;height:20px;display:inline;vertical-align:middle;margin-right:6px;color:var(--warning)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
-        Pedidos Disponibles
-      </h2>
-      <div class="orders-count" style="border-color:rgba(251,191,36,0.3)">
-        <span class="num" id="numPedidosDisponibles" style="color:var(--warning)">0</span>
-        <span>disponibles</span>
+      <div class="seccion-titulo">
+        <span class="seccion-ic ic-warning"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg></span>
+        <div><h2>Pedidos disponibles</h2><p class="seccion-sub">Listos para tomar en tu ciudad</p></div>
+      </div>
+      <div class="orders-count orders-count-warning">
+        <span class="num" id="numPedidosDisponibles">0</span>
+        <span class="den">nuevos</span>
       </div>
     </div>
-    <div id="listaPedidos" class="loading">
-      <div class="spinner"></div>
-      <p>Cargando pedidos...</p>
+    <div id="listaPedidos">
+      <div class="skeleton-card"><div class="sk sk-line w40"></div><div class="sk sk-block"></div><div class="sk sk-line w60"></div><div class="sk sk-btn"></div></div>
+      <div class="skeleton-card"><div class="sk sk-line w40"></div><div class="sk sk-block"></div><div class="sk sk-line w60"></div><div class="sk sk-btn"></div></div>
     </div>
-  </div>
+  </section>
 
   <!-- ========== PAGE: FINANZAS (Historial + Contabilidad combinados) ========== -->
-  <div class="page-view" id="page-historial">
-    <div class="finanzas-header">
-      <h2>
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:20px;height:20px;display:inline;vertical-align:middle;margin-right:6px;color:var(--success)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-        Finanzas
-      </h2>
+  <section class="page-view" id="page-historial">
+    <div class="active-orders-header">
+      <div class="seccion-titulo">
+        <span class="seccion-ic ic-success"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg></span>
+        <div><h2>Finanzas</h2><p class="seccion-sub">Tus entregas y ganancias del día</p></div>
+      </div>
     </div>
 
     <!-- Tabs -->
@@ -347,9 +305,9 @@
       <input type="date" id="fechaFiltro" style="display:none;" onchange="filtrarPorFecha()">
       <div id="tituloFecha" class="titulo-fecha"></div>
       <div id="resumenHoy" class="resumen-grid"></div>
-      <div id="listaEntregas" class="loading">
-        <div class="spinner"></div>
-        <p>Cargando historial...</p>
+      <div id="listaEntregas" class="lista-historial">
+      <div class="skeleton-card"><div class="sk sk-line w40"></div><div class="sk sk-block"></div><div class="sk sk-line w60"></div><div class="sk sk-btn"></div></div>
+      <div class="skeleton-card"><div class="sk sk-line w40"></div><div class="sk sk-block"></div><div class="sk sk-line w60"></div><div class="sk sk-btn"></div></div>
       </div>
     </div>
 
@@ -386,14 +344,16 @@
         </ul>
       </div>
     </div>
-  </div>
+  </section>
 
   <!-- ========== PAGE: CAMBIAR PASSWORD ========== -->
-  <div class="page-view" id="page-config">
-    <h2 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; display:flex; align-items:center; gap:8px;">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:20px;height:20px;color:var(--text-secondary)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-      Configuración
-    </h2>
+  <section class="page-view" id="page-config">
+    <div class="active-orders-header">
+      <div class="seccion-titulo">
+        <span class="seccion-ic ic-muted"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg></span>
+        <div><h2>Configuración</h2><p class="seccion-sub">Seguridad de tu cuenta</p></div>
+      </div>
+    </div>
     
     <div id="blockedContainer" class="blocked-container" style="display: none;">
       <div class="blocked-icon">
@@ -459,7 +419,9 @@
         <div id="mensajePw" class="mensaje-pw"></div>
       </form>
     </div>
-  </div>
+  </section>
+
+  </main>
 
   <!-- ✅ INDICADOR DE ALARMA ACTIVA -->
   <div class="alarm-active-indicator" id="alarmIndicator">
@@ -496,7 +458,7 @@
   </nav>
 
   <!-- ========== MODALES ========== -->
-  <div id="mensajeSistema" class="mensaje-sistema" style="display:none;"></div>
+  <div id="mensajeSistema" class="mensaje-sistema" role="status" aria-live="polite" style="display:none;"></div>
 
   <!-- MODAL PROBLEMA -->
   <div id="modalProblema" class="modal-problema" style="display: none;">
@@ -722,6 +684,28 @@
     window.scrollTo(0, 0);
   }
 
+  // ============================================================
+  //  PULL-TO-REFRESH: recarga SOLO la sección que se está viendo
+  // ============================================================
+  async function refrescarVistaActual() {
+    if (window.apiRequest && window.apiRequest.invalidate) window.apiRequest.invalidate();
+    switch (currentPage) {
+      case 'pedidos-activos':
+      case 'pedidos':
+        if (typeof window.cargarPedidos === 'function') await window.cargarPedidos();
+        break;
+      case 'historial':
+        if (finanzasTabActual === 'contabilidad') await cargarResumenContab();
+        else await cargarHistorial(fechaHistorialActual, true);
+        break;
+      case 'config':
+        await verificarPermisosCambio();
+        break;
+    }
+  }
+  window.refrescarVistaActual = refrescarVistaActual;
+  window.navigateTo = navigateTo;
+
   function switchFinanzasTab(tab) {
     finanzasTabActual = tab;
     document.getElementById('tab-historial').classList.toggle('active', tab === 'historial');
@@ -743,6 +727,15 @@
   // ============================================================
   //  DISPONIBILIDAD
   // ============================================================
+  function pintarDisponibilidad(disponible) {
+    const strip = document.getElementById('dispStrip');
+    const label = document.getElementById('dispLabel');
+    const sub = document.getElementById('dispSub');
+    strip.classList.toggle('no-disponible', !disponible);
+    label.textContent = disponible ? 'Disponible para pedidos' : 'No disponible';
+    if (sub) sub.textContent = disponible ? 'Recibirás alertas de pedidos nuevos' : 'Actívate para empezar a recibir pedidos';
+  }
+
   async function initDisponibilidad() {
     const switchDisp = document.getElementById('switchDisponibilidad');
     const strip = document.getElementById('dispStrip');
@@ -754,17 +747,13 @@
         const data = await response.json();
         const disponible = data.disponible !== false;
         switchDisp.checked = disponible;
-        if (!disponible) {
-          strip.classList.add('no-disponible');
-          label.textContent = 'No disponible';
-        }
-        // ✅ Actualizar ciudad en el header
+        pintarDisponibilidad(disponible);
+        // ✅ Ciudad como chip en el header
         if (data.ciudad) {
-          const headerName = document.getElementById('restaurantName');
-          if (headerName) {
-            // Capitalizar primera letra de la ciudad
-            const ciudadCap = data.ciudad.charAt(0).toUpperCase() + data.ciudad.slice(1).toLowerCase();
-            headerName.textContent = `DomiPancho - ${ciudadCap}`;
+          const chip = document.getElementById('ciudadLabel');
+          if (chip) {
+            chip.textContent = data.ciudad.charAt(0).toUpperCase() + data.ciudad.slice(1).toLowerCase();
+            chip.hidden = false;
           }
         }
         // ✅ Actualizar max_pedidos global y denominador
@@ -792,13 +781,13 @@
             if (activos.length > 0) {
               e.preventDefault();
               e.target.checked = true;
-              alert(`No puedes desactivarte con ${activos.length} pedido(s) activo(s).`);
+              window.mostrarMensaje(`No puedes desconectarte con ${activos.length} pedido(s) en camino.`, 'error');
               return;
             }
           }
         } catch (err) {
           e.target.checked = true;
-          alert('Error verificando pedidos.');
+          window.mostrarMensaje('No se pudieron verificar tus pedidos', 'error');
           return;
         }
       }
@@ -811,9 +800,9 @@
         });
         
         if (response.ok) {
+          pintarDisponibilidad(disponible);
+          if (typeof window.cargarPedidos === 'function') window.cargarPedidos();
           if (disponible) {
-            strip.classList.remove('no-disponible');
-            label.textContent = 'Disponible para pedidos';
             if (window.unifiedGeoService) {
               await window.unifiedGeoService.initialize();
               await window.unifiedGeoService.startTracking();
@@ -823,8 +812,6 @@
               window.fcmNotificationService.setDisponible(true);
             }
           } else {
-            strip.classList.add('no-disponible');
-            label.textContent = 'No disponible';
             if (window.unifiedGeoService) await window.unifiedGeoService.stopTracking();
             // ✅ NUEVO: Sincronizar FCM con estado de disponibilidad
             if (window.fcmNotificationService) {
@@ -833,11 +820,11 @@
           }
         } else {
           e.target.checked = !disponible;
-          alert('Error al cambiar disponibilidad');
+          window.mostrarMensaje('No se pudo cambiar tu disponibilidad', 'error');
         }
       } catch (err) {
         e.target.checked = !disponible;
-        alert('Error de conexión');
+        window.mostrarMensaje('Error de conexión. Intenta de nuevo.', 'error');
       }
     });
   }
@@ -924,10 +911,20 @@
     return { subtotalProductos: subtotal, costoDomicilio: domicilio, tarifaDomiPancho: tarifa, descuentoCupon: 0, totalSinDescuento: total, totalConDescuento: total, tieneCupon: false };
   }
 
-  async function cargarHistorial(fechaFiltro = null) {
+  // ✅ RENDIMIENTO: el endpoint devuelve TODO el historial; antes se descargaba
+  // completo en cada cambio de día. Ahora se guarda 60 s y se filtra localmente.
+  let _historialCache = null;
+  let _historialCacheT = 0;
+
+  async function cargarHistorial(fechaFiltro = null, forzar = false) {
     try {
-      const res = await window.apiRequest('/api/historial-domiciliario');
-      let pedidos = await res.json();
+      if (forzar || !_historialCache || Date.now() - _historialCacheT > 60000) {
+        const res = await window.apiRequest('/api/historial-domiciliario');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        _historialCache = await res.json();
+        _historialCacheT = Date.now();
+      }
+      let pedidos = Array.isArray(_historialCache) ? _historialCache : [];
       pedidos = pedidos.filter(p => ['entregado', 'cancelado'].includes(p.estado?.toLowerCase()));
       if (fechaFiltro) pedidos = pedidos.filter(p => {
         // ✅ FIX: Convertir fecha UTC a fecha Colombia antes de comparar
@@ -957,13 +954,13 @@
       if (fechaNavEl) fechaNavEl.textContent = fechaNavTexto;
     } catch (err) {
       console.error('Error historial:', err);
-      document.getElementById('listaEntregas').innerHTML = '<div class="error"><h3>Error al cargar historial</h3><p>Intenta recargar.</p></div>';
+      document.getElementById('listaEntregas').innerHTML = '<div class="estado-vacio error"><h3>No se pudo cargar el historial</h3><p>Desliza hacia abajo para reintentar.</p></div>';
     }
   }
 
   function renderizarHistorial(pedidos) {
     if (!pedidos.length) {
-      document.getElementById('listaEntregas').innerHTML = '<div class="no-pedidos"><h3>Sin entregas</h3><p>Selecciona otra fecha.</p></div>';
+      document.getElementById('listaEntregas').innerHTML = '<div class="estado-vacio"><div class="ev-ic"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg></div><h3>Sin entregas este día</h3><p>Usa las flechas para revisar otro día.</p></div>';
       return;
     }
     const html = pedidos.map(p => {
@@ -1066,7 +1063,12 @@
   }
 
   async function cargarResumenContab() {
-    document.getElementById('resumenContabilidad').innerHTML = '<div class="loading"><div class="spinner"></div><p>Cargando datos...</p></div>';
+    const _rc = document.getElementById('resumenContabilidad');
+    if (!_rc.querySelector('.contab-resumen-grid')) {
+      _rc.innerHTML = '<div class="contab-resumen-grid">' + '<div class="contab-item"><div class="sk sk-line w60"></div><div class="sk sk-line w40" style="height:22px"></div></div>'.repeat(4) + '</div>';
+    } else {
+      _rc.classList.add('actualizando');
+    }
     
     const fechaISO = fechaContab.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
     const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' });
@@ -1078,6 +1080,7 @@
       const res = await window.apiRequest('/api/resumen-contabilidad?fecha=' + fechaISO);
       if (!res.ok) throw new Error('Error');
       const d = await res.json();
+      _rc.classList.remove('actualizando');
 
       document.getElementById('resumenContabilidad').innerHTML = `
         <div class="contab-resumen-grid">
@@ -1093,7 +1096,7 @@
           <div class="contab-item" style="border-left:3px solid #ef4444; background:rgba(239,68,68,0.06);"><h4>Debes a DomiPancho</h4><div class="valor" style="color:#ef4444; font-size:1.3em;">$${(d.deuda_domipancho || d.comision_domipancho).toLocaleString('es-CO')}</div><div class="descripcion">Comisión${(d.tarifa_recaudada_efectivo || 0) > 0 ? ` ($${d.comision_domipancho.toLocaleString('es-CO')}) + Tarifa ($${d.tarifa_recaudada_efectivo.toLocaleString('es-CO')})` : ` 20% domicilios`}</div></div>
         </div>`;
     } catch (err) {
-      document.getElementById('resumenContabilidad').innerHTML = '<div class="error"><h3>Error al cargar datos</h3><p>No se pudieron cargar los datos contables.</p></div>';
+      document.getElementById('resumenContabilidad').innerHTML = '<div class="estado-vacio error"><h3>No se pudieron cargar los datos</h3><p>Desliza hacia abajo para reintentar.</p></div>';
     }
   }
 
@@ -1267,7 +1270,7 @@
       if (response.ok) {
         const pedidos = await response.json();
         const activos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
-        if (activos.length > 0) { alert(`No puedes cerrar sesión con ${activos.length} pedido(s) activo(s).`); return; }
+        if (activos.length > 0) { window.mostrarMensaje(`No puedes cerrar sesión con ${activos.length} pedido(s) en camino.`, 'error'); return; }
       }
     } catch (e) {}
 
@@ -1282,57 +1285,6 @@
   }
 
   // ============================================================
-  //  CONTADORES + NAV BADGE
-  // ============================================================
-  async function actualizarContadores() {
-    try {
-      const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
-      if (!response.ok) return;
-      const pedidos = await response.json();
-      
-      const activos = pedidos.filter(p => ['camino a tu casa', 'preparando pedido'].includes(p.estado?.toLowerCase()));
-      const disponibles = pedidos.filter(p => p.estado?.toLowerCase() === 'esperando repartidor');
-      
-      // Update header counter (activos)
-      const numActivos = activos.length;
-      const el = document.getElementById('numPedidosActivos');
-      const cont = document.getElementById('contadorPedidos');
-      if (el) el.textContent = numActivos;
-      if (cont) {
-        // ✅ FIX: Usar la clase base correcta del CSS (orders-count)
-        cont.className = 'orders-count';
-        // ✅ FIX: Usar límite dinámico (window._maxPedidosDomi viene de initDisponibilidad)
-        const maxP = window._maxPedidosDomi || 2;
-        if (numActivos >= maxP) cont.classList.add('limite-alcanzado');
-        else if (numActivos >= maxP - 1 && numActivos > 0) cont.classList.add('limite-cerca');
-      }
-
-      // ✅ FIX: Actualizar el denominador del contador
-      const maxLabel = document.getElementById('maxPedidosLabel');
-      if (maxLabel) {
-        const maxP = window._maxPedidosDomi || 2;
-        maxLabel.textContent = maxP;
-      }
-
-      // Update disponibles counter
-      const numDisp = document.getElementById('numPedidosDisponibles');
-      if (numDisp) numDisp.textContent = disponibles.length;
-      
-      // Update nav badges
-      const badgeActivos = document.getElementById('navBadgeActivos');
-      if (badgeActivos) {
-        if (numActivos > 0) { badgeActivos.textContent = numActivos; badgeActivos.classList.add('show'); }
-        else badgeActivos.classList.remove('show');
-      }
-      const badgeDisp = document.getElementById('navBadgePedidos');
-      if (badgeDisp) {
-        if (disponibles.length > 0) { badgeDisp.textContent = disponibles.length; badgeDisp.classList.add('show'); }
-        else badgeDisp.classList.remove('show');
-      }
-    } catch (e) {}
-  }
-
-  // ============================================================
   //  SINCRONIZAR PEDIDOS ACTIVOS (mi sección separada)
   // ============================================================
   function sincronizarPedidosActivos() {
@@ -1344,65 +1296,52 @@
 
   
   document.addEventListener('DOMContentLoaded', async () => {
-    console.log('🎯 Inicializando SPA DomiPancho...');
-    
-    // 1. Cargar usuario — usar cache compartido con domiciliario.js para evitar request duplicado
-    try {
-      let usuario = null;
-      if (typeof window.__getUsuarioCache === 'function') {
-        usuario = window.__getUsuarioCache();
-      }
-      if (!usuario) {
-        const response = await window.apiRequest('/api/usuario-actual');
-        if (!response.ok) throw new Error('No auth');
-        usuario = await response.json();
-      }
-      document.getElementById('restaurantName').textContent = usuario.restaurante_nombre || 'DomiPancho';
-      const nombre = usuario.usuario || '-';
-      document.getElementById('userName').textContent = nombre.length > 4 ? nombre.slice(0, -4) + '****' : nombre;
-    } catch (e) {
-      console.error('Error auth:', e);
-    }
-    
-    // 2. Disponibilidad
-    await initDisponibilidad();
-    
-    // 3. Geolocation
-    const switchDisp = document.getElementById('switchDisponibilidad');
-    if (switchDisp.checked && window.unifiedGeoService) {
-      try {
-        await window.unifiedGeoService.initialize();
-        await window.unifiedGeoService.startTracking();
-      } catch (e) { console.error('Geo error:', e); }
-    }
-    
-    // 4. FCM
-    if (window.fcmNotificationService) {
-      try { 
-        await window.fcmNotificationService.inicializar();
-        // ✅ NUEVO: Sincronizar disponibilidad con FCM
-        const switchDisp = document.getElementById('switchDisponibilidad');
-        window.fcmNotificationService.setDisponible(switchDisp.checked);
-      } catch (e) {}
-    }
-    
-    // 5. Contadores — cargarPedidos ya actualizó los contadores, solo iniciar intervalo periódico
-    setInterval(actualizarContadores, 15000);
-    
-    // 6. Socket — domiciliario.js ya configura el socket con cargarPedidos().
-    // No necesitamos duplicar listeners aquí. Los contadores se actualizan
-    // automáticamente cuando cargarPedidos() corre.
-    
-    console.log('✅ SPA completamente inicializado');
+    // ✅ RENDIMIENTO: antes cada paso esperaba al anterior (usuario → disponibilidad
+    // → GPS → FCM). Ahora corren en paralelo y la lista de pedidos (domiciliario.js)
+    // aparece sin esperar al GPS ni a los permisos de notificaciones.
 
-    // cargarPedidos ya renderiza activos internamente via renderizarPedidosActivosDesdeCache
-    // No necesitamos MutationObserver ni wrapper adicional
+    // 1. Usuario (comparte la misma petición/cache que domiciliario.js)
+    (async () => {
+      try {
+        const usuario = typeof window.__cargarUsuario === 'function'
+          ? await window.__cargarUsuario()
+          : await (await window.apiRequest('/api/usuario-actual')).json();
+        if (!usuario) return;
+        const nombre = usuario.usuario || '-';
+        document.getElementById('userName').textContent = nombre.length > 4 ? nombre.slice(0, -4) + '****' : nombre;
+      } catch (e) {
+        console.error('Error auth:', e);
+      }
+    })();
+
+    // 2. Disponibilidad → luego GPS y FCM (no bloquean la UI)
+    await initDisponibilidad();
+    const disponible = document.getElementById('switchDisponibilidad').checked;
+
+    if (disponible && window.unifiedGeoService) {
+      window.unifiedGeoService.initialize()
+        .then(() => window.unifiedGeoService.startTracking())
+        .catch(e => console.error('Geo error:', e));
+    }
+
+    if (window.fcmNotificationService) {
+      window.fcmNotificationService.setDisponible(disponible);
+      window.fcmNotificationService.inicializar()
+        .then(() => window.fcmNotificationService.setDisponible(document.getElementById('switchDisponibilidad').checked))
+        .catch(() => {});
+    }
+
+    // 3. Contadores: cargarPedidos() los actualiza en cada carga y el polling
+    //    (socket-mock) la dispara cuando hay cambios. Ya no hay un segundo
+    //    intervalo pidiendo la misma lista cada 15 s.
   });
 
   // Visibility change
   document.addEventListener('visibilitychange', async () => {
     if (!document.hidden) {
-      actualizarContadores();
+      // Al volver a la app: datos frescos inmediatamente
+      if (window.apiRequest && window.apiRequest.invalidate) window.apiRequest.invalidate();
+      if (typeof window.cargarPedidos === 'function') window.cargarPedidos();
       if (window.unifiedGeoService && window.unifiedGeoService.isTracking === false) {
         const activo = localStorage.getItem('domiciliario_pedido_activo');
         if (activo === 'true' && window.unifiedGeoService.permissionStatus === 'granted') {

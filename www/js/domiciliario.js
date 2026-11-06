@@ -108,18 +108,32 @@
     }
   }
 
+  // ✅ Toast profesional: icono por tipo, sin emojis duplicados, un solo timer
+  const TOAST_ICONS = {
+    success: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 13l4 4L19 7"/>',
+    error:   '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M6 18L18 6M6 6l12 12"/>',
+    info:    '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M13 16h-1v-4h-1m1-4h.01"/>'
+  };
+  let _toastTimer = null;
+
   function mostrarMensaje(texto, tipo = 'success') {
     const box = document.getElementById('mensajeSistema');
     if (!box) return;
-    
-    box.textContent = texto;
+    if (!TOAST_ICONS[tipo]) tipo = 'info';
+
+    // Quitar emojis/símbolos del inicio: el icono ya comunica el tipo
+    const limpio = String(texto).replace(/^[\s\u2600-\u27BF\u2B00-\u2BFF\uFE0F\u{1F000}-\u{1FAFF}]+/u, '');
+
+    box.innerHTML = `<span class="toast-ic"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">${TOAST_ICONS[tipo]}</svg></span><span class="toast-txt"></span>`;
+    box.querySelector('.toast-txt').textContent = limpio;
     box.className = `mensaje-sistema ${tipo}`;
-    box.style.display = 'block';
-    
-    setTimeout(() => {
-      box.style.display = 'none';
-    }, 4000);
+    box.style.display = 'flex';
+    box.onclick = () => { box.style.display = 'none'; };
+
+    clearTimeout(_toastTimer);
+    _toastTimer = setTimeout(() => { box.style.display = 'none'; }, tipo === 'error' ? 5000 : 3500);
   }
+  window.mostrarMensaje = mostrarMensaje;
 
   // ✅ Calcular totales con información de cupón
 // ✅ Calcular totales con información de cupón y tarifa DomiPancho
@@ -217,10 +231,6 @@ function calcularTotalesPedido(pedido) {
         const response = await window.apiRequest('/api/usuario-actual');
         if (response.ok) {
           const usuario = await response.json();
-          const userEl = document.getElementById('restaurantName');
-          if (userEl) {
-            userEl.textContent = `${usuario.usuario || 'Usuario'}`;
-          }
           _usuarioCache = usuario;
           return usuario;
         }
@@ -236,21 +246,33 @@ function calcularTotalesPedido(pedido) {
   }
   // Exponer para que otros módulos puedan usarlo sin pedir otra vez
   window.__getUsuarioCache = () => _usuarioCache;
+  window.__cargarUsuario = cargarUsuario;
   window.__invalidarUsuarioCache = () => { _usuarioCache = null; };
 
   // ========== GESTIÓN DE PEDIDOS ==========
   // ✅ Debounce para evitar múltiples cargas simultáneas
-  let cargandoPedidos = false;
+  // ✅ cargarPedidos() devuelve SIEMPRE una promesa que se resuelve cuando los
+  // datos están en pantalla (lo usa el pull-to-refresh para saber cuándo parar).
+  // Si se llama mientras ya carga, se encola UNA recarga extra y se devuelve la
+  // misma promesa (no se disparan requests en paralelo).
+  let _cargaActual = null;
   let pendienteRecarga = false;
 
-  async function cargarPedidos() {
-    // ✅ Si ya estamos cargando, marcar como pendiente y salir
-    if (cargandoPedidos) {
+  function cargarPedidos() {
+    if (_cargaActual) {
       pendienteRecarga = true;
-      return;
+      return _cargaActual;
     }
-    cargandoPedidos = true;
+    _cargaActual = (async () => {
+      do {
+        pendienteRecarga = false;
+        await _cargarPedidosInterno();
+      } while (pendienteRecarga);
+    })().finally(() => { _cargaActual = null; });
+    return _cargaActual;
+  }
 
+  async function _cargarPedidosInterno() {
     try {
       // ✅ OPTIMIZACIÓN: Disponibilidad + pedidos + usuario EN PARALELO
       // (antes eran secuenciales: ~3 round-trips → ahora 1)
@@ -275,6 +297,10 @@ function calcularTotalesPedido(pedido) {
       }
       const res = { ok: pedidosResult.ok };
       let pedidos = pedidosResult.data;
+
+      if (!res.ok && pedidos?.error !== 'bloqueado') {
+        throw new Error('HTTP ' + (pedidosResult.error?.message || 'error'));
+      }
 
       if (!res.ok && pedidos?.error === 'bloqueado') {
         document.getElementById('listaPedidos').innerHTML = `
@@ -328,20 +354,19 @@ function calcularTotalesPedido(pedido) {
 
     } catch (err) {
       console.error('Error al cargar pedidos:', err);
-      document.getElementById('listaPedidos').innerHTML = `
-        <div class="error">
-          <h3>⚠️ Error al cargar pedidos</h3>
-          <p>No se pudieron cargar los pedidos. Por favor, recarga la página.</p>
-          <button onclick="window.location.href='index.html'" class="btn-reload">Ir a Login</button>
-        </div>
-      `;
-    } finally {
-      cargandoPedidos = false;
-      
-      // ✅ Si hubo solicitud pendiente mientras cargaba, recargar
-      if (pendienteRecarga) {
-        pendienteRecarga = false;
-        cargarPedidos();
+      // ✅ Si ya había pedidos en pantalla, no borrarlos por un fallo de red puntual
+      const lista = document.getElementById('listaPedidos');
+      if (lista && !lista.querySelector('.pedido-card')) {
+        _lastDisponiblesHash = '';
+        lista.innerHTML = `
+          <div class="estado-vacio error">
+            <div class="ev-ic"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728M5.636 18.364a9 9 0 010-12.728M12 9v4m0 4h.01"/></svg></div>
+            <h3>Sin conexión con el servidor</h3>
+            <p>Revisa tu internet y desliza hacia abajo para reintentar.</p>
+            <button onclick="window.cargarPedidos()" class="btn-reload">Reintentar</button>
+          </div>`;
+      } else {
+        mostrarMensaje('No se pudo actualizar. Revisa tu conexión.', 'error');
       }
     }
   }
@@ -367,11 +392,11 @@ function calcularTotalesPedido(pedido) {
     
     if (!Array.isArray(pedidosDisponibles) || pedidosDisponibles.length === 0) {
       if (disponible) {
-        contenedor.innerHTML = misActivos.length >= maxPedidosGlobal 
-          ? `<div class="no-pedidos"><h3>🚛 Tienes el máximo de pedidos (${misActivos.length}/${maxPedidosGlobal})</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>`
-          : '<div class="no-pedidos"><h3>🎯 No hay pedidos disponibles</h3><p>Actualmente no hay pedidos disponibles en tu ciudad. ¡Mantente atento!</p></div>';
+        contenedor.innerHTML = misActivos.length >= maxPedidosGlobal
+          ? estadoVacio('truck', `Tienes el máximo de pedidos (${misActivos.length}/${maxPedidosGlobal})`, 'Completa una entrega para poder tomar nuevos pedidos.')
+          : estadoVacio('inbox', 'No hay pedidos disponibles', 'Te avisaremos con sonido apenas llegue uno. Desliza hacia abajo para actualizar.', 'radar');
       } else {
-        contenedor.innerHTML = '<div class="no-pedidos"><h3>🔴 No Disponible</h3><p>No hay pedidos esperando repartidor en tu ciudad actualmente.</p><p><strong>Activa "Disponible"</strong> para empezar a recibir pedidos.</p></div>';
+        contenedor.innerHTML = estadoVacio('off', 'Estás desconectado', 'Activa el interruptor "Disponible" para empezar a recibir pedidos.');
       }
       return;
     }
@@ -379,17 +404,12 @@ function calcularTotalesPedido(pedido) {
     let htmlContent = '';
   
     if (!disponible) {
-      htmlContent += `
-        <div class="alerta alerta-no-disponible">
-          <h3>🔴 Modo Vista Previa - No Disponible</h3>
-          <p>Estás viendo todos los pedidos de tu ciudad. <strong>Activa "Disponible"</strong> en el inicio para poder tomarlos.</p>
-        </div>
-      `;
+      htmlContent += alertaHtml('danger', 'Modo vista previa', 'Activa "Disponible" para poder tomar estos pedidos.');
     } else if (misActivos.length >= maxPedidosGlobal) {
-      htmlContent += `<div class="alerta limite-alcanzado"><h3>🚛 Máximo de pedidos alcanzado (${misActivos.length}/${maxPedidosGlobal})</h3><p>Completa una entrega para poder tomar nuevos pedidos.</p></div>`;
+      htmlContent += alertaHtml('danger', `Máximo de pedidos alcanzado (${misActivos.length}/${maxPedidosGlobal})`, 'Completa una entrega para poder tomar nuevos pedidos.');
     } else if (misActivos.length >= 1) {
       const restantes = maxPedidosGlobal - misActivos.length;
-      htmlContent += `<div class="alerta advertencia-limite"><h3>⚠️ Puedes tomar ${restantes} pedido${restantes > 1 ? 's' : ''} más (${misActivos.length}/${maxPedidosGlobal})</h3><p>Tienes espacio para ${restantes > 1 ? 'pedidos adicionales' : 'un pedido adicional'}.</p></div>`;
+      htmlContent += alertaHtml('warning', `Puedes tomar ${restantes} pedido${restantes > 1 ? 's' : ''} más`, `Llevas ${misActivos.length} de ${maxPedidosGlobal} pedidos activos.`);
     }
   
     const pedidosOrdenados = [...pedidosDisponibles].sort((a, b) => {
@@ -408,6 +428,29 @@ function calcularTotalesPedido(pedido) {
     htmlContent += '</div>';
   
     contenedor.innerHTML = htmlContent;
+  }
+
+  // ========== ESTADOS VACÍOS Y ALERTAS (UI) ==========
+  const EV_ICONS = {
+    inbox: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>',
+    truck: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/>',
+    off:   '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.6" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>'
+  };
+  const AL_ICONS = {
+    warning: '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>',
+    danger:  '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/>'
+  };
+
+  function estadoVacio(icono, titulo, texto, extraClase = '') {
+    return `<div class="estado-vacio ${extraClase}">
+      <div class="ev-ic"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">${EV_ICONS[icono] || EV_ICONS.inbox}</svg></div>
+      <h3>${titulo}</h3><p>${texto}</p></div>`;
+  }
+
+  function alertaHtml(tipo, titulo, texto) {
+    return `<div class="alerta alerta-${tipo}">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">${AL_ICONS[tipo]}</svg>
+      <div><h3>${titulo}</h3><p>${texto}</p></div></div>`;
   }
 
   // ========== UTILIDADES DE PROTECCIÓN DE DATOS ==========
@@ -664,11 +707,11 @@ function calcularTotalesPedido(pedido) {
     }
   
     const tarjeta = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
-    const btnTomar = tarjeta?.querySelector('.btn-tomar');
+    const btnTomar = tarjeta?.querySelector('.cbtn-tomar');
     
     if (btnTomar) {
       btnTomar.disabled = true;
-      btnTomar.textContent = '⏳ Tomando...';
+      btnTomar.innerHTML = '<span class="btn-spin"></span> Tomando...';
     }
   
     try {
@@ -707,7 +750,7 @@ function calcularTotalesPedido(pedido) {
       console.error('Error al tomar pedido:', error);
       if (btnTomar) {
         btnTomar.disabled = false;
-        btnTomar.textContent = 'Tomar';
+        btnTomar.textContent = 'Tomar pedido';
       }
       mostrarMensaje('❌ Error de conexión', 'error');
     }
@@ -724,7 +767,7 @@ function calcularTotalesPedido(pedido) {
     
     if (btnRecoger) {
       btnRecoger.disabled = true;
-      btnRecoger.innerHTML = '⏳ Actualizando...';
+      btnRecoger.innerHTML = '<span class="btn-spin"></span> Actualizando...';
     }
 
     try {
@@ -953,7 +996,7 @@ function calcularTotalesPedido(pedido) {
 
     const btnConfirmar = document.getElementById('btnConfirmarEntrega');
     btnConfirmar.disabled = true;
-    btnConfirmar.innerHTML = '⏳ Confirmando...';
+    btnConfirmar.innerHTML = '<span class="btn-spin"></span> Confirmando...';
 
     try {
       const res = await window.apiRequest(`/api/pedidos/${window.pedidoSeleccionado}/estado-domiciliario`, {
@@ -979,25 +1022,11 @@ function calcularTotalesPedido(pedido) {
           };
           metodoPagoTexto = textoMetodo[metodoValue] || metodoValue;
         }
-        mostrarMensaje(`✅ Pedido entregado exitosamente con ${metodoPagoTexto}`);
-
-        // ✅ Verificar si hay más pedidos activos
-        try {
-          const usuarioResponse = await window.apiRequest('/api/usuario-actual');
-          const usuarioData = await usuarioResponse.json();
-          const pedidosActivosResponse = await window.apiRequest(`/api/pedidos-activos-domiciliario/${usuarioData.id}`);
-          const pedidosActivosData = await pedidosActivosResponse.json();
-          const pedidosActivos = pedidosActivosData.pedidos || [];
-
-          if (!pedidosActivos || pedidosActivos.length === 0) {
-            localStorage.removeItem('domiciliario_pedido_activo');
-            localStorage.removeItem('domiciliario_pedido_id');
-            if (window.unifiedGeoService) await window.unifiedGeoService.stopTracking();
-          }
-        } catch (e) { console.warn('Error verificando pedidos activos post-entrega:', e); }
-
+        mostrarMensaje(`Pedido entregado con ${metodoPagoTexto}`);
         cerrarModalPago();
+        // ✅ Una sola recarga: con ella sabemos si quedan pedidos activos
         await cargarPedidos();
+        await _detenerTrackingSiNoHayActivos();
       } else {
         mostrarMensaje('❌ Error al marcar como entregado', 'error');
       }
@@ -1017,6 +1046,16 @@ function calcularTotalesPedido(pedido) {
         }
       }
     }
+  }
+
+  async function _detenerTrackingSiNoHayActivos() {
+    try {
+      if (pedidosActivosGlobal === 0) {
+        localStorage.removeItem('domiciliario_pedido_activo');
+        localStorage.removeItem('domiciliario_pedido_id');
+        if (window.unifiedGeoService) await window.unifiedGeoService.stopTracking();
+      }
+    } catch (e) { console.warn('Error deteniendo tracking:', e); }
   }
 
   function abrirModalProblema(id) {
@@ -1085,7 +1124,7 @@ function calcularTotalesPedido(pedido) {
   
     const btnConfirmar = document.querySelector('.modal-contenido button[onclick="confirmarNoEntregado()"]');
     btnConfirmar.disabled = true;
-    btnConfirmar.innerHTML = '⏳ Enviando reporte...';
+    btnConfirmar.innerHTML = '<span class="btn-spin"></span> Enviando reporte...';
   
     try {
       const res = await window.apiRequest(`/api/pedidos/${pedidoProblemaId}/estado-domiciliario`, {
@@ -1100,24 +1139,10 @@ function calcularTotalesPedido(pedido) {
       const result = await res.json();
   
       if (res.ok) {
-        mostrarMensaje('✅ Pedido marcado como no entregado - Reporte enviado exitosamente');
-        
-        try {
-          const usuarioResponse = await window.apiRequest('/api/usuario-actual');
-          const usuarioData = await usuarioResponse.json();
-          const pedidosActivosResponse = await window.apiRequest(`/api/pedidos-activos-domiciliario/${usuarioData.id}`);
-          const pedidosActivosData = await pedidosActivosResponse.json();
-          const pedidosActivos = pedidosActivosData.pedidos || [];
-          
-          if (!pedidosActivos || pedidosActivos.length === 0) {
-            localStorage.removeItem('domiciliario_pedido_activo');
-            localStorage.removeItem('domiciliario_pedido_id');
-            if (window.unifiedGeoService) await window.unifiedGeoService.stopTracking();
-          }
-        } catch (e) { console.warn('Error verificando pedidos activos post-cancelación:', e); }
-        
+        mostrarMensaje('Reporte enviado: pedido marcado como no entregado');
         cerrarModalProblema();
         await cargarPedidos();
+        await _detenerTrackingSiNoHayActivos();
       } else {
         mostrarMensaje(`❌ Error: ${result.error || 'No se pudo actualizar el estado del pedido'}`, 'error');
       }
@@ -1455,12 +1480,7 @@ function calcularTotalesPedido(pedido) {
     _lastActivosHash = hash;
 
     if (!activos || activos.length === 0) {
-      destino.innerHTML = `
-        <div class="no-pedidos">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:48px;height:48px;margin:0 auto 16px;display:block;color:var(--text-muted)"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0"/></svg>
-          <h3>Sin pedidos activos</h3>
-          <p>Tus pedidos en camino aparecerán aquí</p>
-        </div>`;
+      destino.innerHTML = estadoVacio('truck', 'Sin pedidos activos', 'Cuando tomes un pedido aparecerá aquí con su ruta y acciones.');
       return;
     }
 
@@ -1540,7 +1560,7 @@ function calcularTotalesPedido(pedido) {
     html: `
       <div class="location-pin">
         <div class="pin-image">
-          <img src="img/logo.png" alt="Domiciliario">
+          <img src="img/logo-sm.webp" alt="Domiciliario">
         </div>
         <div class="pin-point"></div>
       </div>
@@ -1671,8 +1691,18 @@ function calcularTotalesPedido(pedido) {
     _pedidoMapaId = pedidoId;
     const sesionMapa = ++_mapaSessionId; // ✅ ID único para esta apertura
 
+    // ✅ RENDIMIENTO: Leaflet ya no bloquea el arranque; se carga aquí bajo demanda
+    try {
+      await window.cargarLeaflet();
+    } catch (e) {
+      mostrarMensaje('No se pudo cargar el mapa. Revisa tu conexión.', 'error');
+      modal.style.display = 'none';
+      return;
+    }
+    if (sesionMapa !== _mapaSessionId) return;
+
     // Esperar que el DOM se actualice
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise(r => requestAnimationFrame(() => r()));
 
     const mapaEl = document.getElementById('mapaContainerDomi');
     if (!mapaEl) return;
