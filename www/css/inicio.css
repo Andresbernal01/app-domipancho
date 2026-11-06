@@ -1530,3 +1530,99 @@ svg { flex-shrink: 0; }
   .mapa-domi-leyenda { gap: 10px; }
   .leyenda-item { font-size: 0.72rem; }
 }
+/* ==========================================================
+   ORIGEN DEL PEDIDO Y DESTINO DEL DINERO
+   Plataforma (DomiPancho) = azul · Restaurante = ámbar · Pagado = verde
+   ========================================================== */
+:root {
+  --plataforma: #1d4ed8;
+  --plataforma-soft: #e8efff;
+  --restaurante: #b45309;
+  --restaurante-soft: #fff4e0;
+}
+
+.pedido-card.mi-pedido.origen-plataforma { border-left-color: var(--plataforma); }
+.pedido-card.mi-pedido.origen-restaurante { border-left-color: var(--restaurante); }
+
+.banner-dinero {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid transparent;
+}
+.banner-dinero .bd-ic {
+  width: 38px; height: 38px;
+  border-radius: 11px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+}
+.banner-dinero .bd-ic svg { width: 21px; height: 21px; }
+.banner-dinero > div { display: flex; flex-direction: column; min-width: 0; }
+.banner-dinero .bd-tag {
+  font-size: 0.62rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  opacity: 0.85;
+}
+.banner-dinero strong { font-size: 0.95rem; font-weight: 800; line-height: 1.25; }
+.banner-dinero > div > span:last-child { font-size: 0.8rem; font-weight: 600; margin-top: 1px; }
+
+.bd-plataforma { background: var(--plataforma); border-color: var(--plataforma); color: #fff; box-shadow: 0 6px 16px rgba(29, 78, 216, 0.25); }
+.bd-plataforma .bd-ic { background: rgba(255, 255, 255, 0.18); }
+.bd-plataforma > div > span:last-child { color: #dbe6ff; }
+
+.bd-restaurante { background: var(--restaurante-soft); border-color: rgba(180, 83, 9, 0.3); color: var(--restaurante); }
+.bd-restaurante .bd-ic { background: var(--restaurante); }
+.bd-restaurante strong { color: #7c2d12; }
+
+.bd-online { background: var(--success-soft); border-color: rgba(22, 163, 74, 0.3); color: var(--success); align-items: center; }
+.bd-online .bd-ic { background: var(--success); }
+.bd-online strong { color: #14532d; }
+
+/* Diálogo propio (confirmaciones y recordatorios) */
+.dp-dialogo { z-index: 450; }
+.dp-dialogo .modal-contenido { text-align: center; }
+.dp-dialogo .dpd-ic {
+  width: 60px; height: 60px;
+  margin: 6px auto 12px;
+  border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+}
+.dp-dialogo .dpd-ic svg { width: 30px; height: 30px; }
+.dp-dialogo .dpd-titulo { margin-bottom: 8px; }
+.dp-dialogo .dpd-cuerpo p { font-size: 0.9rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 6px; }
+.dp-dialogo .dpd-monto { font-size: 2rem !important; font-weight: 800; color: var(--text-primary) !important; letter-spacing: -0.02em; margin-bottom: 4px !important; }
+.dp-dialogo .dpd-alerta {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  background: var(--danger-soft);
+  color: var(--danger) !important;
+  font-weight: 800;
+}
+.dpd-plataforma .dpd-ic { background: var(--plataforma); color: #fff; }
+.dpd-plataforma .modal-acciones button:first-child { background: var(--plataforma); }
+.dpd-peligro .dpd-ic { background: var(--danger-soft); color: var(--danger); }
+.dpd-peligro .modal-acciones button:first-child { background: var(--danger); }
+
+/* Pantalla de "Cerrando sesión..." */
+.saliendo-overlay {
+  position: fixed; inset: 0;
+  z-index: 500;
+  background: rgba(255, 255, 255, 0.92);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  animation: fadeIn 0.15s ease;
+}
+/* Botón principal del diálogo: siempre blanco sobre color (también si es el único botón) */
+.dp-dialogo .modal-acciones button.dpd-ok { color: #fff; background: var(--accent); }
+.dp-dialogo .dpd-plataforma .modal-acciones button.dpd-ok { background: var(--plataforma); }
+.dp-dialogo .dpd-peligro .modal-acciones button.dpd-ok { background: var(--danger); }

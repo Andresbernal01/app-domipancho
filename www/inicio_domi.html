@@ -1264,24 +1264,56 @@
     }
   }, { passive: true });
 
+  // ✅ CERRAR SESIÓN RÁPIDO
+  // Antes: pedía de nuevo toda la lista de pedidos, mostraba confirm() nativo y
+  // esperaba en serie a detener el GPS y al servidor antes de salir.
+  // Ahora: usa los pedidos ya cargados, diálogo propio, y GPS + servidor van en
+  // paralelo con un tiempo máximo: la app sale en < 2,5 s aunque la red esté lenta.
+  let _cerrandoSesion = false;
   async function logout() {
-    try {
-      const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
-      if (response.ok) {
-        const pedidos = await response.json();
-        const activos = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa');
-        if (activos.length > 0) { window.mostrarMensaje(`No puedes cerrar sesión con ${activos.length} pedido(s) en camino.`, 'error'); return; }
-      }
-    } catch (e) {}
+    if (_cerrandoSesion) return;
 
-    if (confirm('¿Cerrar sesión?')) {
+    let enCamino = typeof window.__contarEnCamino === 'function' ? window.__contarEnCamino() : null;
+    if (enCamino === null) {
       try {
-        if (window.unifiedGeoService) await window.unifiedGeoService.stopTracking();
-        if (window.limpiarSesion) window.limpiarSesion();
-        await window.apiRequest('/api/logout', { method: 'POST' });
-        window.location.href = '/index.html';
-      } catch (e) { window.location.href = '/index.html'; }
+        const response = await window.apiRequest('/api/domiciliarios/pedidos-domiciliario-con-distancias');
+        if (response.ok) {
+          const pedidos = await response.json();
+          enCamino = pedidos.filter(p => p.estado?.toLowerCase() === 'camino a tu casa').length;
+        }
+      } catch (e) {}
     }
+    if (enCamino > 0) {
+      window.mostrarMensaje(`No puedes cerrar sesión con ${enCamino} pedido(s) en camino.`, 'error');
+      return;
+    }
+
+    const ICON_SALIR = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>';
+    const confirmado = window.dpDialogo
+      ? await window.dpDialogo({ variante: 'peligro', icono: ICON_SALIR, titulo: '¿Cerrar sesión?', html: '<p>Dejarás de recibir alertas de pedidos nuevos.</p>', ok: 'Cerrar sesión', cancelar: 'Cancelar' })
+      : confirm('¿Cerrar sesión?');
+    if (!confirmado) return;
+
+    _cerrandoSesion = true;
+    const overlay = document.createElement('div');
+    overlay.className = 'saliendo-overlay';
+    overlay.innerHTML = '<div class="spinner" style="margin:0"></div><span>Cerrando sesión...</span>';
+    document.body.appendChild(overlay);
+
+    // Silenciar alarmas y polling inmediatamente
+    try { window.fcmNotificationService && window.fcmNotificationService.silenciarAlarma(); } catch (e) {}
+    try { window.socketMockInstance && window.socketMockInstance.disconnect(); } catch (e) {}
+    if (window.limpiarSesion) window.limpiarSesion();
+
+    const conLimite = (promesa, ms) => Promise.race([
+      Promise.resolve(promesa).catch(() => {}),
+      new Promise(r => setTimeout(r, ms))
+    ]);
+    await Promise.all([
+      conLimite(window.unifiedGeoService ? window.unifiedGeoService.stopTracking() : null, 2000),
+      conLimite(window.apiRequest('/api/logout', { method: 'POST' }), 2500)
+    ]);
+    window.location.href = '/index.html';
   }
 
   // ============================================================

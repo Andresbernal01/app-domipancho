@@ -247,6 +247,9 @@ function calcularTotalesPedido(pedido) {
   // Exponer para que otros módulos puedan usarlo sin pedir otra vez
   window.__getUsuarioCache = () => _usuarioCache;
   window.__cargarUsuario = cargarUsuario;
+  // Pedidos "camino a tu casa" según la última carga (null si aún no hay datos)
+  window.__contarEnCamino = () => (_cacheUsuarioId == null ? null :
+    _cachePedidos.filter(p => p.domiciliario_id === _cacheUsuarioId && p.estado?.toLowerCase() === 'camino a tu casa').length);
   window.__invalidarUsuarioCache = () => { _usuarioCache = null; };
 
   // ========== GESTIÓN DE PEDIDOS ==========
@@ -477,6 +480,93 @@ function calcularTotalesPedido(pedido) {
     return (p?.origen_pedido || 'plataforma') === 'plataforma';
   }
 
+  // ✅ ¿DE QUIÉN ES EL DINERO? Banner grande en cada pedido activo.
+  // Evita el error más costoso: entregar al restaurante efectivo que es de DomiPancho.
+  const ICON_DINERO = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>';
+  const ICON_RAYO  = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>';
+  const ICON_TIENDA = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>';
+  const ICON_OK = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>';
+
+  function bannerDineroHtml(p, totales) {
+    if (p.tipo_pedido_especial) return '';
+    const total = `$${totales.totalConDescuento.toLocaleString('es-CO')}`;
+    const plataforma = esPedidoPlataforma(p);
+
+    if (esPagoOnline(p)) {
+      return `<div class="banner-dinero bd-online">
+        <span class="bd-ic">${ICON_OK}</span>
+        <div><strong>Pagado en línea</strong><span>No le cobres nada al cliente.</span></div>
+      </div>`;
+    }
+    if (plataforma) {
+      const efectivo = !p.metodo_pago || p.metodo_pago === 'efectivo';
+      return `<div class="banner-dinero bd-plataforma">
+        <span class="bd-ic">${ICON_RAYO}</span>
+        <div>
+          <span class="bd-tag">Pedido de plataforma · DomiPancho</span>
+          <strong>${efectivo ? `El efectivo (${total}) es de DomiPancho` : 'El pago es para DomiPancho'}</strong>
+          <span>No le entregues dinero al restaurante.</span>
+        </div>
+      </div>`;
+    }
+    return `<div class="banner-dinero bd-restaurante">
+      <span class="bd-ic">${ICON_TIENDA}</span>
+      <div>
+        <span class="bd-tag">Pedido del restaurante</span>
+        <strong>El dinero cobrado es del restaurante</strong>
+        <span>Entrégale el efectivo al restaurante.</span>
+      </div>
+    </div>`;
+  }
+
+  // ✅ Diálogo propio (reemplaza confirm/alert nativos: más rápido y con el diseño de la app)
+  // Devuelve una promesa: true si toca el botón principal, false si cancela.
+  function dpDialogo({ variante = 'info', icono = '', titulo = '', html = '', ok = 'Aceptar', cancelar = null }) {
+    return new Promise(resolve => {
+      const previo = document.getElementById('dpDialogo');
+      if (previo) previo.parentNode.removeChild(previo);
+      const overlay = document.createElement('div');
+      overlay.id = 'dpDialogo';
+      overlay.className = 'modal-overlay dp-dialogo';
+      overlay.style.display = 'flex';
+      overlay.innerHTML = `
+        <div class="modal-contenido dpd-${variante}">
+          ${icono ? `<div class="dpd-ic">${icono}</div>` : ''}
+          <h2 class="dpd-titulo"></h2>
+          <div class="dpd-cuerpo">${html}</div>
+          <div class="modal-acciones">
+            <button type="button" class="dpd-ok"></button>
+            ${cancelar ? '<button type="button" class="dpd-cancelar"></button>' : ''}
+          </div>
+        </div>`;
+      overlay.querySelector('.dpd-titulo').textContent = titulo;
+      overlay.querySelector('.dpd-ok').textContent = ok;
+      if (cancelar) overlay.querySelector('.dpd-cancelar').textContent = cancelar;
+      const cerrar = (valor) => { overlay.parentNode && overlay.parentNode.removeChild(overlay); resolve(valor); };
+      overlay.querySelector('.dpd-ok').addEventListener('click', () => cerrar(true));
+      const btnCancel = overlay.querySelector('.dpd-cancelar');
+      if (btnCancel) {
+        btnCancel.addEventListener('click', () => cerrar(false));
+        overlay.addEventListener('click', e => { if (e.target === overlay) cerrar(false); });
+      }
+      document.body.appendChild(overlay);
+    });
+  }
+  window.dpDialogo = dpDialogo;
+
+  // Recordatorio obligatorio tras entregar un pedido de plataforma en efectivo
+  function recordatorioEfectivoPlataforma(monto) {
+    return dpDialogo({
+      variante: 'plataforma',
+      icono: ICON_DINERO,
+      titulo: 'Este dinero es de DomiPancho',
+      html: `<p class="dpd-monto">$${monto.toLocaleString('es-CO')}</p>
+             <p>Cobraste un pedido de <strong>plataforma</strong>. Guarda este efectivo para entregarlo a <strong>DomiPancho</strong>.</p>
+             <p class="dpd-alerta">No se lo entregues al restaurante.</p>`,
+      ok: 'Entendido'
+    });
+  }
+
   function generarHtmlPedido(p, esMiPedido, pedidosGeograficos, cantidadActivos, disponible) {
     const estadoClase = ESTADOS_CLASES[p.estado?.toLowerCase()] || 'pendiente';
     const totales     = calcularTotalesPedido(p);
@@ -544,7 +634,7 @@ function calcularTotalesPedido(pedido) {
    
 // ✅ Chip de origen (Plataforma / Restaurante) — solo en mis pedidos, compacto
     const esPlataformaCard = esPedidoPlataforma(p);
-    const origenChip = esMiPedido
+    const origenChip = !esMiPedido
       ? `<span class="card-origen" style="font-size:0.7rem;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;margin-top:2px;${esPlataformaCard ? 'background:rgba(59,130,246,0.1);color:#3b82f6;' : 'background:rgba(245,158,11,0.12);color:#d97706;'}">${esPlataformaCard
           ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Plataforma'
           : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg> Restaurante'}</span>`
@@ -620,9 +710,11 @@ function calcularTotalesPedido(pedido) {
       ? `border-left: 3px solid ${configEsp.color};`
       : '';
     const liberadoClass = esLiberado ? ' pedido-liberado' : '';
+    const origenClass = esEspecial ? '' : (esPlataformaCard ? ' origen-plataforma' : ' origen-restaurante');
+    const bannerDinero = esMiPedido ? bannerDineroHtml(p, totales) : '';
    
     return `
-      <div class="pedido-card ${cardClass}${previewClass}${liberadoClass}" data-pedido-id="${p.id}" style="${borderStyle}">
+      <div class="pedido-card ${cardClass}${previewClass}${liberadoClass}${origenClass}" data-pedido-id="${p.id}" style="${borderStyle}">
    
         ${badgeLiberado}
         ${badgeEspecial}
@@ -632,6 +724,8 @@ function calcularTotalesPedido(pedido) {
           <span class="estado ${estadoClase}">${estadoTexto}</span>
           <span class="card-hora">${horaStr}</span>
         </div>
+
+        ${bannerDinero}
    
         <div class="card-ruta">
           <div class="card-punto">
@@ -779,7 +873,12 @@ function calcularTotalesPedido(pedido) {
       const result = await res.json();
 
       if (res.ok) {
-        mostrarMensaje('✅ Pedido recogido — ahora estás en camino al cliente');
+        const pRec = _cachePedidos.find(p => p.id === pedidoId);
+        if (pRec && esPedidoPlataforma(pRec) && !esPagoOnline(pRec) && !pRec.tipo_pedido_especial) {
+          mostrarMensaje('Pedido de plataforma: no le pagues al restaurante, el cobro es para DomiPancho', 'info');
+        } else {
+          mostrarMensaje('Pedido recogido: ahora vas en camino al cliente');
+        }
         await cargarPedidos();
       } else {
         if (btnRecoger) {
@@ -870,7 +969,7 @@ function calcularTotalesPedido(pedido) {
         notaEfectivo.innerHTML = `
           <div style="display:flex;align-items:center;gap:8px;">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="#dc2626" style="width:20px;height:20px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <div style="font-size:0.78rem;color:#991b1b;font-weight:600;line-height:1.3;">Este dinero es para <strong>DomiPancho</strong>, no para el restaurante.</div>
+            <div style="font-size:0.84rem;color:#991b1b;font-weight:600;line-height:1.35;">Vas a cobrar <strong>$${calcularTotalesPedido(pedido).totalConDescuento.toLocaleString('es-CO')}</strong> en efectivo. Este dinero es de <strong>DomiPancho</strong>: <u>no se lo entregues al restaurante</u>.</div>
           </div>`;
       } else {
         notaEfectivo.style.background = 'rgba(245,158,11,0.1)';
@@ -1023,7 +1122,12 @@ function calcularTotalesPedido(pedido) {
           metodoPagoTexto = textoMetodo[metodoValue] || metodoValue;
         }
         mostrarMensaje(`Pedido entregado con ${metodoPagoTexto}`);
+        const pedidoEntregado = _cachePedidos.find(p => p.id === window.pedidoSeleccionado);
         cerrarModalPago();
+        if (pedidoEntregado && metodoValue === 'efectivo' && esPedidoPlataforma(pedidoEntregado) && !pedidoEntregado.tipo_pedido_especial) {
+          // No bloquea la recarga: el diálogo se ve mientras se actualiza la lista
+          recordatorioEfectivoPlataforma(calcularTotalesPedido(pedidoEntregado).totalConDescuento);
+        }
         // ✅ Una sola recarga: con ella sabemos si quedan pedidos activos
         await cargarPedidos();
         await _detenerTrackingSiNoHayActivos();
