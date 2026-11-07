@@ -138,11 +138,17 @@ class FCMNotificationService {
     if (hayPendienteSinAtender) {
       this.reproducirAlarma(); // el guard interno evita reiniciar si ya suena
       // Mostrar el banner flotante solo si aún no está visible (evita parpadeo en cada poll)
-      if (!document.getElementById('fcm-notification-banner')) {
-        this.mostrarNotificacionEnApp({
-          title: 'Nuevo pedido disponible',
-          body: 'Tienes un pedido esperando repartidor.'
-        }, true, true);
+      const sinAtender = idsPendientes.filter(id => !this.pedidosSilenciados.has(id)).length;
+      const banner = document.getElementById('fcm-notification-banner');
+      const cuerpo = sinAtender > 1
+        ? `${sinAtender} pedidos esperando repartidor`
+        : 'Hay un pedido esperando repartidor';
+      if (!banner || banner.dataset.variant !== 'nuevo') {
+        this.mostrarNotificacionEnApp({ title: 'Nuevo pedido disponible', body: cuerpo }, true, true, { variant: 'nuevo' });
+      } else {
+        // Ya visible: solo actualizar el texto (sin animación ni parpadeo)
+        const p = banner.querySelector('.fcm-txt p');
+        if (p) p.textContent = cuerpo;
       }
     }
   }
@@ -165,10 +171,9 @@ class FCMNotificationService {
   ocultarNotificacionEnApp() {
     const banner = document.getElementById('fcm-notification-banner');
     if (banner) {
-      banner.style.transition = 'all 0.25s ease';
-      banner.style.opacity = '0';
-      banner.style.transform = 'translateY(-20px)';
-      setTimeout(() => { if (banner.parentElement) banner.remove(); }, 250);
+      banner.classList.add('fcm-saliendo');
+      banner.id = ''; // permite mostrar otro banner de inmediato
+      setTimeout(() => { if (banner.parentElement) banner.remove(); }, 220);
     }
   }
 
@@ -312,7 +317,14 @@ class FCMNotificationService {
         // "suena y al ir a ver no está el pedido".
         // (Para no disponibles, evaluarAlarma tampoco sonará: puedeRecibir=false.)
 
-        this.mostrarNotificacionEnApp(notification, this.disponible, true);
+        // El banner "Nuevo pedido" lo muestra evaluarAlarma() con datos reales.
+        // Si NO está disponible, solo un aviso informativo que se cierra solo.
+        if (!this.disponible) {
+          this.mostrarNotificacionEnApp({
+            title: 'Nuevo pedido en tu ciudad',
+            body: 'Activa "Disponible" para poder tomarlo.'
+          }, false, false, { variant: 'info' });
+        }
         return;
       }
 
@@ -344,10 +356,10 @@ class FCMNotificationService {
         this.reproducirAlarma();
         
         this.mostrarNotificacionEnApp({
-          title: '✅ ¡Pedido Listo!',
-          body: `Pedido #${data.pedidoId} de ${data.restaurante || 'Restaurante'} está listo para recoger`,
+          title: 'Pedido listo para recoger',
+          body: `#${data.pedidoId} · ${data.restaurante || 'Restaurante'}`,
           data: data
-        }, true, true);
+        }, true, true, { variant: 'listo', destino: 'pedidos-activos', textoBoton: 'Ir' });
         return;
       }
       
@@ -360,7 +372,7 @@ class FCMNotificationService {
         } catch (e) {}
       }
       
-      this.mostrarNotificacionEnApp(notification, true);
+      this.mostrarNotificacionEnApp(notification, true, false, { variant: 'info', destino: null });
     });
 
     // 👆 NOTIFICACIÓN TOCADA (deep link)
@@ -409,106 +421,102 @@ class FCMNotificationService {
   }
 
   /**
-   * ✅ MEJORADO: Banner flotante en-app, profesional con iconos SVG.
-   * @param {object} notification {title, body}
-   * @param {boolean} esDisponible muestra botón "Ver" si es true
-   * @param {boolean} persistente si true, NO se auto-cierra (se cierra al Ver/cerrar/tomar
-   *                  o cuando la alarma se detiene). Usado para alarmas de nuevo pedido.
+   * ✅ Banner flotante en-app (estilo notificación del sistema).
+   * - Usa los textos reales del push (data.titulo / data.cuerpo en mensajes data-only).
+   * - Respeta el notch / barra de estado (safe-area).
+   * - Se descarta deslizando hacia arriba o con la X.
+   * @param {object} notification {title, body, data}
+   * @param {boolean} esDisponible muestra botón de acción si es true
+   * @param {boolean} persistente si true NO se auto-cierra (alarma de nuevo pedido)
+   * @param {object} opts { variant: 'nuevo'|'urgente'|'listo'|'info', destino, textoBoton }
    */
-  mostrarNotificacionEnApp(notification, esDisponible, persistente = false) {
+  mostrarNotificacionEnApp(notification, esDisponible, persistente = false, opts = {}) {
     const existente = document.getElementById('fcm-notification-banner');
     if (existente) existente.remove();
+    clearTimeout(this._bannerTimer);
 
-    // Inyectar estilos una sola vez
-    if (!document.getElementById('fcm-banner-styles')) {
-      const st = document.createElement('style');
-      st.id = 'fcm-banner-styles';
-      st.textContent = `
-        #fcm-notification-banner{
-          position:fixed;top:12px;left:12px;right:12px;z-index:10001;
-          display:flex;align-items:center;gap:12px;
-          background:#ffffff;padding:12px 14px;border-radius:16px;
-          border:1px solid #e2e8f0;box-shadow:0 12px 38px rgba(15,23,42,0.22);
-          animation:fcmSlideDown .32s cubic-bezier(.2,.8,.2,1);
-        }
-        @keyframes fcmSlideDown{from{opacity:0;transform:translateY(-28px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes fcmPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
-        #fcm-notification-banner .fcm-ic{
-          width:44px;height:44px;border-radius:13px;flex-shrink:0;
-          display:flex;align-items:center;justify-content:center;color:#fff;
-          animation:fcmPulse 1.3s ease-in-out infinite;
-        }
-        #fcm-notification-banner .fcm-txt{flex:1;min-width:0;}
-        #fcm-notification-banner .fcm-txt h4{margin:0 0 2px;font-size:.95rem;font-weight:700;color:#0f172a;}
-        #fcm-notification-banner .fcm-txt p{margin:0;font-size:.82rem;color:#64748b;line-height:1.3;
-          overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-        #fcm-notification-banner .fcm-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
-        #fcm-notification-banner .fcm-ver{
-          display:flex;align-items:center;gap:5px;background:#22c55e;color:#fff;border:none;
-          padding:9px 14px;border-radius:11px;font-size:.82rem;font-weight:700;cursor:pointer;
-          box-shadow:0 3px 10px rgba(34,197,94,.4);transition:transform .1s ease;
-        }
-        #fcm-notification-banner .fcm-ver:active{transform:scale(.95);}
-        #fcm-notification-banner .fcm-close{
-          display:flex;align-items:center;justify-content:center;background:#f1f5f9;color:#64748b;
-          border:none;width:34px;height:34px;border-radius:11px;cursor:pointer;transition:transform .1s ease;
-        }
-        #fcm-notification-banner .fcm-close:active{transform:scale(.95);}
-      `;
-      document.head.appendChild(st);
-    }
+    const data = notification?.data || {};
+    const limpiar = (t) => String(t || '')
+      .replace(/^[\s☀-➿⬀-⯿️\u{1F000}-\u{1FAFF}·]+/u, '')
+      .trim();
 
-    const acento = esDisponible ? '#22c55e' : '#94a3b8';
-    const titulo = notification.title || (esDisponible ? 'Nuevo pedido cercano' : 'Nuevo pedido');
-    const cuerpo = notification.body || (esDisponible
-      ? 'NUEVOOO!'
-      : 'Hay un nuevo pedido. Actívate para tomarlo.');
+    let variant = opts.variant || (data.tipo === 'pedido_listo' ? 'listo' : data.tipo === 'nuevo_pedido' ? 'nuevo' : 'info');
+    if (data.urgente === 'true' || data.urgente === true) variant = 'urgente';
 
-    // Iconos SVG (inline, sin dependencias externas)
-    const iconBell = `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>`;
-    const iconEye = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>`;
-    const iconClose = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>`;
+    const titulo = limpiar(notification?.title || data.titulo) ||
+      (variant === 'listo' ? 'Pedido listo para recoger' : variant === 'info' ? 'DomiPancho' : 'Nuevo pedido disponible');
+    const cuerpo = limpiar(notification?.body || data.cuerpo) ||
+      (esDisponible ? 'Toca para ver los detalles' : 'Activa "Disponible" para tomarlo');
+    const destino = opts.destino !== undefined ? opts.destino : (variant === 'listo' ? 'pedidos-activos' : 'pedidos');
+    const textoBoton = opts.textoBoton || 'Ver';
+
+    const ICONS = {
+      nuevo:   '<path stroke-linecap="round" stroke-linejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/>',
+      urgente: '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>',
+      listo:   '<path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>',
+      info:    '<path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>'
+    };
+    const etiqueta = { nuevo: 'NUEVO PEDIDO', urgente: 'URGENTE', listo: 'PEDIDO LISTO', info: 'AVISO' }[variant];
 
     const notifDiv = document.createElement('div');
     notifDiv.id = 'fcm-notification-banner';
-    notifDiv.style.borderLeft = `5px solid ${acento}`;
+    notifDiv.className = `fcm-banner fcm-${variant}${persistente ? ' fcm-sonando' : ''}`;
+    notifDiv.dataset.variant = variant;
+    notifDiv.setAttribute('role', 'alert');
     notifDiv.innerHTML = `
-      <div class="fcm-ic" style="background:${acento};">${iconBell}</div>
+      <div class="fcm-ic"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">${ICONS[variant] || ICONS.info}</svg></div>
       <div class="fcm-txt">
-        <h4>${titulo}</h4>
-        <p>${cuerpo}</p>
+        <span class="fcm-tag">${etiqueta}${persistente ? '<i class="fcm-eq"><b></b><b></b><b></b></i>' : ''}</span>
+        <h4></h4>
+        <p></p>
       </div>
       <div class="fcm-actions">
-        ${esDisponible ? `<button class="fcm-ver" type="button">${iconEye}<span>Ver</span></button>` : ''}
-        <button class="fcm-close" type="button" aria-label="Cerrar">${iconClose}</button>
-      </div>
-    `;
+        ${esDisponible && destino ? `<button class="fcm-ver" type="button">${textoBoton}</button>` : ''}
+        <button class="fcm-close" type="button" aria-label="Cerrar">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>`;
+    // textContent: nunca interpretar HTML que venga del push
+    notifDiv.querySelector('h4').textContent = titulo;
+    notifDiv.querySelector('p').textContent = cuerpo;
     document.body.appendChild(notifDiv);
 
-    // Handlers
+    const accion = () => {
+      this.silenciarAlarma();
+      if (destino && typeof window.navigateTo === 'function') window.navigateTo(destino);
+      if (typeof window.cargarPedidos === 'function') window.cargarPedidos();
+    };
+
     const verBtn = notifDiv.querySelector('.fcm-ver');
-    if (verBtn) {
-      verBtn.addEventListener('click', () => {
-        this.silenciarAlarma();
-        if (typeof window.navigateTo === 'function') window.navigateTo('pedidos');
-        if (typeof window.cargarPedidos === 'function') window.cargarPedidos();
-      });
-    }
-    notifDiv.querySelector('.fcm-close').addEventListener('click', () => {
+    if (verBtn) verBtn.addEventListener('click', (e) => { e.stopPropagation(); accion(); });
+    notifDiv.querySelector('.fcm-close').addEventListener('click', (e) => {
+      e.stopPropagation();
       this.silenciarAlarma();
     });
+    // Tocar el cuerpo del banner = misma acción que "Ver"
+    notifDiv.addEventListener('click', () => { if (verBtn) accion(); });
 
-    // Auto-cerrar solo si NO es persistente (notificaciones informativas)
+    // Deslizar hacia arriba para descartar
+    let y0 = null, dy = 0;
+    notifDiv.addEventListener('touchstart', (e) => { y0 = e.touches[0].clientY; dy = 0; notifDiv.style.transition = 'none'; }, { passive: true });
+    notifDiv.addEventListener('touchmove', (e) => {
+      if (y0 === null) return;
+      dy = Math.min(0, e.touches[0].clientY - y0);
+      notifDiv.style.transform = `translate(-50%, ${dy}px)`;
+      notifDiv.style.opacity = String(1 + dy / 120);
+    }, { passive: true });
+    notifDiv.addEventListener('touchend', () => {
+      notifDiv.style.transition = '';
+      if (dy < -40) this.silenciarAlarma();
+      else { notifDiv.style.transform = ''; notifDiv.style.opacity = ''; }
+      y0 = null;
+    });
+
+    // Auto-cerrar solo si NO es persistente (avisos informativos)
     if (!persistente) {
-      setTimeout(() => {
-        // No cerrar si mientras tanto se activó una alarma en bucle
-        if (notifDiv.parentElement && !this.alarmInterval) {
-          notifDiv.style.transition = 'all 0.3s ease';
-          notifDiv.style.opacity = '0';
-          notifDiv.style.transform = 'translateY(-20px)';
-          setTimeout(() => notifDiv.remove(), 300);
-        }
-      }, 8000);
+      this._bannerTimer = setTimeout(() => {
+        if (notifDiv.parentElement && !this.alarmInterval) this.ocultarNotificacionEnApp();
+      }, 6000);
     }
   }
 
@@ -549,8 +557,8 @@ class FCMNotificationService {
             id: Math.floor(Math.random() * 1000000),
             channelId: channelId,
             sound: (this.notificacionesActivas && esDisponible) ? 'notificacion.mp3' : null,
-            smallIcon: 'ic_stat_icon_config_sample',
-            iconColor: esDisponible ? '#22c55e' : '#94a3b8',
+            smallIcon: 'ic_stat_pedido',
+            iconColor: esDisponible ? '#E74C3C' : '#94a3b8',
             extra: {
               pedidoId: notification.data?.pedidoId || null,
               tipo: 'nuevo_pedido'

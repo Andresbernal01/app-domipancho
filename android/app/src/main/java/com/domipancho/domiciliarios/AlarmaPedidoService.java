@@ -205,10 +205,20 @@ public class AlarmaPedidoService extends Service {
                 new Intent(this, AlarmaPedidoService.class).setAction(ACTION_STOP),
                 pendingFlags());
 
+        // Los títulos del servidor traen emojis ("📦 Nuevo pedido"): el ícono
+        // y el color ya identifican el aviso, así que se limpian para verse sobrio.
+        String tituloLimpio = limpiarTexto(titulo);
+        String cuerpoLimpio = limpiarTexto(cuerpo);
+
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle(titulo)
-                .setContentText(cuerpo)
-                .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                .setContentTitle(tituloLimpio)
+                .setContentText(cuerpoLimpio)
+                .setStyle(new NotificationCompat.BigTextStyle().bigText(cuerpoLimpio))
+                .setSubText(pedidoId != null ? "Pedido #" + pedidoId : null)
+                .setSmallIcon(R.drawable.ic_stat_pedido)
+                .setColor(COLOR_MARCA)
+                .setShowWhen(true)
+                .setOnlyAlertOnce(true)
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_ALARM) // alarma insistente, NO "llamada"
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
@@ -221,6 +231,14 @@ public class AlarmaPedidoService extends Service {
                 .addAction(android.R.drawable.ic_menu_view, "Ver pedido", verPI)
                 .addAction(android.R.drawable.ic_lock_silent_mode, "Silenciar", silenciarPI)
                 .build();
+    }
+
+    private static final int COLOR_MARCA = 0xFFE74C3C; // rojo DomiPancho
+
+    private static String limpiarTexto(String texto) {
+        if (texto == null) return "";
+        // Quita emojis/símbolos del inicio (deja letras, números y signos ¡ ¿)
+        return texto.replaceFirst("^[^\\p{L}\\p{N}¡¿#]+", "").trim();
     }
 
     private int pendingFlags() {
