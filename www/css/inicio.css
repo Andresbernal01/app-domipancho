@@ -340,6 +340,9 @@
   .pedido-card.mi-pedido { border-left-color: var(--accent); }
   .pedido-card.pedido-preview { opacity: 0.6; }
   .pedido-card.pedido-liberado { border-left-color: var(--accent); background: linear-gradient(180deg, var(--accent-soft) 0, var(--bg-surface) 60px); }
+  /* Borde por origen del pedido: azul = plataforma, amarillo = restaurante */
+  .pedido-card.origen-plataforma   { border-left-color: #3b82f6; }
+  .pedido-card.origen-restaurante  { border-left-color: #f59e0b; }
   
   .badge-liberado { margin-bottom: 8px; }
   .badge-lib-inner {
@@ -499,12 +502,11 @@
   }
 
   /* Contacto rápido: llamar / WhatsApp */
-  .card-btns-contacto { display: flex; gap: 8px; width: 100%; margin-bottom: 8px; }
+  .card-btns-contacto { display: flex; gap: 8px; width: 100%; margin: 8px 0 4px; }
   .card-btns-contacto .cbtn { flex: 1 1 0; min-width: 0; min-height: 40px; }
-  .cbtn-tel, .cbtn-tel-rest { background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border-strong); }
+  .cbtn-tel { background: var(--bg-elevated); color: var(--text-primary); border: 1px solid var(--border-strong); }
   .cbtn-wa  { background: #25d366; color: #fff; }
-  .link-tel, .link-wa { color: var(--info); font-weight: 700; text-decoration: none; }
-  .link-wa { color: #128c4b; }
+  .link-tel { color: var(--info); font-weight: 700; text-decoration: none; }
 
   /* Botones de la tarjeta */
   .card-btns { display: flex; gap: 8px; width: 100%; flex-wrap: wrap; }

@@ -620,7 +620,6 @@ function calcularTotalesPedido(pedido) {
     const botonesHtml = esMiPedido
       ? `<div class="card-btns mi-pedido-btns">
            ${bannerHtml}
-           ${generarBotonesContacto(p)}
            ${accionesHtml}
          </div>`
       : `<div class="card-btns">
@@ -633,9 +632,11 @@ function calcularTotalesPedido(pedido) {
       ? `border-left: 3px solid ${configEsp.color};`
       : '';
     const liberadoClass = esLiberado ? ' pedido-liberado' : '';
+    // ✅ Borde por origen: azul = plataforma, amarillo = restaurante (directo)
+    const origenClass = esPedidoPlataforma(p) ? ' origen-plataforma' : ' origen-restaurante';
    
     return `
-      <div class="pedido-card ${cardClass}${previewClass}${liberadoClass}" data-pedido-id="${p.id}" style="${borderStyle}">
+      <div class="pedido-card ${cardClass}${previewClass}${liberadoClass}${origenClass}" data-pedido-id="${p.id}" style="${borderStyle}">
    
         ${badgeLiberado}
         ${badgeEspecial}
@@ -686,28 +687,14 @@ function calcularTotalesPedido(pedido) {
   const ICON_TEL = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>`;
   const ICON_WA = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;flex-shrink:0;"><path d="M17.47 14.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.65.07-.3-.15-1.25-.46-2.38-1.47-.88-.79-1.47-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.75-.72 2-1.41.25-.69.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35zM12.04 21.5h-.01a9.5 9.5 0 01-4.84-1.33l-.35-.21-3.6.94.96-3.5-.23-.36a9.46 9.46 0 01-1.45-5.05c0-5.24 4.27-9.5 9.52-9.5a9.46 9.46 0 019.5 9.51c0 5.24-4.27 9.5-9.5 9.5zm8.09-17.6A11.4 11.4 0 0012.04.5C5.74.5.62 5.62.62 11.92c0 2.01.53 3.98 1.53 5.71L.52 23.5l6.02-1.58a11.4 11.4 0 005.49 1.4h.01c6.3 0 11.42-5.13 11.42-11.42 0-3.05-1.19-5.92-3.34-8.08z"/></svg>`;
 
-  function generarBotonesContacto(p) {
-    const esEspecial = !!p.tipo_pedido_especial;
-    const telOrigen = esEspecial ? p.telefono_origen_especial : p.restaurantes?.telefono;
-    const nombreOrigen = esEspecial ? 'origen' : 'restaurante';
-    const telCliente = window.telHref(p.telefono);
-    const waCliente = window.whatsappHref(p.telefono, `Hola${p.nombre ? ' ' + p.nombre : ''}, soy tu domiciliario de DomiPancho con el pedido #${p.id}.`);
-    const telRest = window.telHref(telOrigen);
-
+  // Botones Llamar / WhatsApp para el modal de detalles (solo pedidos ya tomados)
+  function botonesContacto(tel, mensajeWa) {
+    const telUrl = window.telHref(tel);
+    const waUrl = window.whatsappHref(tel, mensajeWa);
     const btns = [];
-    if (telCliente) btns.push(`<button class="cbtn cbtn-tel" data-href="${esc(telCliente)}" onclick="abrirContacto(this.dataset.href)">${ICON_TEL} Cliente</button>`);
-    if (waCliente)  btns.push(`<button class="cbtn cbtn-wa" data-href="${esc(waCliente)}" onclick="abrirContacto(this.dataset.href)">${ICON_WA} WhatsApp</button>`);
-    if (telRest)    btns.push(`<button class="cbtn cbtn-tel-rest" data-href="${esc(telRest)}" onclick="abrirContacto(this.dataset.href)">${ICON_TEL} ${nombreOrigen.charAt(0).toUpperCase() + nombreOrigen.slice(1)}</button>`);
+    if (telUrl) btns.push(`<button type="button" class="cbtn cbtn-tel" data-href="${esc(telUrl)}" onclick="abrirContacto(this.dataset.href)">${ICON_TEL} Llamar</button>`);
+    if (waUrl)  btns.push(`<button type="button" class="cbtn cbtn-wa" data-href="${esc(waUrl)}" onclick="abrirContacto(this.dataset.href)">${ICON_WA} WhatsApp</button>`);
     return btns.length ? `<div class="card-btns-contacto">${btns.join('')}</div>` : '';
-  }
-
-  // Teléfono como link de llamada (y WhatsApp si aplica) para los modales de detalle
-  function telefonoConAcciones(tel, conWhatsapp = false) {
-    const href = window.telHref(tel);
-    if (!href) return esc(tel || 'N/A');
-    const wa = conWhatsapp ? window.whatsappHref(tel) : null;
-    return `<a href="#" class="link-tel" data-href="${esc(href)}" onclick="event.preventDefault();abrirContacto(this.dataset.href)">${esc(tel)}</a>`
-      + (wa ? ` · <a href="#" class="link-wa" data-href="${esc(wa)}" onclick="event.preventDefault();abrirContacto(this.dataset.href)">WhatsApp</a>` : '');
   }
 
   function generarBotonesAccion(pedido, esMiPedido, cantidadActivos, disponible) {
@@ -1289,7 +1276,14 @@ function calcularTotalesPedido(pedido) {
     const esPedidoActivo = esMiPedido ||
       (pedido.domiciliario_id === _cacheUsuarioId && pedido.estado?.toLowerCase() === 'camino a tu casa');
 
-    const telefonoMostrar = esPedidoActivo ? telefonoConAcciones(pedido.telefono, true) : esc(ocultarTelefono(pedido.telefono));
+    const telefonoMostrar = esPedidoActivo ? esc(pedido.telefono || 'N/A') : esc(ocultarTelefono(pedido.telefono));
+    const telOrigen = pedido.tipo_pedido_especial ? pedido.telefono_origen_especial : pedido.restaurantes?.telefono;
+    const contactoCliente = esPedidoActivo
+      ? botonesContacto(pedido.telefono, `Hola${pedido.nombre ? ' ' + pedido.nombre : ''}, soy tu domiciliario de DomiPancho con el pedido #${pedido.id}.`)
+      : '';
+    const contactoOrigen = esPedidoActivo
+      ? botonesContacto(telOrigen, `Hola, soy el domiciliario de DomiPancho del pedido #${pedido.id}.`)
+      : '';
 
     // Dirección completa siempre que sea mi pedido
     const direccionCompleta = esPedidoActivo
@@ -1331,13 +1325,15 @@ function calcularTotalesPedido(pedido) {
           <p><strong>Nombre:</strong> ${esc(pedido.nombre)} ${esc(pedido.apellido)}</p>
           <p><strong>Telefono:</strong> ${telefonoMostrar}</p>
           <p><strong>Estado:</strong> ${esc(pedido.estado)}</p>
+          ${contactoCliente}
         </div>
 
         <div class="detalle-section">
           <h4>Origen — ${esc(pedido.tipo_pedido_especial ? (pedido.origen_especial || 'Origen especial') : (pedido.restaurantes?.nombre || 'Restaurante'))}</h4>
           <p>${esc(pedido.tipo_pedido_especial ? (pedido.origen_especial || 'Sin dirección') : (pedido.restaurantes?.direccion || 'Sin direccion registrada'))}</p>
-          ${pedido.tipo_pedido_especial && pedido.telefono_origen_especial ? `<p><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;color:#f59e0b;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg> Tel: ${telefonoConAcciones(pedido.telefono_origen_especial)}</p>` : ''}
-          ${!pedido.tipo_pedido_especial && pedido.restaurantes?.telefono ? `<p>Tel: ${telefonoConAcciones(pedido.restaurantes.telefono)}</p>` : ''}
+          ${pedido.tipo_pedido_especial && pedido.telefono_origen_especial ? `<p><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;color:#f59e0b;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg> Tel: ${esc(pedido.telefono_origen_especial)}</p>` : ''}
+          ${!pedido.tipo_pedido_especial && pedido.restaurantes?.telefono ? `<p>Tel: ${esc(pedido.restaurantes.telefono)}</p>` : ''}
+          ${contactoOrigen}
           ${pedido.tipo_pedido_especial && pedido.descripcion_especial ? `<p style="margin-top:6px;color:#94a3b8;font-size:0.85rem;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> ${esc(pedido.descripcion_especial)}</p>` : ''}
           ${pedido.tipo_pedido_especial && pedido.notas_especial ? `<p style="font-style:italic;color:#64748b;font-size:0.82rem;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> ${esc(pedido.notas_especial)}</p>` : ''}
         </div>
