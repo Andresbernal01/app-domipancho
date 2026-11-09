@@ -1316,6 +1316,7 @@ function calcularTotalesPedido(pedido) {
 
     const modalHTML = `
       <div class="modal-detalles-contenido">
+        <button type="button" class="btn-x-modal" onclick="cerrarDetallesPedido()" aria-label="Cerrar"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
         <h2>Pedido #${pedido.id}</h2>
 
         ${mensajeProteccion}

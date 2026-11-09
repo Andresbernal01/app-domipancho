@@ -1032,6 +1032,18 @@
     border-radius: 4px;
     background: var(--border-strong);
   }
+  /* X de cerrar: fija arriba a la derecha aunque el contenido haga scroll */
+  .btn-x-modal {
+    position: sticky; top: 0; float: right; z-index: 3;
+    margin: -10px -4px 0 8px;
+    width: 40px; height: 40px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border-strong); border-radius: 50%;
+    background: var(--bg-elevated); color: var(--text-primary);
+    cursor: pointer;
+  }
+  .btn-x-modal svg { width: 18px; height: 18px; }
+  .btn-x-modal:active { transform: scale(0.94); }
   @keyframes sheetUp { from { transform: translateY(40px); opacity: 0.6; } to { transform: none; opacity: 1; } }
   
   .modal-contenido h2, .modal-detalles-contenido h2 { font-size: 1.08rem; font-weight: 800; margin-bottom: 14px; }
