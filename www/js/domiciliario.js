@@ -9,6 +9,7 @@
   let pedidoALiberarId = null;
   let socketInstance = null;
   let mobileNotif = null;
+  const esc = window.escHtml;
 
   // ========== UTILIDAD DE FECHAS ==========
   // Supabase puede devolver "2026-05-09 15:06:37" sin zona horaria.
@@ -208,7 +209,7 @@ function calcularTotalesPedido(pedido) {
       }
     } catch (error) {
       console.error('Error en logout:', error);
-      window.location.href = '/login.html';
+      window.location.href = '/index.html';
     }
   }
 
@@ -510,12 +511,12 @@ function calcularTotalesPedido(pedido) {
    
     // Descripción especial (solo para especiales, debajo del origen)
     const descEspecialHtml = esEspecial && p.descripcion_especial
-      ? `<span class="punto-sub" style="color:${configEsp?.color || '#f59e0b'}; font-weight:600; font-size:0.75rem;">${p.descripcion_especial.substring(0, 80)}${p.descripcion_especial.length > 80 ? '...' : ''}</span>`
+      ? `<span class="punto-sub" style="color:${configEsp?.color || '#f59e0b'}; font-weight:600; font-size:0.75rem;">${esc(p.descripcion_especial.substring(0, 80))}${p.descripcion_especial.length > 80 ? '...' : ''}</span>`
       : '';
    
     // Notas especiales
     const notasHtml = esEspecial && p.notas_especial
-      ? `<span class="punto-sub" style="font-style:italic; opacity:0.8;">📝 ${p.notas_especial.substring(0, 60)}${p.notas_especial.length > 60 ? '...' : ''}</span>`
+      ? `<span class="punto-sub" style="font-style:italic; opacity:0.8;">📝 ${esc(p.notas_especial.substring(0, 60))}${p.notas_especial.length > 60 ? '...' : ''}</span>`
       : '';
    
     // Destino
@@ -539,7 +540,7 @@ function calcularTotalesPedido(pedido) {
     const esPorKm = p.tipo_tarifa === 'por_km';
     const costoEnvioTotal = totales.costoDomicilio + totales.tarifaDomiPancho;
     const envioHtml = esPorKm && p.distancia_km
-      ? `<span class="card-envio">Envío $${costoEnvioTotal.toLocaleString('es-CO')} (${p.distancia_km} km)</span>`
+      ? `<span class="card-envio">Envío $${costoEnvioTotal.toLocaleString('es-CO')} (${esc(p.distancia_km)} km)</span>`
       : `<span class="card-envio">Envío $${costoEnvioTotal.toLocaleString('es-CO')}</span>`;
    
 // ✅ Chip de origen (Plataforma / Restaurante) — solo en mis pedidos, compacto
@@ -557,7 +558,7 @@ function calcularTotalesPedido(pedido) {
       : (_pagoOnlineCard
           ? `<span class="card-metodo-pago" style="font-size:0.73rem;font-weight:700;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;margin-top:2px;background:rgba(16,185,129,0.12);color:#059669;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Pagado</span>`
           : (p.metodo_pago
-              ? `<span class="card-metodo-pago" style="font-size:0.73rem;font-weight:600;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;margin-top:2px;${p.metodo_pago === 'efectivo' ? 'background:rgba(16,185,129,0.1);color:#10b981;' : p.metodo_pago === 'nequi' ? 'background:rgba(139,92,246,0.1);color:#8b5cf6;' : p.metodo_pago === 'daviplata' ? 'background:rgba(239,68,68,0.1);color:#ef4444;' : p.metodo_pago === 'transferencia' ? 'background:rgba(59,130,246,0.1);color:#3b82f6;' : p.metodo_pago === 'datafono' ? 'background:rgba(245,158,11,0.1);color:#f59e0b;' : 'background:rgba(100,116,139,0.1);color:#64748b;'}">${p.metodo_pago === 'efectivo' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' : (p.metodo_pago === 'nequi' || p.metodo_pago === 'daviplata') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>' : p.metodo_pago === 'transferencia' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>'} ${p.metodo_pago === 'pagado al restaurante' ? 'Pagado al rest.' : p.metodo_pago.charAt(0).toUpperCase() + p.metodo_pago.slice(1)}</span>`
+              ? `<span class="card-metodo-pago" style="font-size:0.73rem;font-weight:600;padding:2px 8px;border-radius:6px;display:inline-flex;align-items:center;gap:4px;margin-top:2px;${p.metodo_pago === 'efectivo' ? 'background:rgba(16,185,129,0.1);color:#10b981;' : p.metodo_pago === 'nequi' ? 'background:rgba(139,92,246,0.1);color:#8b5cf6;' : p.metodo_pago === 'daviplata' ? 'background:rgba(239,68,68,0.1);color:#ef4444;' : p.metodo_pago === 'transferencia' ? 'background:rgba(59,130,246,0.1);color:#3b82f6;' : p.metodo_pago === 'datafono' ? 'background:rgba(245,158,11,0.1);color:#f59e0b;' : 'background:rgba(100,116,139,0.1);color:#64748b;'}">${p.metodo_pago === 'efectivo' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' : (p.metodo_pago === 'nequi' || p.metodo_pago === 'daviplata') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>' : p.metodo_pago === 'transferencia' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:11px;height:11px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>'} ${p.metodo_pago === 'pagado al restaurante' ? 'Pagado al rest.' : esc(p.metodo_pago.charAt(0).toUpperCase() + p.metodo_pago.slice(1))}</span>`
               : ''));
 
     const estadoTexto = esMiPedido 
@@ -573,12 +574,23 @@ function calcularTotalesPedido(pedido) {
     const ICON_CLOCK = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
     const ICON_PICKUP = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>`;
     
-    const esPreparando = p.estado?.toLowerCase() === 'preparando pedido';
+    // ✅ Acción hecha sin red, esperando conexión para enviarse
+    const accionPendiente = esMiPedido && window.colaAcciones ? window.colaAcciones.pendientePara(p.id) : null;
+    // "Ya recogí" pendiente: se muestra como en camino para poder entregar (se envía en orden)
+    const recogidaPendiente = accionPendiente?.tipo === 'recoger';
+    const esPreparando = p.estado?.toLowerCase() === 'preparando pedido' && !recogidaPendiente;
+    const bannerPendiente = accionPendiente
+      ? `<div class="card-estado-banner card-estado-pendiente">${ICON_CLOCK} Sin conexión: "${esc(accionPendiente.descripcion)}" se enviará cuando vuelva el internet</div>`
+      : '';
     
     let bannerHtml = '';
     let accionesHtml = '';
     
-    if (esPreparando) {
+    if (accionPendiente && !recogidaPendiente) {
+      // Entrega / liberación / no entregado ya registrados: no dejar repetirlos
+      bannerHtml = bannerPendiente;
+      accionesHtml = '';
+    } else if (esPreparando) {
       // ✅ PREPARANDO PEDIDO: solo banner + botón recoger prominente + liberar
       bannerHtml = p.pedido_listo_en 
         ? `<div class="card-estado-banner card-estado-listo">${ICON_CHECK} ¡Listo para recoger!</div>` 
@@ -590,7 +602,7 @@ function calcularTotalesPedido(pedido) {
         </div>`;
     } else {
       // ✅ CAMINO A TU CASA: banner listo/preparando + acciones completas
-      bannerHtml = p.pedido_listo_en 
+      bannerHtml = recogidaPendiente ? bannerPendiente : p.pedido_listo_en 
         ? `<div class="card-estado-banner card-estado-listo">${ICON_CHECK} ¡Listo para recoger!</div>` 
         : `<div class="card-estado-banner card-estado-preparando">${ICON_CLOCK} Restaurante preparando...</div>`;
       accionesHtml = `
@@ -620,9 +632,11 @@ function calcularTotalesPedido(pedido) {
       ? `border-left: 3px solid ${configEsp.color};`
       : '';
     const liberadoClass = esLiberado ? ' pedido-liberado' : '';
+    // ✅ Borde por origen: azul = plataforma, amarillo = restaurante (directo)
+    const origenClass = esPedidoPlataforma(p) ? ' origen-plataforma' : ' origen-restaurante';
    
     return `
-      <div class="pedido-card ${cardClass}${previewClass}${liberadoClass}" data-pedido-id="${p.id}" style="${borderStyle}">
+      <div class="pedido-card ${cardClass}${previewClass}${liberadoClass}${origenClass}" data-pedido-id="${p.id}" style="${borderStyle}">
    
         ${badgeLiberado}
         ${badgeEspecial}
@@ -638,8 +652,8 @@ function calcularTotalesPedido(pedido) {
             <span class="punto-dot origen"></span>
             <span class="punto-texto">
               <span class="punto-label">${esEspecial ? 'Recoger en' : 'Origen'}</span>
-              <span class="punto-val">${origenNombre}</span>
-              ${origenDir ? `<span class="punto-sub">${origenDir}</span>` : ''}
+              <span class="punto-val">${esc(origenNombre)}</span>
+              ${origenDir ? `<span class="punto-sub">${esc(origenDir)}</span>` : ''}
               ${descEspecialHtml}
               ${notasHtml}
             </span>
@@ -648,8 +662,8 @@ function calcularTotalesPedido(pedido) {
             <span class="punto-dot ${destinoDotClass}"></span>
             <span class="punto-texto">
               <span class="punto-label">Entregar en</span>
-              <span class="punto-val">${destinoDir}</span>
-              ${destinoBarrio ? `<span class="punto-sub">Barrio: ${destinoBarrio}</span>` : ''}
+              <span class="punto-val">${esc(destinoDir)}</span>
+              ${destinoBarrio ? `<span class="punto-sub">Barrio: ${esc(destinoBarrio)}</span>` : ''}
             </span>
           </div>
         </div>
@@ -667,6 +681,20 @@ function calcularTotalesPedido(pedido) {
    
       </div>
     `;
+  }
+
+  // ========== CONTACTO (llamar / WhatsApp) ==========
+  const ICON_TEL = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:14px;height:14px;flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg>`;
+  const ICON_WA = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" style="width:14px;height:14px;flex-shrink:0;"><path d="M17.47 14.38c-.3-.15-1.75-.86-2.02-.96-.27-.1-.47-.15-.67.15-.2.3-.77.96-.94 1.16-.17.2-.35.22-.65.07-.3-.15-1.25-.46-2.38-1.47-.88-.79-1.47-1.76-1.65-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.48s1.07 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.63.71.23 1.36.2 1.87.12.57-.09 1.75-.72 2-1.41.25-.69.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35zM12.04 21.5h-.01a9.5 9.5 0 01-4.84-1.33l-.35-.21-3.6.94.96-3.5-.23-.36a9.46 9.46 0 01-1.45-5.05c0-5.24 4.27-9.5 9.52-9.5a9.46 9.46 0 019.5 9.51c0 5.24-4.27 9.5-9.5 9.5zm8.09-17.6A11.4 11.4 0 0012.04.5C5.74.5.62 5.62.62 11.92c0 2.01.53 3.98 1.53 5.71L.52 23.5l6.02-1.58a11.4 11.4 0 005.49 1.4h.01c6.3 0 11.42-5.13 11.42-11.42 0-3.05-1.19-5.92-3.34-8.08z"/></svg>`;
+
+  // Botones Llamar / WhatsApp para el modal de detalles (solo pedidos ya tomados)
+  function botonesContacto(tel, mensajeWa) {
+    const telUrl = window.telHref(tel);
+    const waUrl = window.whatsappHref(tel, mensajeWa);
+    const btns = [];
+    if (telUrl) btns.push(`<button type="button" class="cbtn cbtn-tel" data-href="${esc(telUrl)}" onclick="abrirContacto(this.dataset.href)">${ICON_TEL} Llamar</button>`);
+    if (waUrl)  btns.push(`<button type="button" class="cbtn cbtn-wa" data-href="${esc(waUrl)}" onclick="abrirContacto(this.dataset.href)">${ICON_WA} WhatsApp</button>`);
+    return btns.length ? `<div class="card-btns-contacto">${btns.join('')}</div>` : '';
   }
 
   function generarBotonesAccion(pedido, esMiPedido, cantidadActivos, disponible) {
@@ -771,14 +799,15 @@ function calcularTotalesPedido(pedido) {
     }
 
     try {
-      const res = await window.apiRequest(`/api/pedidos/${pedidoId}/recoger`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ forzado })
+      const r = await window.colaAcciones.ejecutarOEncolar({
+        pedidoId, tipo: 'recoger', descripcion: `Recogido #${pedidoId}`,
+        endpoint: `/api/pedidos/${pedidoId}/recoger`, method: 'POST', body: { forzado }
       });
-      const result = await res.json();
+      const result = r.data || {};
 
-      if (res.ok) {
+      if (r.estado === 'encolado') {
+        mostrarMensaje('Sin conexión: el "Ya recogí" se enviará cuando vuelva el internet. Puedes seguir hacia el cliente.', 'info');
+      } else if (r.estado === 'ok') {
         mostrarMensaje('✅ Pedido recogido — ahora estás en camino al cliente');
         await cargarPedidos();
       } else {
@@ -904,7 +933,7 @@ function calcularTotalesPedido(pedido) {
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-size:1.1rem;">👤</span>
             <div>
-              <div style="font-weight:700;font-size:0.82rem;color:#1e293b;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">El cliente eligió: ${nombresMetodo[metodoCliente] || metodoCliente} ${origenBadge}</div>
+              <div style="font-weight:700;font-size:0.82rem;color:#1e293b;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">El cliente eligió: ${nombresMetodo[metodoCliente] || esc(metodoCliente)} ${origenBadge}</div>
               <div style="font-size:0.72rem;color:#94a3b8;">Puedes confirmar o cambiar si el cliente pagó diferente</div>
             </div>
           </div>
@@ -999,15 +1028,17 @@ function calcularTotalesPedido(pedido) {
     btnConfirmar.innerHTML = '<span class="btn-spin"></span> Confirmando...';
 
     try {
-      const res = await window.apiRequest(`/api/pedidos/${window.pedidoSeleccionado}/estado-domiciliario`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'entregado', metodo_pago: metodoValue })
+      const pedidoIdEntrega = window.pedidoSeleccionado;
+      const r = await window.colaAcciones.ejecutarOEncolar({
+        pedidoId: pedidoIdEntrega, tipo: 'entregar', descripcion: `Entregado #${pedidoIdEntrega}`,
+        endpoint: `/api/pedidos/${pedidoIdEntrega}/estado-domiciliario`, method: 'PUT',
+        body: { estado: 'entregado', metodo_pago: metodoValue }
       });
 
-      const result = await res.json();
-
-      if (res.ok) {
+      if (r.estado === 'encolado') {
+        mostrarMensaje(`Sin conexión: la entrega del #${pedidoIdEntrega} quedó guardada y se enviará sola cuando vuelva el internet.`, 'info');
+        cerrarModalPago();
+      } else if (r.estado === 'ok') {
         let metodoPagoTexto;
         if (window.pedidoPagadoOnline) {
           metodoPagoTexto = 'pago en línea (Wompi)';
@@ -1127,18 +1158,18 @@ function calcularTotalesPedido(pedido) {
     btnConfirmar.innerHTML = '<span class="btn-spin"></span> Enviando reporte...';
   
     try {
-      const res = await window.apiRequest(`/api/pedidos/${pedidoProblemaId}/estado-domiciliario`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          estado: 'cancelado',
-          comentario_domiciliario: comentario
-        })
+      const pedidoIdProblema = pedidoProblemaId;
+      const r = await window.colaAcciones.ejecutarOEncolar({
+        pedidoId: pedidoIdProblema, tipo: 'no_entregado', descripcion: `No entregado #${pedidoIdProblema}`,
+        endpoint: `/api/pedidos/${pedidoIdProblema}/estado-domiciliario`, method: 'PUT',
+        body: { estado: 'cancelado', comentario_domiciliario: comentario }
       });
+      const result = r.data || {};
   
-      const result = await res.json();
-  
-      if (res.ok) {
+      if (r.estado === 'encolado') {
+        mostrarMensaje(`Sin conexión: el reporte del #${pedidoIdProblema} se enviará cuando vuelva el internet.`, 'info');
+        cerrarModalProblema();
+      } else if (r.estado === 'ok') {
         mostrarMensaje('Reporte enviado: pedido marcado como no entregado');
         cerrarModalProblema();
         await cargarPedidos();
@@ -1193,18 +1224,18 @@ function calcularTotalesPedido(pedido) {
     }
 
     try {
-      const res = await window.apiRequest(`/api/pedidos/${pedidoALiberarId}/liberar`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          motivo_liberacion: motivo,
-          detalle_motivo: detalle
-        })
+      const pedidoIdLiberar = pedidoALiberarId;
+      const r = await window.colaAcciones.ejecutarOEncolar({
+        pedidoId: pedidoIdLiberar, tipo: 'liberar', descripcion: `Liberado #${pedidoIdLiberar}`,
+        endpoint: `/api/pedidos/${pedidoIdLiberar}/liberar`, method: 'POST',
+        body: { motivo_liberacion: motivo, detalle_motivo: detalle }
       });
+      const result = r.data || {};
       
-      const result = await res.json();
-      
-      if (res.ok) {
+      if (r.estado === 'encolado') {
+        mostrarMensaje(`Sin conexión: la liberación del #${pedidoIdLiberar} se enviará cuando vuelva el internet.`, 'info');
+        cerrarModalLiberar();
+      } else if (r.estado === 'ok') {
         mostrarMensaje('✅ Pedido liberado exitosamente');
         cerrarModalLiberar();
         // ✅ Recargar sin delay
@@ -1245,7 +1276,14 @@ function calcularTotalesPedido(pedido) {
     const esPedidoActivo = esMiPedido ||
       (pedido.domiciliario_id === _cacheUsuarioId && pedido.estado?.toLowerCase() === 'camino a tu casa');
 
-    const telefonoMostrar = esPedidoActivo ? (pedido.telefono || 'N/A') : ocultarTelefono(pedido.telefono);
+    const telefonoMostrar = esPedidoActivo ? esc(pedido.telefono || 'N/A') : esc(ocultarTelefono(pedido.telefono));
+    const telOrigen = pedido.tipo_pedido_especial ? pedido.telefono_origen_especial : pedido.restaurantes?.telefono;
+    const contactoCliente = esPedidoActivo
+      ? botonesContacto(pedido.telefono, `Hola${pedido.nombre ? ' ' + pedido.nombre : ''}, soy tu domiciliario de DomiPancho con el pedido #${pedido.id}.`)
+      : '';
+    const contactoOrigen = esPedidoActivo
+      ? botonesContacto(telOrigen, `Hola, soy el domiciliario de DomiPancho del pedido #${pedido.id}.`)
+      : '';
 
     // Dirección completa siempre que sea mi pedido
     const direccionCompleta = esPedidoActivo
@@ -1261,7 +1299,7 @@ function calcularTotalesPedido(pedido) {
           const sub = pr.precio * pr.cantidad;
           return `
             <div class="producto-detalle-item">
-              <div class="producto-nombre-detalle">${pr.nombre}</div>
+              <div class="producto-nombre-detalle">${esc(pr.nombre)}</div>
               <div class="producto-detalles">
                 ${pr.cantidad} x $${pr.precio.toLocaleString('es-CO')} = <strong>$${sub.toLocaleString('es-CO')}</strong>
               </div>
@@ -1278,30 +1316,33 @@ function calcularTotalesPedido(pedido) {
 
     const modalHTML = `
       <div class="modal-detalles-contenido">
+        <button type="button" class="btn-x-modal" onclick="cerrarDetallesPedido()" aria-label="Cerrar"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg></button>
         <h2>Pedido #${pedido.id}</h2>
 
         ${mensajeProteccion}
 
         <div class="detalle-section">
           <h4>Cliente</h4>
-          <p><strong>Nombre:</strong> ${pedido.nombre} ${pedido.apellido}</p>
+          <p><strong>Nombre:</strong> ${esc(pedido.nombre)} ${esc(pedido.apellido)}</p>
           <p><strong>Telefono:</strong> ${telefonoMostrar}</p>
-          <p><strong>Estado:</strong> ${pedido.estado}</p>
+          <p><strong>Estado:</strong> ${esc(pedido.estado)}</p>
+          ${contactoCliente}
         </div>
 
         <div class="detalle-section">
-          <h4>Origen — ${pedido.tipo_pedido_especial ? (pedido.origen_especial || 'Origen especial') : (pedido.restaurantes?.nombre || 'Restaurante')}</h4>
-          <p>${pedido.tipo_pedido_especial ? (pedido.origen_especial || 'Sin dirección') : (pedido.restaurantes?.direccion || 'Sin direccion registrada')}</p>
-          ${pedido.tipo_pedido_especial && pedido.telefono_origen_especial ? `<p><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;color:#f59e0b;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg> Tel: <a href="tel:${pedido.telefono_origen_especial}" style="color:#f59e0b;text-decoration:none;">${pedido.telefono_origen_especial}</a></p>` : ''}
-          ${!pedido.tipo_pedido_especial && pedido.restaurantes?.telefono ? `<p>Tel: ${pedido.restaurantes.telefono}</p>` : ''}
-          ${pedido.tipo_pedido_especial && pedido.descripcion_especial ? `<p style="margin-top:6px;color:#94a3b8;font-size:0.85rem;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> ${pedido.descripcion_especial}</p>` : ''}
-          ${pedido.tipo_pedido_especial && pedido.notas_especial ? `<p style="font-style:italic;color:#64748b;font-size:0.82rem;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> ${pedido.notas_especial}</p>` : ''}
+          <h4>Origen — ${esc(pedido.tipo_pedido_especial ? (pedido.origen_especial || 'Origen especial') : (pedido.restaurantes?.nombre || 'Restaurante'))}</h4>
+          <p>${esc(pedido.tipo_pedido_especial ? (pedido.origen_especial || 'Sin dirección') : (pedido.restaurantes?.direccion || 'Sin direccion registrada'))}</p>
+          ${pedido.tipo_pedido_especial && pedido.telefono_origen_especial ? `<p><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;color:#f59e0b;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/></svg> Tel: ${esc(pedido.telefono_origen_especial)}</p>` : ''}
+          ${!pedido.tipo_pedido_especial && pedido.restaurantes?.telefono ? `<p>Tel: ${esc(pedido.restaurantes.telefono)}</p>` : ''}
+          ${contactoOrigen}
+          ${pedido.tipo_pedido_especial && pedido.descripcion_especial ? `<p style="margin-top:6px;color:#94a3b8;font-size:0.85rem;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg> ${esc(pedido.descripcion_especial)}</p>` : ''}
+          ${pedido.tipo_pedido_especial && pedido.notas_especial ? `<p style="font-style:italic;color:#64748b;font-size:0.82rem;"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:12px;height:12px;vertical-align:middle;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg> ${esc(pedido.notas_especial)}</p>` : ''}
         </div>
 
         <div class="detalle-section">
           <h4>Destino</h4>
-          <p><strong>${direccionCompleta || 'Sin direccion'}</strong></p>
-          ${pedido.barrio ? `<p>Barrio: ${pedido.barrio}</p>` : ''}
+          <p><strong>${esc(direccionCompleta || 'Sin direccion')}</strong></p>
+          ${pedido.barrio ? `<p>Barrio: ${esc(pedido.barrio)}</p>` : ''}
         </div>
 
         <div class="detalle-section">
@@ -1327,7 +1368,7 @@ function calcularTotalesPedido(pedido) {
             }
             return html;
           })()}
-          ${pedido.metodo_pago ? `<p><strong>Método de pago:</strong> <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;font-size:0.85rem;font-weight:600;background:${pedido.metodo_pago === 'efectivo' ? 'rgba(16,185,129,0.1);color:#10b981' : pedido.metodo_pago === 'nequi' ? 'rgba(139,92,246,0.1);color:#8b5cf6' : pedido.metodo_pago === 'daviplata' ? 'rgba(239,68,68,0.1);color:#ef4444' : pedido.metodo_pago === 'transferencia' ? 'rgba(59,130,246,0.1);color:#3b82f6' : pedido.metodo_pago === 'datafono' ? 'rgba(245,158,11,0.1);color:#f59e0b' : 'rgba(100,116,139,0.1);color:#64748b'};">${pedido.metodo_pago === 'efectivo' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' : (pedido.metodo_pago === 'nequi' || pedido.metodo_pago === 'daviplata') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>' : pedido.metodo_pago === 'transferencia' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>'} ${pedido.metodo_pago === 'pagado al restaurante' ? 'Pagado al restaurante' : (typeof pedido.metodo_pago === 'string' && pedido.metodo_pago.startsWith('wompi_')) ? 'Pagado en línea' : pedido.metodo_pago.charAt(0).toUpperCase() + pedido.metodo_pago.slice(1)}</span></p>` : '<p><strong>Método de pago:</strong> <span style="color:#94a3b8;font-size:0.85rem;">No especificado</span></p>'}
+          ${pedido.metodo_pago ? `<p><strong>Método de pago:</strong> <span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:8px;font-size:0.85rem;font-weight:600;background:${pedido.metodo_pago === 'efectivo' ? 'rgba(16,185,129,0.1);color:#10b981' : pedido.metodo_pago === 'nequi' ? 'rgba(139,92,246,0.1);color:#8b5cf6' : pedido.metodo_pago === 'daviplata' ? 'rgba(239,68,68,0.1);color:#ef4444' : pedido.metodo_pago === 'transferencia' ? 'rgba(59,130,246,0.1);color:#3b82f6' : pedido.metodo_pago === 'datafono' ? 'rgba(245,158,11,0.1);color:#f59e0b' : 'rgba(100,116,139,0.1);color:#64748b'};">${pedido.metodo_pago === 'efectivo' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>' : (pedido.metodo_pago === 'nequi' || pedido.metodo_pago === 'daviplata') ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>' : pedido.metodo_pago === 'transferencia' ? '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:13px;height:13px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>'} ${pedido.metodo_pago === 'pagado al restaurante' ? 'Pagado al restaurante' : (typeof pedido.metodo_pago === 'string' && pedido.metodo_pago.startsWith('wompi_')) ? 'Pagado en línea' : esc(pedido.metodo_pago.charAt(0).toUpperCase() + pedido.metodo_pago.slice(1))}</span></p>` : '<p><strong>Método de pago:</strong> <span style="color:#94a3b8;font-size:0.85rem;">No especificado</span></p>'}
           <p>Subtotal productos: $${totales.subtotalProductos.toLocaleString('es-CO')}</p>
           ${generarDesgloseEnvio(pedido, totales)}
           ${totales.tieneCupon ? `
@@ -1468,14 +1509,22 @@ function calcularTotalesPedido(pedido) {
   let _lastDisponiblesHash = '';
 
   function _calcHash(pedidos) {
-    return pedidos.map(p => `${p.id}:${p.estado}:${p.pedido_listo_en || ''}`).join('|');
+    const pend = (id) => (window.colaAcciones?.pendientePara(id)?.tipo || '');
+    return pedidos.map(p => `${p.id}:${p.estado}:${p.pedido_listo_en || ''}:${pend(p.id)}`).join('|');
+  }
+
+  // ✅ Cuando cambia la cola offline, repintar las tarjetas activas (sin red, desde memoria)
+  let _ultimosActivos = [];
+  if (window.colaAcciones) {
+    window.colaAcciones.onCambio(() => renderizarPedidosActivosDesdeCache(_ultimosActivos));
   }
 
   function renderizarPedidosActivosDesdeCache(activos) {
     const destino = document.getElementById('listaPedidosActivos');
     if (!destino) return;
 
-    const hash = _calcHash(activos);
+    _ultimosActivos = activos || [];
+    const hash = _calcHash(_ultimosActivos);
     if (hash === _lastActivosHash) return; // ✅ No cambió, no re-renderizar
     _lastActivosHash = hash;
 

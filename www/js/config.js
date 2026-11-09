@@ -188,7 +188,7 @@ window.parseJsonSafely = async function(response) {
       if (text.includes('login') || text.includes('auth')) {
         console.warn('🔒 Redirigiendo a login por respuesta HTML');
         setTimeout(() => {
-          window.location.href = '/login.html';
+          window.location.href = '/index.html';
         }, 1000);
       }
       throw new Error('El servidor devolvió HTML en lugar de JSON');
@@ -205,5 +205,174 @@ window.parseJsonSafely = async function(response) {
   }
 };
 
+
+// ============================================================
+//  SEGURIDAD: escapar texto antes de meterlo en innerHTML
+// ============================================================
+// Todo dato que escribe un cliente/restaurante (notas, dirección, nombre…)
+// debe pasar por aquí antes de insertarse en una plantilla HTML.
+window.escHtml = function(valor) {
+  if (valor === null || valor === undefined) return '';
+  return String(valor)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+};
+
+// ============================================================
+//  CONTACTO: links de llamada y WhatsApp a partir de un teléfono
+// ============================================================
+// Devuelve solo dígitos (conserva "+" inicial) o null si no es un número usable.
+window.normalizarTelefono = function(tel) {
+  if (tel === null || tel === undefined) return null;
+  const str = String(tel).trim();
+  if (str.includes('*')) return null; // teléfono censurado
+  const digitos = str.replace(/\D/g, '');
+  if (digitos.length < 7) return null;
+  return (str.startsWith('+') ? '+' : '') + digitos;
+};
+
+window.telHref = function(tel) {
+  const n = window.normalizarTelefono(tel);
+  return n ? `tel:${n}` : null;
+};
+
+// WhatsApp necesita el número con indicativo de país (Colombia = 57)
+window.whatsappHref = function(tel, mensaje) {
+  const n = window.normalizarTelefono(tel);
+  if (!n) return null;
+  let digitos = n.replace(/\D/g, '');
+  if (digitos.length === 10 && digitos.startsWith('3')) digitos = '57' + digitos;
+  if (digitos.length < 11) return null; // fijo local sin indicativo: WhatsApp no sirve
+  return `https://wa.me/${digitos}` + (mensaje ? `?text=${encodeURIComponent(mensaje)}` : '');
+};
+
+// Abre tel:/wa.me fuera del WebView (app de teléfono / WhatsApp).
+// En el APK, Capacitor intercepta la navegación a esquemas/hosts externos y la
+// abre con un Intent de Android (no sale de la app). En navegador web, nueva pestaña.
+window.abrirContacto = function(url) {
+  if (!url || !/^(tel:|https:\/\/wa\.me\/)/.test(url)) return;
+  if (window.Capacitor || url.startsWith('tel:')) {
+    window.location.href = url;
+  } else {
+    window.open(url, '_blank', 'noopener');
+  }
+};
+
+// ============================================================
+//  COLA OFFLINE: acciones que no se pudieron enviar por falta de red
+// ============================================================
+// Si se cae el internet justo al marcar "Entregado", "Ya recogí", "Liberar"
+// o "No entregado", la acción se guarda aquí (persistida en localStorage) y se
+// reenvía sola cuando vuelve la conexión. Solo se encolan errores de RED: si el
+// servidor responde con un error real (4xx/5xx) se informa al usuario como antes.
+(function() {
+  const COLA_KEY = 'dp_cola_acciones';
+  let enviando = false;
+  const listeners = [];
+
+  function leer() {
+    try { return JSON.parse(localStorage.getItem(COLA_KEY) || '[]'); } catch (e) { return []; }
+  }
+  function guardar(cola) {
+    try { localStorage.setItem(COLA_KEY, JSON.stringify(cola)); } catch (e) { /* sin espacio */ }
+    listeners.forEach(fn => { try { fn(cola); } catch (e) {} });
+  }
+
+  function hayRed() {
+    return typeof navigator === 'undefined' || navigator.onLine !== false;
+  }
+
+  // Ejecuta la acción; si falla por red la encola. Devuelve:
+  //   { estado: 'ok' | 'error', res, data }   → el servidor respondió
+  //   { estado: 'encolado' }                   → sin red, se enviará después
+  async function ejecutarOEncolar({ pedidoId, tipo, endpoint, method, body, descripcion }) {
+    const item = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, pedidoId, tipo, endpoint, method, body, descripcion, creado: Date.now() };
+
+    // Ya hay una acción pendiente para este pedido → va detrás, para respetar el orden
+    const cola = leer();
+    if (!hayRed() || cola.some(a => a.pedidoId === pedidoId)) {
+      cola.push(item);
+      guardar(cola);
+      return { estado: 'encolado' };
+    }
+
+    try {
+      const res = await window.apiRequest(endpoint, { method, body: body ? JSON.stringify(body) : undefined });
+      let data = null;
+      try { data = await res.json(); } catch (e) { /* sin cuerpo JSON */ }
+      return { estado: res.ok ? 'ok' : 'error', res, data };
+    } catch (error) {
+      const c = leer();
+      c.push(item);
+      guardar(c);
+      return { estado: 'encolado' };
+    }
+  }
+
+  // Reenvía la cola en orden. Se detiene al primer error de red.
+  async function procesar() {
+    if (enviando || !hayRed()) return;
+    let cola = leer();
+    if (!cola.length) return;
+    enviando = true;
+    const enviados = [];
+    const rechazados = [];
+    try {
+      while (cola.length) {
+        const item = cola[0];
+        let res;
+        try {
+          res = await window.apiRequest(item.endpoint, { method: item.method, body: item.body ? JSON.stringify(item.body) : undefined });
+        } catch (e) {
+          break; // sigue sin red: reintentar más tarde
+        }
+        if (res.status === 401 || res.status === 403) break; // sesión vencida: esperar a que vuelva a entrar
+        if (res.ok) {
+          enviados.push(item);
+        } else {
+          let data = null;
+          try { data = await res.json(); } catch (e) {}
+          rechazados.push({ ...item, error: (data && data.error) || `Error ${res.status}` });
+        }
+        cola = leer().filter(a => a.id !== item.id);
+        guardar(cola);
+      }
+    } finally {
+      enviando = false;
+    }
+
+    if (enviados.length || rechazados.length) {
+      if (window.apiRequest.invalidate) window.apiRequest.invalidate();
+      const msg = window.mostrarMensaje || (() => {});
+      if (enviados.length) {
+        msg(`Conexión recuperada: ${enviados.length === 1 ? enviados[0].descripcion : enviados.length + ' acciones'} enviada${enviados.length === 1 ? '' : 's'}`, 'success');
+      }
+      rechazados.forEach(r => msg(`No se pudo enviar "${r.descripcion}": ${r.error}`, 'error'));
+      if (typeof window.cargarPedidos === 'function') window.cargarPedidos();
+    }
+  }
+
+  window.colaAcciones = {
+    ejecutarOEncolar,
+    procesar,
+    pendientes: leer,
+    pendientePara: (pedidoId) => leer().find(a => String(a.pedidoId) === String(pedidoId)) || null,
+    limpiar: () => guardar([]),
+    onCambio: (fn) => listeners.push(fn)
+  };
+
+  // Reintentar cuando vuelve la red, al volver a la app y cada 20 s
+  window.addEventListener('online', () => setTimeout(procesar, 1000));
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) procesar(); });
+  setInterval(procesar, 20000);
+  try {
+    const Network = window.Capacitor?.Plugins?.Network;
+    if (Network) Network.addListener('networkStatusChange', (s) => { if (s.connected) setTimeout(procesar, 1000); });
+  } catch (e) { /* plugin no disponible */ }
+  setTimeout(procesar, 3000);
+})();
 
 console.log('✅ config.js cargado completamente');
