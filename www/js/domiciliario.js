@@ -503,6 +503,14 @@ function calcularTotalesPedido(pedido) {
       ? `<div class="badge-liberado"><span class="badge-lib-inner">${ICON_LIBERADO} Liberado</span></div>`
       : '';
    
+    // 🌊 OLEADAS: pedido ofrecido primero a este domiciliario (por cercanía)
+    const segOferta = Number(p.oferta_segundos_restantes) || 0;
+    const badgeOferta = (!esMiPedido && p.oferta_exclusiva && segOferta > 0)
+      ? `<div class="badge-oferta" data-oferta-fin="${Date.now() + segOferta * 1000}">
+           <span class="badge-oferta-inner">⚡ Te lo ofrecemos primero · <span class="oferta-seg">${segOferta}</span>s</span>
+         </div>`
+      : '';
+
     // Origen: para especiales usa origen_especial, para normales el restaurante
     const origenNombre = esEspecial
       ? (p.origen_especial || 'Origen especial')
@@ -638,6 +646,7 @@ function calcularTotalesPedido(pedido) {
     return `
       <div class="pedido-card ${cardClass}${previewClass}${liberadoClass}${origenClass}" data-pedido-id="${p.id}" style="${borderStyle}">
    
+        ${badgeOferta}
         ${badgeLiberado}
         ${badgeEspecial}
    
@@ -704,7 +713,11 @@ function calcularTotalesPedido(pedido) {
         return `<button class="cbtn cbtn-nd" disabled>No disponible</button>`;
       }
       const off = cantidadActivos >= maxPedidosGlobal;
-      return `<button class="cbtn cbtn-tomar" onclick="tomarPedido(${pedido.id})" ${off ? 'disabled' : ''}>${off ? 'Limite alcanzado' : 'Tomar pedido'}</button>`;
+      // 🌊 "No puedo": solo si el backend maneja ofertas (trae oferta_exclusiva)
+      const btnNoPuedo = (pedido.oferta_exclusiva !== undefined)
+        ? `<button class="cbtn cbtn-nopuedo" onclick="rechazarOferta(${pedido.id})">No puedo</button>`
+        : '';
+      return `${btnNoPuedo}<button class="cbtn cbtn-tomar" onclick="tomarPedido(${pedido.id})" ${off ? 'disabled' : ''}>${off ? 'Limite alcanzado' : 'Tomar pedido'}</button>`;
     }
     return '';
   }
@@ -783,6 +796,55 @@ function calcularTotalesPedido(pedido) {
       mostrarMensaje('❌ Error de conexión', 'error');
     }
   }
+
+  // ========== 🌊 RECHAZAR OFERTA ("No puedo") ==========
+  async function rechazarOferta(pedidoId) {
+    // Silenciar alarma: este pedido ya no le interesa
+    if (window.fcmNotificationService) {
+      window.fcmNotificationService.silenciarAlarma();
+    }
+
+    const tarjeta = document.querySelector(`[data-pedido-id="${pedidoId}"]`);
+    tarjeta?.querySelectorAll('.cbtn').forEach(b => { b.disabled = true; });
+    const btn = tarjeta?.querySelector('.cbtn-nopuedo');
+    if (btn) btn.innerHTML = '<span class="btn-spin"></span>';
+
+    try {
+      const res = await window.apiRequest(`/api/pedidos/${pedidoId}/rechazar-oferta`, { method: 'POST' });
+      if (res.ok) {
+        if (tarjeta) {
+          tarjeta.style.transition = 'all 0.3s ease';
+          tarjeta.style.opacity = '0';
+          tarjeta.style.transform = 'scale(0.95)';
+        }
+        mostrarMensaje('Listo, se lo ofrecemos a otro domiciliario', 'info');
+      } else {
+        const result = await res.json().catch(() => ({}));
+        if (!result.noDisponible) {
+          mostrarMensaje(`❌ ${result.error || 'No se pudo rechazar el pedido'}`, 'error');
+        }
+      }
+    } catch (error) {
+      console.error('Error al rechazar oferta:', error);
+      mostrarMensaje('❌ Error de conexión', 'error');
+    }
+    _lastDisponiblesHash = '';
+    await cargarPedidos();
+  }
+
+  // ⏱️ Contador de las ofertas exclusivas (se actualiza cada segundo sin repintar la lista)
+  setInterval(() => {
+    document.querySelectorAll('.badge-oferta[data-oferta-fin]').forEach(el => {
+      const restante = Math.max(0, Math.round((Number(el.dataset.ofertaFin) - Date.now()) / 1000));
+      const seg = el.querySelector('.oferta-seg');
+      if (restante > 0) {
+        if (seg) seg.textContent = restante;
+      } else {
+        // La oferta se abrió a más domiciliarios: quitar el aviso
+        el.remove();
+      }
+    });
+  }, 1000);
 
   // ========== RECOGER PEDIDO (preparando pedido → camino a tu casa) ==========
   async function recogerPedido(pedidoId, forzado = false) {
@@ -1510,7 +1572,7 @@ function calcularTotalesPedido(pedido) {
 
   function _calcHash(pedidos) {
     const pend = (id) => (window.colaAcciones?.pendientePara(id)?.tipo || '');
-    return pedidos.map(p => `${p.id}:${p.estado}:${p.pedido_listo_en || ''}:${pend(p.id)}`).join('|');
+    return pedidos.map(p => `${p.id}:${p.estado}:${p.pedido_listo_en || ''}:${pend(p.id)}:${p.oferta_exclusiva ? 'x' : ''}`).join('|');
   }
 
   // ✅ Cuando cambia la cola offline, repintar las tarjetas activas (sin red, desde memoria)
@@ -2250,6 +2312,7 @@ function calcularTotalesPedido(pedido) {
   // ========== EXPORTAR FUNCIONES GLOBALES ==========
   window.logout = logout;
   window.tomarPedido = tomarPedido;
+  window.rechazarOferta = rechazarOferta;
   window.recogerPedido = recogerPedido;
   window.abrirModalPago = abrirModalPago;
   window.cerrarModalPago = cerrarModalPago;

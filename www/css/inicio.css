@@ -344,6 +344,20 @@
   .pedido-card.origen-plataforma   { border-left-color: #3b82f6; }
   .pedido-card.origen-restaurante  { border-left-color: #f59e0b; }
   
+  /* 🌊 Oferta exclusiva por cercanía */
+  .badge-oferta { margin-bottom: 8px; }
+  .badge-oferta-inner {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--success-soft, rgba(22, 163, 74, 0.12));
+    color: var(--success, #16a34a);
+    border: 1px solid rgba(22, 163, 74, 0.25);
+    font-size: 0.7rem; font-weight: 800;
+    padding: 4px 8px;
+    border-radius: 6px;
+    line-height: 1;
+  }
+  .oferta-seg { font-variant-numeric: tabular-nums; }
+
   .badge-liberado { margin-bottom: 8px; }
   .badge-lib-inner {
     display: inline-flex; align-items: center; gap: 4px;
@@ -539,6 +553,7 @@
   .cbtn-lib   { background: var(--warning-soft); color: var(--warning); border-color: rgba(217, 119, 6, 0.25); }
   .cbtn-prob  { background: var(--danger-soft); color: var(--danger); border-color: rgba(220, 38, 38, 0.2); }
   .cbtn-nd    { background: var(--bg-elevated); color: var(--text-muted); }
+  .cbtn-nopuedo { background: var(--bg-surface); color: var(--text-muted); border-color: var(--border-strong); }
   .cbtn-recoger { background: var(--success) !important; color: #fff !important; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25); }
   
   .btn-spin {
