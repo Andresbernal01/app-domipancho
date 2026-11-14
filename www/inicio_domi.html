@@ -892,7 +892,7 @@
   };
 
   function obtenerCostoDomicilioHist(pedido) {
-    if (pedido.costo_domicilio) return pedido.costo_domicilio;
+    if (pedido.costo_domicilio != null && pedido.costo_domicilio !== '') return Number(pedido.costo_domicilio) || 0;
     if (!pedido.restaurantes?.ciudad) return 5000;
     const ciudad = pedido.restaurantes.ciudad.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     return TARIFAS_POR_CIUDAD[ciudad] || 5000;
@@ -900,12 +900,15 @@
 
   function calcularTotalesHist(pedido) {
     const productos = Array.isArray(pedido.productos) ? pedido.productos : [];
-    const subtotal = productos.reduce((s, p) => s + (p.precio * p.cantidad), 0);
+    const subtotal = productos.reduce((s, p) => s + ((Number(p.precio) || 0) * (Number(p.cantidad) || 0)), 0);
     const domicilio = obtenerCostoDomicilioHist(pedido);
-    const tarifa = pedido.tarifa_domipancho || 0;
+    const tarifa = Number(pedido.tarifa_domipancho) || 0;
+    const desc = Number(pedido.descuento_cupon) || 0;
     
-    if (pedido.descuento_cupon && pedido.total_con_descuento) {
-      return { subtotalProductos: subtotal, costoDomicilio: domicilio, tarifaDomiPancho: tarifa, descuentoCupon: pedido.descuento_cupon, totalSinDescuento: pedido.total_sin_descuento || (subtotal + domicilio + tarifa), totalConDescuento: pedido.total_con_descuento, tieneCupon: true };
+    // ⚠️ FIX: total_con_descuento en BD es solo productos; el total real incluye domicilio + tarifa
+    if (desc > 0) {
+      const sinDesc = subtotal + domicilio + tarifa;
+      return { subtotalProductos: subtotal, costoDomicilio: domicilio, tarifaDomiPancho: tarifa, descuentoCupon: desc, totalSinDescuento: sinDesc, totalConDescuento: Math.max(0, sinDesc - desc), tieneCupon: true };
     }
     const total = subtotal + domicilio + tarifa;
     return { subtotalProductos: subtotal, costoDomicilio: domicilio, tarifaDomiPancho: tarifa, descuentoCupon: 0, totalSinDescuento: total, totalConDescuento: total, tieneCupon: false };

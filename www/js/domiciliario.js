@@ -57,8 +57,10 @@
 
   // ========== UTILIDADES ==========
   function obtenerCostoDomicilio(pedido) {
-    if (pedido.costo_domicilio) {
-      return pedido.costo_domicilio;
+    // ✅ != null (no "truthy"): un domicilio de $0 es válido y NO debe
+    // reemplazarse por la tarifa fija de la ciudad (se cobraba de más).
+    if (pedido.costo_domicilio != null && pedido.costo_domicilio !== '') {
+      return Number(pedido.costo_domicilio) || 0;
     }
     
     if (!pedido.restaurantes?.ciudad) {
@@ -140,20 +142,26 @@
 // ✅ Calcular totales con información de cupón y tarifa DomiPancho
 function calcularTotalesPedido(pedido) {
   const productosArray = Array.isArray(pedido.productos) ? pedido.productos : [];
-  const subtotalProductos = productosArray.reduce((sum, pr) => sum + (pr.precio * pr.cantidad), 0);
+  const subtotalProductos = productosArray.reduce((sum, pr) => sum + ((Number(pr.precio) || 0) * (Number(pr.cantidad) || 0)), 0);
   const costoDomicilio = obtenerCostoDomicilio(pedido);
   
   // ✅ NUEVO: Incluir tarifa DomiPancho si existe
-  const tarifaDomiPancho = pedido.tarifa_domipancho || 0;
+  const tarifaDomiPancho = Number(pedido.tarifa_domipancho) || 0;
+  const descuentoCupon = Number(pedido.descuento_cupon) || 0;
   
-  if (pedido.descuento_cupon && pedido.total_con_descuento) {
+  if (descuentoCupon > 0) {
+    // ⚠️ FIX COBRO: total_con_descuento / total_sin_descuento en la BD son SOLO
+    // productos (sin domicilio ni tarifa). Antes se mostraba ese valor como
+    // "Total a cobrar" → en pedidos con cupón el domiciliario cobraba SIN el domicilio.
+    // El cupón solo descuenta productos, así que se arma el total por partes.
+    const totalSinDescuento = subtotalProductos + costoDomicilio + tarifaDomiPancho;
     return {
       subtotalProductos,
       costoDomicilio,
-      tarifaDomiPancho,  // ✅ NUEVO
-      descuentoCupon: pedido.descuento_cupon,
-      totalSinDescuento: pedido.total_sin_descuento || (subtotalProductos + costoDomicilio + tarifaDomiPancho),
-      totalConDescuento: pedido.total_con_descuento,
+      tarifaDomiPancho,
+      descuentoCupon,
+      totalSinDescuento,
+      totalConDescuento: Math.max(0, totalSinDescuento - descuentoCupon),
       tieneCupon: true
     };
   }
